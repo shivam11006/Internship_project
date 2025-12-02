@@ -1,0 +1,7 @@
+com\example\legalaid_backend\LegalaidBackendApplication.class
+com\example\legalaid_backend\repository\UserRepository.class
+com\example\legalaid_backend\entity\Role.class
+com\example\legalaid_backend\config\CorsConfig.class
+com\example\legalaid_backend\entity\LawyerProfile.class
+com\example\legalaid_backend\entity\NgoProfile.class
+com\example\legalaid_backend\entity\User.class
