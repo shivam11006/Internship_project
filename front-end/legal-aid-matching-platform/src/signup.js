@@ -201,7 +201,7 @@ function Signup() {
         </form>
 
         <div className="signin-link">
-          Already have an account? <a href="#signin">Log In</a>
+          Already have an account? <a href="#Signin">Log In</a>
         </div>
 
         <div className="terms">
@@ -215,3 +215,4 @@ function Signup() {
 }
 
 export default Signup;
+
