@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
 import './Dashboard.css';
@@ -6,10 +6,56 @@ import './Dashboard.css';
 function DashboardLawyer() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
+  const [activeTab, setActiveTab] = useState('requests');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [profileData, setProfileData] = useState({
+    username: user?.username || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    specialization: user?.specialization || '',
+    licenseNumber: user?.licenseNumber || '',
+    yearsOfExperience: user?.yearsOfExperience || '',
+  });
 
   const handleLogout = () => {
     authService.logout();
     navigate('/signin');
+  };
+
+  const handleEditToggle = () => {
+    setIsEditing(!isEditing);
+    if (isEditing) {
+      setProfileData({
+        username: user?.username || '',
+        email: user?.email || '',
+        phone: user?.phone || '',
+        specialization: user?.specialization || '',
+        licenseNumber: user?.licenseNumber || '',
+        yearsOfExperience: user?.yearsOfExperience || '',
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    const result = await authService.updateProfile(profileData);
+    setIsSaving(false);
+    
+    if (result.success) {
+      setIsEditing(false);
+      alert('Profile updated successfully!');
+    } else {
+      alert(result.error || 'Failed to update profile');
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const clientRequests = [
@@ -28,14 +74,14 @@ function DashboardLawyer() {
         </div>
         
         <nav className="dashboard-nav">
-          <button className="nav-item">
+          <button className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
             <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             <span>Profile Management</span>
           </button>
           
-          <button className="nav-item active">
+          <button className={`nav-item ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
             <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -68,8 +114,26 @@ function DashboardLawyer() {
       {/* Main Content */}
       <div className="dashboard-main">
         <div className="dashboard-header">
-          <h1 className="dashboard-title">Lawyer Dashboard</h1>
+          <h1 className="dashboard-title">{activeTab === 'profile' ? 'Profile Management' : 'Lawyer Dashboard'}</h1>
           <div className="header-actions">
+            {activeTab === 'profile' && isEditing && (
+              <>
+                <button className="btn-decline" onClick={handleEditToggle} style={{ marginRight: '8px' }}>
+                  Cancel
+                </button>
+                <button className="btn-approve" onClick={handleSave} disabled={isSaving} style={{ marginRight: '12px' }}>
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </>
+            )}
+            {activeTab === 'profile' && !isEditing && (
+              <button className="btn-approve" onClick={handleEditToggle} style={{ marginRight: '12px' }}>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px', display: 'inline' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Profile
+              </button>
+            )}
             <div className="notification-icon">
               <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -81,10 +145,103 @@ function DashboardLawyer() {
         </div>
 
         <div className="dashboard-content">
-          <p className="dashboard-subtitle">Manage your legal practice and client relationships.</p>
+          {activeTab === 'profile' && (
+            <>
+              <p className="dashboard-subtitle">Manage your professional profile and credentials.</p>
+              
+              {/* Profile Form */}
+              <div className="data-table-container" style={{ marginBottom: '24px' }}>
+                <div className="table-header">
+                  <h2 className="table-title">Professional Information</h2>
+                </div>
+                <div style={{ padding: '24px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Full Name</label>
+                      <input 
+                        type="text" 
+                        name="username"
+                        value={profileData.username} 
+                        onChange={handleChange}
+                        disabled={!isEditing}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', cursor: isEditing ? 'text' : 'not-allowed' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Email Address</label>
+                      <input 
+                        type="email" 
+                        name="email"
+                        value={profileData.email} 
+                        onChange={handleChange}
+                        disabled={!isEditing}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', cursor: isEditing ? 'text' : 'not-allowed' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Phone Number</label>
+                      <input 
+                        type="tel" 
+                        name="phone"
+                        value={profileData.phone}
+                        onChange={handleChange}
+                        placeholder="Enter phone number" 
+                        disabled={!isEditing}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', cursor: isEditing ? 'text' : 'not-allowed' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>License Number</label>
+                      <input 
+                        type="text" 
+                        name="licenseNumber"
+                        value={profileData.licenseNumber}
+                        onChange={handleChange}
+                        placeholder="Enter license number"
+                        disabled={!isEditing}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', cursor: isEditing ? 'text' : 'not-allowed' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Specialization</label>
+                      <input 
+                        type="text" 
+                        name="specialization"
+                        value={profileData.specialization}
+                        onChange={handleChange}
+                        placeholder="e.g., Family Law, Criminal Law"
+                        disabled={!isEditing}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', cursor: isEditing ? 'text' : 'not-allowed' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Years of Experience</label>
+                      <input 
+                        type="number" 
+                        name="yearsOfExperience"
+                        value={profileData.yearsOfExperience}
+                        onChange={handleChange}
+                        placeholder="Enter years of experience"
+                        disabled={!isEditing}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', cursor: isEditing ? 'text' : 'not-allowed' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
           
-          {/* Stats Cards */}
-          <div className="stats-grid">
+          {activeTab === 'requests' && (
+            <>
+              <p className="dashboard-subtitle">Manage your legal practice and client relationships.</p>
+              
+              {/* Stats Cards */}
+              <div className="stats-grid">
             <div className="stat-card">
               <div className="stat-label">Active Clients</div>
               <div className="stat-value">18</div>
@@ -155,6 +312,8 @@ function DashboardLawyer() {
               </tbody>
             </table>
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>

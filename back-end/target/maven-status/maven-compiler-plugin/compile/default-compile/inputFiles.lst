@@ -1,0 +1,15 @@
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\controller\UserController.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\config\CorsConfig.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\DTO\RegisterRequest.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\util\Role.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\LegalaidBackendApplication.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\service\IUserService.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\entity\Role.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\entity\User.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\service\UserService.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\entity\NgoProfile.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\entity\LawyerProfile.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\repository\UserRepository.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\DTO\UserResponse.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\repository\LawyerProfileRepository.java
+C:\Users\koven\source\repos\team-three\back-end\src\main\java\com\example\legalaid_backend\repository\NgoProfileRepository.java

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
 import './Dashboard.css';
@@ -6,10 +6,54 @@ import './Dashboard.css';
 function DashboardCitizen() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileData, setProfileData] = useState({
+    username: user?.username || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    address: user?.address || '',
+  });
 
   const handleLogout = () => {
     authService.logout();
     navigate('/signin');
+  };
+
+  const handleViewProfile = () => {
+    setShowProfileMenu(false);
+    setShowProfileModal(true);
+    setIsEditing(false);
+  };
+
+  const handleEditProfile = () => {
+    setIsEditing(true);
+  };
+
+  const handleSaveProfile = async () => {
+    const result = await authService.updateProfile(profileData);
+    if (result.success) {
+      alert('Profile updated successfully!');
+      setIsEditing(false);
+    } else {
+      alert(result.error || 'Failed to update profile');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setProfileData({
+      username: user?.username || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      address: user?.address || '',
+    });
+    setIsEditing(false);
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
   return (
@@ -69,117 +113,131 @@ function DashboardCitizen() {
       {/* Main Content */}
       <div className="dashboard-main">
         <div className="dashboard-header">
-          <h1 className="dashboard-title">Profile Management</h1>
-          <div className="header-actions">
-            <div className="notification-icon">
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          <h1 className="dashboard-title">Dashboard</h1>
+          <div className="header-profile">
+            <div className="profile-dropdown" onClick={() => setShowProfileMenu(!showProfileMenu)}>
+              <div className="profile-avatar">
+                {user?.username?.charAt(0).toUpperCase() || 'C'}
+              </div>
+              <div className="profile-info">
+                <div className="profile-name">{user?.username || 'Citizen'}</div>
+                <div className="profile-email">{user?.email || ''}</div>
+              </div>
+              <svg className="dropdown-icon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
-              <span className="notification-badge"></span>
             </div>
-            <button className="logout-btn" onClick={handleLogout}>Logout</button>
+            {showProfileMenu && (
+              <div className="profile-menu">
+                <button className="profile-menu-item" onClick={handleViewProfile}>
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  View Profile
+                </button>
+                <button className="profile-menu-item" onClick={handleLogout}>
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="dashboard-content">
-          <p className="dashboard-subtitle">Manage your personal information and account settings.</p>
-          
-          {/* Profile Form */}
-          <div className="data-table-container" style={{ marginBottom: '24px' }}>
-            <div className="table-header">
-              <h2 className="table-title">Personal Information</h2>
-              <button className="btn-approve">Edit Profile</button>
-            </div>
-            <div style={{ padding: '24px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Full Name</label>
-                  <input 
-                    type="text" 
-                    value={user?.username || ''} 
-                    disabled
-                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: '#f9fafb' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Email Address</label>
-                  <input 
-                    type="email" 
-                    value={user?.email || ''} 
-                    disabled
-                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: '#f9fafb' }}
-                  />
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Phone Number</label>
-                  <input 
-                    type="tel" 
-                    placeholder="Not set" 
-                    disabled
-                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: '#f9fafb' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Account Type</label>
-                  <input 
-                    type="text" 
-                    value={user?.role || ''} 
-                    disabled
-                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: '#f9fafb' }}
-                  />
-                </div>
-              </div>
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Address</label>
-                <textarea 
-                  placeholder="Not set" 
-                  disabled
-                  rows={3}
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: '#f9fafb', resize: 'vertical' }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Account Settings */}
-          <div className="data-table-container">
-            <div className="table-header">
-              <h2 className="table-title">Account Settings</h2>
-            </div>
-            <div style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid #e5e7eb' }}>
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: '500', color: '#1f2937', marginBottom: '4px' }}>Email Notifications</div>
-                  <div style={{ fontSize: '13px', color: '#6b7280' }}>Receive updates about your cases via email</div>
-                </div>
-                <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
-                  <input type="checkbox" style={{ opacity: 0, width: 0, height: 0 }} />
-                  <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#2e5a8a', borderRadius: '24px', transition: '0.4s' }}></span>
-                </label>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0', borderBottom: '1px solid #e5e7eb' }}>
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: '500', color: '#1f2937', marginBottom: '4px' }}>SMS Notifications</div>
-                  <div style={{ fontSize: '13px', color: '#6b7280' }}>Receive urgent case updates via SMS</div>
-                </div>
-                <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
-                  <input type="checkbox" style={{ opacity: 0, width: 0, height: 0 }} />
-                  <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#e5e7eb', borderRadius: '24px', transition: '0.4s' }}></span>
-                </label>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0' }}>
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: '500', color: '#1f2937', marginBottom: '4px' }}>Two-Factor Authentication</div>
-                  <div style={{ fontSize: '13px', color: '#6b7280' }}>Add an extra layer of security to your account</div>
-                </div>
-                <button className="btn-approve">Enable</button>
-              </div>
-            </div>
+          <div className="empty-state">
+            <div className="empty-icon">📋</div>
+            <h2 className="empty-title">Welcome to Your Dashboard</h2>
+            <p className="empty-description">Your content will appear here</p>
           </div>
         </div>
       </div>
+
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Profile</h2>
+              <button className="modal-close" onClick={() => setShowProfileModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="profile-section">
+                <div className="profile-avatar-large">
+                  {user?.username?.charAt(0).toUpperCase() || 'C'}
+                </div>
+                <div className="profile-role-badge">{user?.role || 'CITIZEN'}</div>
+              </div>
+              
+              <div className="profile-form">
+                <div className="form-group">
+                  <label>Full Name</label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={profileData.username}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                    className={!isEditing ? 'disabled' : ''}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={profileData.email}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                    className={!isEditing ? 'disabled' : ''}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Phone Number</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={profileData.phone}
+                    onChange={handleChange}
+                    placeholder="Enter phone number"
+                    disabled={!isEditing}
+                    className={!isEditing ? 'disabled' : ''}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Address</label>
+                  <textarea
+                    name="address"
+                    value={profileData.address}
+                    onChange={handleChange}
+                    placeholder="Enter your address"
+                    disabled={!isEditing}
+                    rows={3}
+                    className={!isEditing ? 'disabled' : ''}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              {!isEditing ? (
+                <button className="btn-primary" onClick={handleEditProfile}>
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit Profile
+                </button>
+              ) : (
+                <>
+                  <button className="btn-secondary" onClick={handleCancelEdit}>Cancel</button>
+                  <button className="btn-primary" onClick={handleSaveProfile}>Save Changes</button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
