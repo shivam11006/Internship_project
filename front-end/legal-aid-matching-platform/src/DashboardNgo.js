@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
 import './Dashboard.css';
@@ -6,10 +6,56 @@ import './Dashboard.css';
 function DashboardNgo() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
+  const [activeTab, setActiveTab] = useState('cases');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [profileData, setProfileData] = useState({
+    username: user?.username || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    registrationNumber: user?.registrationNumber || '',
+    focusAreas: user?.focusAreas || '',
+    address: user?.address || '',
+  });
 
   const handleLogout = () => {
     authService.logout();
     navigate('/signin');
+  };
+
+  const handleEditToggle = () => {
+    setIsEditing(!isEditing);
+    if (isEditing) {
+      setProfileData({
+        username: user?.username || '',
+        email: user?.email || '',
+        phone: user?.phone || '',
+        registrationNumber: user?.registrationNumber || '',
+        focusAreas: user?.focusAreas || '',
+        address: user?.address || '',
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    const result = await authService.updateProfile(profileData);
+    setIsSaving(false);
+    
+    if (result.success) {
+      setIsEditing(false);
+      alert('Profile updated successfully!');
+    } else {
+      alert(result.error || 'Failed to update profile');
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const supportCases = [
@@ -28,14 +74,14 @@ function DashboardNgo() {
         </div>
         
         <nav className="dashboard-nav">
-          <button className="nav-item">
+          <button className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
             <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
             <span>Organization Profile</span>
           </button>
           
-          <button className="nav-item active">
+          <button className={`nav-item ${activeTab === 'cases' ? 'active' : ''}`} onClick={() => setActiveTab('cases')}>
             <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
@@ -68,8 +114,26 @@ function DashboardNgo() {
       {/* Main Content */}
       <div className="dashboard-main">
         <div className="dashboard-header">
-          <h1 className="dashboard-title">NGO Dashboard</h1>
+          <h1 className="dashboard-title">{activeTab === 'profile' ? 'Organization Profile' : 'NGO Dashboard'}</h1>
           <div className="header-actions">
+            {activeTab === 'profile' && isEditing && (
+              <>
+                <button className="btn-decline" onClick={handleEditToggle} style={{ marginRight: '8px' }}>
+                  Cancel
+                </button>
+                <button className="btn-approve" onClick={handleSave} disabled={isSaving} style={{ marginRight: '12px' }}>
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </>
+            )}
+            {activeTab === 'profile' && !isEditing && (
+              <button className="btn-approve" onClick={handleEditToggle} style={{ marginRight: '12px' }}>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px', display: 'inline' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Profile
+              </button>
+            )}
             <div className="notification-icon">
               <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -81,10 +145,101 @@ function DashboardNgo() {
         </div>
 
         <div className="dashboard-content">
-          <p className="dashboard-subtitle">Track your organization's impact and manage legal aid programs.</p>
+          {activeTab === 'profile' && (
+            <>
+              <p className="dashboard-subtitle">Manage your organization information and settings.</p>
+              
+              {/* Organization Profile Form */}
+              <div className="data-table-container" style={{ marginBottom: '24px' }}>
+                <div className="table-header">
+                  <h2 className="table-title">Organization Information</h2>
+                </div>
+                <div style={{ padding: '24px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Organization Name</label>
+                      <input 
+                        type="text" 
+                        name="username"
+                        value={profileData.username} 
+                        onChange={handleChange}
+                        disabled={!isEditing}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', cursor: isEditing ? 'text' : 'not-allowed' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Email Address</label>
+                      <input 
+                        type="email" 
+                        name="email"
+                        value={profileData.email} 
+                        onChange={handleChange}
+                        disabled={!isEditing}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', cursor: isEditing ? 'text' : 'not-allowed' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Phone Number</label>
+                      <input 
+                        type="tel" 
+                        name="phone"
+                        value={profileData.phone}
+                        onChange={handleChange}
+                        placeholder="Enter phone number" 
+                        disabled={!isEditing}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', cursor: isEditing ? 'text' : 'not-allowed' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Registration Number</label>
+                      <input 
+                        type="text" 
+                        name="registrationNumber"
+                        value={profileData.registrationNumber}
+                        onChange={handleChange}
+                        placeholder="Enter registration number"
+                        disabled={!isEditing}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', cursor: isEditing ? 'text' : 'not-allowed' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Focus Areas</label>
+                    <input 
+                      type="text" 
+                      name="focusAreas"
+                      value={profileData.focusAreas}
+                      onChange={handleChange}
+                      placeholder="e.g., Women's Rights, Housing, Education"
+                      disabled={!isEditing}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', cursor: isEditing ? 'text' : 'not-allowed' }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Address</label>
+                    <textarea 
+                      name="address"
+                      value={profileData.address}
+                      onChange={handleChange}
+                      placeholder="Enter organization address"
+                      disabled={!isEditing}
+                      rows={3}
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '14px', backgroundColor: isEditing ? '#ffffff' : '#f9fafb', resize: 'vertical', cursor: isEditing ? 'text' : 'not-allowed' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
           
-          {/* Stats Cards */}
-          <div className="stats-grid">
+          {activeTab === 'cases' && (
+            <>
+              <p className="dashboard-subtitle">Track your organization's impact and manage legal aid programs.</p>
+              
+              {/* Stats Cards */}
+              <div className="stats-grid">
             <div className="stat-card">
               <div className="stat-label">Active Beneficiaries</div>
               <div className="stat-value">234</div>
@@ -140,6 +295,8 @@ function DashboardNgo() {
               </tbody>
             </table>
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -210,7 +210,6 @@ function Signup() {
                 <option value="Citizen">Citizen</option>
                 <option value="Lawyer">Lawyer</option>
                 <option value="NGO">NGO</option>
-                <option value="Admin">Admin</option>
               </select>
             </div>
             {errors.role && <p className="error-text">{errors.role}</p>}
