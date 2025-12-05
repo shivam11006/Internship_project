@@ -1,5 +1,6 @@
 package com.example.legalaid_backend.entity;
 
+import com.example.legalaid_backend.util.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,6 +1,7 @@
 package com.example.legalaid_backend.DTO;
 
-import com.example.legalaid_backend.entity.Role;
+
+import com.example.legalaid_backend.util.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

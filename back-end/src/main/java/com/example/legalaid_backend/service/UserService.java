@@ -4,11 +4,12 @@ import com.example.legalaid_backend.DTO.RegisterRequest;
 import com.example.legalaid_backend.DTO.UserResponse;
 import com.example.legalaid_backend.entity.LawyerProfile;
 import com.example.legalaid_backend.entity.NgoProfile;
-import com.example.legalaid_backend.entity.Role;
+
 import com.example.legalaid_backend.entity.User;
 import com.example.legalaid_backend.repository.LawyerProfileRepository;
 import com.example.legalaid_backend.repository.NgoProfileRepository;
 import com.example.legalaid_backend.repository.UserRepository;
+import com.example.legalaid_backend.util.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
