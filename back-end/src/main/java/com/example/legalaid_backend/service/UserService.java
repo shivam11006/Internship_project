@@ -96,14 +96,14 @@ public class UserService {
         LawyerProfile profile = new LawyerProfile();
         profile.setUser(user);
         profile.setSpecialization(request.getSpecialization());
-        profile.setYearsOfExperience(request.getYearsOfExperience());
+        profile.setBarNumber(request.getBarNumber());
         return lawyerProfileRepository.save(profile);
     }
 
     private NgoProfile createNgoProfile(User user, RegisterRequest request) {
         NgoProfile profile = new NgoProfile();
         profile.setUser(user);
-        profile.setNgoName(request.getNgoName());
+        //profile.setNgoName(request.getNgoName());
         profile.setRegistrationNumber(request.getRegistrationNumber());
         return ngoProfileRepository.save(profile);
     }
@@ -125,6 +125,8 @@ public class UserService {
                 .role(user.getRole())
                 .createdAt(user.getCreatedAt())
                 .profile(profile)
+                .enabled(user.isEnabled())
+                .approvalStatus(user.getApprovalStatus())
                 .build();
     }
 }

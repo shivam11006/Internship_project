@@ -1,5 +1,6 @@
 package com.example.legalaid_backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,11 +17,18 @@ public class LawyerProfile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Minimal fields for now
-    private String specialization;
-    private int yearsOfExperience; // simple text field, adjust to int if needed
-
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @JsonIgnore
     private User user;
+
+    // ⭐ CRUCIAL: Changes require re-approval
+    private String barNumber;
+
+    // ⭐ CRUCIAL: Changes require re-approval
+    private String specialization;
+
+    // ⭐ NEW: Track last approved values for crucial fields
+    private String lastApprovedBarNumber;
+    private String lastApprovedSpecialization;
 }

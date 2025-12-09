@@ -25,9 +25,10 @@ public class RegisterRequest {
 
     // Lawyer-specific fields (optional, used only if role is LAWYER)
     private String specialization;
-    private Integer yearsOfExperience;
+    private String barNumber;
 
     // NGO-specific fields (optional, used only if role is NGO)
-    private String ngoName;
+    private String organizationName;
     private String registrationNumber;
+    private String focusArea;
 }

@@ -1,15 +1,14 @@
 package com.example.legalaid_backend.service;
 
-import com.example.legalaid_backend.DTO.LoginRequest;
-import com.example.legalaid_backend.DTO.LoginResponse;
-import com.example.legalaid_backend.DTO.RegisterRequest;
-import com.example.legalaid_backend.DTO.UserResponse;
+import com.example.legalaid_backend.DTO.*;
 import com.example.legalaid_backend.entity.LawyerProfile;
 import com.example.legalaid_backend.entity.NgoProfile;
 import com.example.legalaid_backend.entity.User;
 import com.example.legalaid_backend.repository.LawyerProfileRepository;
 import com.example.legalaid_backend.repository.NgoProfileRepository;
 import com.example.legalaid_backend.repository.UserRepository;
+import com.example.legalaid_backend.security.JwtTokenProvider;
+import com.example.legalaid_backend.util.ApprovalStatus;
 import com.example.legalaid_backend.util.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -17,6 +16,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -27,65 +27,133 @@ public class AuthService {
     private final NgoProfileRepository ngoProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final JwtTokenProvider jwtTokenProvider;  // ⭐ NEW: JWT Provider
 
-    public UserResponse register(RegisterRequest request){
-
+    @Transactional
+    public AuthResponse register(RegisterRequest request) {
+        // Validate unique email
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already registered");
         }
 
+        // Create user with encrypted password
         User user = new User();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
-
-        // ENCRYPT PASSWORD
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-
         user.setRole(request.getRole());
-        user = userRepository.save(user);
-        Object profile = null;
-        if (request.getRole() == Role.LAWYER) {
-            profile = createLawyerProfile(user, request);
-        } else if (request.getRole() == Role.NGO) {
-            profile = createNgoProfile(user, request);
+
+        // Set approval status based on role
+        if (request.getRole() == Role.CITIZEN || request.getRole() == Role.ADMIN) {
+            // Citizens and Admins are auto-approved
+            user.setApprovalStatus(ApprovalStatus.APPROVED);
+        } else {
+            // Lawyers and NGOs need admin approval
+            user.setApprovalStatus(ApprovalStatus.PENDING);
         }
 
-        return convertToResponse(user, profile);
+        user.setEnabled(true);
+
+        // Save user
+        user = userRepository.save(user);
+
+        // Create role-specific profile
+        if (request.getRole() == Role.LAWYER) {
+            createLawyerProfile(user, request);
+        } else if (request.getRole() == Role.NGO) {
+            createNgoProfile(user, request);
+        }
+
+        // Authenticate and generate tokens
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmail(),
+                        request.getPassword()
+                )
+        );
+
+        // Generate JWT tokens
+        String accessToken = jwtTokenProvider.generateAccessToken(authentication);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
+
+        // Return tokens
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
     }
 
-    public LoginResponse login(LoginRequest request) {
-        try {
-            // Attempt to authenticate
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            request.getEmail(),
-                            request.getPassword()
-                    )
-            );
 
-            // If we reach here, authentication was successful
-            User user = userRepository.findByEmail(request.getEmail())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+    public AuthResponse login(LoginRequest request) {
+        // Authenticate user
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmail(),
+                        request.getPassword()
+                )
+        );
 
-            Object profile = getProfileForUser(user);
+        // Get user details
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-            return LoginResponse.builder()
-                    .success(true)
-                    .message("Login successful")
-                    .user(convertToResponse(user, profile))
-                    .build();
+        // Generate JWT tokens
+        String accessToken = jwtTokenProvider.generateAccessToken(authentication);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
-        } catch (Exception e) {
-            // Authentication failed
-            throw new RuntimeException("Invalid email or password");
+        // Return tokens in response
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
+    }
+
+    public AuthResponse refreshToken(String refreshToken) {
+        // Validate refresh token
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new RuntimeException("Invalid or expired refresh token");
         }
+
+        // Extract email from token
+        String email = jwtTokenProvider.getEmailFromToken(refreshToken);
+
+        // Load user from database
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Generate new tokens
+        String newAccessToken = jwtTokenProvider.generateAccessToken(
+                new UsernamePasswordAuthenticationToken(email, null)
+        );
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(email);
+
+        // Return new tokens
+        return AuthResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .tokenType("Bearer")
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
     }
 
     private LawyerProfile createLawyerProfile(User user, RegisterRequest request) {
         LawyerProfile profile = new LawyerProfile();
         profile.setUser(user);
         profile.setSpecialization(request.getSpecialization());
-        profile.setYearsOfExperience(request.getYearsOfExperience());
+        profile.setBarNumber(request.getBarNumber());
         return lawyerProfileRepository.save(profile);
     }
 
@@ -93,6 +161,8 @@ public class AuthService {
         NgoProfile profile = new NgoProfile();
         profile.setUser(user);
         profile.setRegistrationNumber(request.getRegistrationNumber());
+        profile.setOrganizationName(request.getOrganizationName());
+        profile.setFocusArea(request.getFocusArea());
         return ngoProfileRepository.save(profile);
     }
 
@@ -112,7 +182,6 @@ public class AuthService {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .createdAt(user.getCreatedAt())
-                .profile(profile)
                 .build();
     }
 }

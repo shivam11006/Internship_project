@@ -1,9 +1,6 @@
 package com.example.legalaid_backend.controller;
 
-import com.example.legalaid_backend.DTO.LoginRequest;
-import com.example.legalaid_backend.DTO.LoginResponse;
-import com.example.legalaid_backend.DTO.RegisterRequest;
-import com.example.legalaid_backend.DTO.UserResponse;
+import com.example.legalaid_backend.DTO.*;
 import com.example.legalaid_backend.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +30,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         try {
-            UserResponse response = authService.register(request);
+            AuthResponse response = authService.register(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -51,11 +48,23 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         try {
-            LoginResponse response = authService.login(request);
+            AuthResponse response = authService.login(request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        }
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        try {
+            AuthResponse response = authService.refreshToken(request.getRefreshToken());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Invalid or expired refresh token");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         }
     }
