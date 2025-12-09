@@ -38,15 +38,15 @@ apiClient.interceptors.response.use(
         // Try to refresh token
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+          const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
             refreshToken: refreshToken,
           });
 
-          const { token } = response.data;
-          localStorage.setItem('accessToken', token);
+          const { accessToken } = response.data;
+          localStorage.setItem('accessToken', accessToken);
 
           // Retry original request with new token
-          originalRequest.headers.Authorization = `Bearer ${token}`;
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return apiClient(originalRequest);
         }
       } catch (refreshError) {
@@ -65,12 +65,24 @@ const authService = {
   // Register new user
   register: async (userData) => {
     try {
-      const response = await apiClient.post('/users/register', {
+      const registerData = {
         username: userData.fullName,
         email: userData.email,
         password: userData.password,
-        role: userData.role.toUpperCase() // CITIZEN, LAWYER, NGO
-      });
+        role: userData.role.toUpperCase() // CITIZEN, LAWYER, NGO, ADMIN
+      };
+      
+      // Add role-specific fields if provided
+      if (userData.role.toUpperCase() === 'LAWYER') {
+        if (userData.specialization) registerData.specialization = userData.specialization;
+        if (userData.barNumber) registerData.barNumber = userData.barNumber;
+      } else if (userData.role.toUpperCase() === 'NGO') {
+        if (userData.organizationName) registerData.organizationName = userData.organizationName;
+        if (userData.registrationNumber) registerData.registrationNumber = userData.registrationNumber;
+        if (userData.focusArea) registerData.focusArea = userData.focusArea;
+      }
+      
+      const response = await apiClient.post('/auth/register', registerData);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -80,42 +92,61 @@ const authService = {
     }
   },
 
-  // Login - TEMPORARY workaround since backend doesn't return password in UserResponse
-  // Backend team needs to implement POST /api/auth/login endpoint with proper password verification
+  // Login with proper JWT authentication
   login: async (credentials) => {
     try {
       console.log('Login attempt for:', credentials.email);
       
-      // Get user by email - just checking if user exists
-      const response = await apiClient.get(`/users/email/${credentials.email}`);
-      const user = response.data;
+      // Call backend login endpoint
+      const response = await apiClient.post('/auth/login', {
+        email: credentials.email,
+        password: credentials.password
+      });
       
-      console.log('User found:', user);
+      const data = response.data;
+      console.log('Login response:', data);
 
-      // TEMPORARY: Since backend doesn't return password and no /auth/login endpoint exists,
-      // we allow any login if user exists. Backend MUST implement proper authentication!
-      if (user) {
-        // Simulate JWT token (until backend implements proper JWT)
-        const fakeToken = btoa(JSON.stringify({ email: user.email, role: user.role, exp: Date.now() + 86400000 }));
-        
-        // Store token and user info
-        localStorage.setItem('accessToken', fakeToken);
-        localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('isAuthenticated', 'true');
+      // Store tokens temporarily to make authenticated request
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
 
-        console.log('Login successful for:', user.role);
-        return { success: true, data: user };
-      } else {
+      // Fetch full user profile including approval status
+      const profileResponse = await apiClient.get('/profile/me');
+      const user = profileResponse.data;
+      
+      console.log('User profile:', user);
+
+      // Block login for pending lawyers and NGOs
+      if ((user.role === 'LAWYER' || user.role === 'NGO') && user.approvalStatus === 'PENDING') {
+        // Clear tokens if not approved
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
         return {
           success: false,
-          error: 'Invalid email or password',
+          error: 'Your account is pending admin approval. Please wait for approval before logging in.'
         };
       }
+
+      // Store user info
+      localStorage.setItem('user', JSON.stringify({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        approvalStatus: user.approvalStatus
+      }));
+      localStorage.setItem('isAuthenticated', 'true');
+
+      console.log('Login successful for:', user.role);
+      return { success: true, data: user };
     } catch (error) {
       console.error('Login error:', error);
+      // Clear any tokens that might have been set
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
       return {
         success: false,
-        error: error.response?.status === 404 ? 'Invalid email or password' : 'Login failed. Please try again.',
+        error: error.response?.data?.error || 'Invalid email or password'
       };
     }
   },
@@ -144,7 +175,21 @@ const authService = {
   // Update user profile
   updateProfile: async (profileData) => {
     try {
-      const response = await apiClient.put('/profile/update', profileData);
+      // Map frontend fields to backend fields
+      const updateData = { ...profileData };
+      
+      // For lawyers: licenseNumber maps to barNumber in backend
+      if (profileData.licenseNumber) {
+        updateData.barNumber = profileData.licenseNumber;
+        delete updateData.licenseNumber;
+      }
+      
+      // Remove yearsOfExperience and yearsActive as they're not in backend yet
+      delete updateData.yearsOfExperience;
+      delete updateData.yearsActive;
+      delete updateData.phone;
+      
+      const response = await apiClient.put('/profile/update', updateData);
       
       // Update stored user data
       const currentUser = authService.getCurrentUser();
@@ -170,6 +215,37 @@ const authService = {
         success: false,
         error: error.response?.data?.message || 'Failed to fetch profile',
       };
+    }
+  },
+
+  // Admin APIs for managing users
+  getAllUsers: async () => {
+    try {
+      const response = await apiClient.get('/admin/users');
+      return response.data;
+    } catch (error) {
+      console.error('Get all users error:', error);
+      throw error;
+    }
+  },
+
+  approveUser: async (userId) => {
+    try {
+      const response = await apiClient.post(`/admin/approve/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Approve user error:', error);
+      throw error;
+    }
+  },
+
+  rejectUser: async (userId) => {
+    try {
+      const response = await apiClient.post(`/admin/reject/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Reject user error:', error);
+      throw error;
     }
   },
 };

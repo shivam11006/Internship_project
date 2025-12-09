@@ -1,10 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import SignIn from './SignIn';
-import Signup from './signup';
-import DashboardCitizen from './DashboardCitizen';
-import DashboardLawyer from './DashboardLawyer';
-import DashboardNgo from './DashboardNgo';
+import SignIn from './SignIn.jsx';
+import Signup from './signup.jsx';
+import DashboardCitizen from './DashboardCitizen.jsx';
+import DashboardLawyer from './DashboardLawyer.jsx';
+import DashboardNgo from './DashboardNgo.jsx';
+import DashboardAdmin from './DashboardAdmin.jsx';
 import authService from './services/authService';
 
 // Protected Route - redirects to signin if not authenticated
@@ -30,6 +31,8 @@ function PublicRoute({ children }) {
       return <Navigate to="/dashboard/lawyer" replace />;
     } else if (user?.role === 'NGO') {
       return <Navigate to="/dashboard/ngo" replace />;
+    } else if (user?.role === 'ADMIN') {
+      return <Navigate to="/dashboard/admin" replace />;
     }
   }
   
@@ -50,6 +53,8 @@ function DashboardRedirect() {
     return <Navigate to="/dashboard/lawyer" replace />;
   } else if (user.role === 'NGO') {
     return <Navigate to="/dashboard/ngo" replace />;
+  } else if (user.role === 'ADMIN') {
+    return <Navigate to="/dashboard/admin" replace />;
   }
   
   return <Navigate to="/signin" replace />;
@@ -102,6 +107,14 @@ function App() {
           element={
             <ProtectedRoute>
               <DashboardNgo />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/dashboard/admin" 
+          element={
+            <ProtectedRoute>
+              <DashboardAdmin />
             </ProtectedRoute>
           } 
         />
