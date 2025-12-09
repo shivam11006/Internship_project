@@ -35,46 +35,21 @@ public class AdminService {
     }
 
     @Transactional
-    public ApprovalResponse approveOrRejectUser(ApprovalRequest request) {
-        // Get the user to approve/reject
-        User user = userRepository.findById(request.getUserId())
+    public ApprovalResponse approveUser(Long userId) {
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-
-        // Get current admin
-        User admin = getCurrentAdmin();
-
-        // Check if user is actually pending approval
         if (user.getApprovalStatus() != ApprovalStatus.PENDING &&
                 user.getApprovalStatus() != ApprovalStatus.REAPPROVAL_PENDING) {
             throw new RuntimeException("User is not pending approval");
         }
 
-        if (request.getApproved()) {
-            // ✅ APPROVE
-            return approveUser(user, admin);
-        } else {
-            // ❌ REJECT
-            return rejectUser(user, admin);
-        }
-    }
+        User admin = getCurrentAdmin();
 
-    private ApprovalResponse approveUser(User user, User admin) {
+        // Approve
         user.setApprovalStatus(ApprovalStatus.APPROVED);
 
-        // Update "last approved" values for lawyers
-        if (user.getRole() == Role.LAWYER && user.getLawyerProfile() != null) {
-            LawyerProfile profile = user.getLawyerProfile();
-            profile.setLastApprovedBarNumber(profile.getBarNumber());
-            profile.setLastApprovedSpecialization(profile.getSpecialization());
-        }
-
-        // Update "last approved" values for NGOs
-        if (user.getRole() == Role.NGO && user.getNgoProfile() != null) {
-            NgoProfile profile = user.getNgoProfile();
-            profile.setLastApprovedOrganizationName(profile.getOrganizationName());
-            profile.setLastApprovedRegistrationNumber(profile.getRegistrationNumber());
-            profile.setLastApprovedFocusArea(profile.getFocusArea());
-        }
+        // Update "last approved" values
+        updateLastApprovedValues(user);
 
         userRepository.save(user);
 
@@ -86,7 +61,22 @@ public class AdminService {
                 .build();
     }
 
-    private ApprovalResponse rejectUser(User user, User admin) {
+    /**
+     * REJECT USER
+     * Reject with optional reason
+     */
+    @Transactional
+    public ApprovalResponse rejectUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getApprovalStatus() != ApprovalStatus.PENDING &&
+                user.getApprovalStatus() != ApprovalStatus.REAPPROVAL_PENDING) {
+            throw new RuntimeException("User is not pending approval");
+        }
+
+        User admin = getCurrentAdmin();
+
         if (user.getApprovalStatus() == ApprovalStatus.PENDING) {
             // New user registration rejected
             user.setApprovalStatus(ApprovalStatus.REJECTED);
@@ -94,7 +84,7 @@ public class AdminService {
         } else if (user.getApprovalStatus() == ApprovalStatus.REAPPROVAL_PENDING) {
             // Profile update rejected - revert to previous values
             revertToPreviousApprovedValues(user);
-            user.setApprovalStatus(ApprovalStatus.APPROVED);  // Keep previous approval
+            user.setApprovalStatus(ApprovalStatus.APPROVED);
         }
 
         userRepository.save(user);
@@ -106,6 +96,7 @@ public class AdminService {
                 .approvalStatus(user.getApprovalStatus())
                 .build();
     }
+
 
     private void revertToPreviousApprovedValues(User user) {
         if (user.getRole() == Role.LAWYER && user.getLawyerProfile() != null) {
@@ -137,7 +128,7 @@ public class AdminService {
     }
 
     @Transactional
-    public ApprovalResponse suspendUser(Long userId, String reason) {
+    public ApprovalResponse suspendUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -174,6 +165,21 @@ public class AdminService {
                 .email(user.getEmail())
                 .approvalStatus(ApprovalStatus.APPROVED)
                 .build();
+    }
+
+    private void updateLastApprovedValues(User user) {
+        if (user.getRole() == Role.LAWYER && user.getLawyerProfile() != null) {
+            LawyerProfile profile = user.getLawyerProfile();
+            profile.setLastApprovedBarNumber(profile.getBarNumber());
+            profile.setLastApprovedSpecialization(profile.getSpecialization());
+        }
+
+        if (user.getRole() == Role.NGO && user.getNgoProfile() != null) {
+            NgoProfile profile = user.getNgoProfile();
+            profile.setLastApprovedOrganizationName(profile.getOrganizationName());
+            profile.setLastApprovedRegistrationNumber(profile.getRegistrationNumber());
+            profile.setLastApprovedFocusArea(profile.getFocusArea());
+        }
     }
 
     public Object getStatistics() {

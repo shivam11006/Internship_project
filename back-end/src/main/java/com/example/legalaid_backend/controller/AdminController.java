@@ -37,17 +37,31 @@ public class AdminController {
 
     /**
      * APPROVE OR REJECT USER
-     * POST /api/admin/approve
+     * POST /api/admin/users/{id}/approve
      */
-    @PostMapping("/approve")
-    public ResponseEntity<?> approveOrRejectUser(@Valid @RequestBody ApprovalRequest request) {
+    @PostMapping("/approve/{id}")
+    public ResponseEntity<ApprovalResponse> approveUser(@PathVariable Long id) {
         try {
-            ApprovalResponse response = adminService.approveOrRejectUser(request);
+            ApprovalResponse response = adminService.approveUser(id);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @PostMapping("/reject/{id}")
+    public ResponseEntity<ApprovalResponse> rejectUser(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body) {
+        try {
+            ApprovalResponse response = adminService.rejectUser(id);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(null);
         }
     }
 
@@ -56,12 +70,11 @@ public class AdminController {
      * POST /api/admin/suspend/{userId}
      * Suspends a user account (cannot login)
      */
-    @PostMapping("/suspend/{userId}")
+    @PostMapping("/suspend/{id}")
     public ResponseEntity<?> suspendUser(
-            @PathVariable Long userId,
-            @RequestParam(required = false) String reason) {
+            @PathVariable Long id) {
         try {
-            ApprovalResponse response = adminService.suspendUser(userId, reason);
+            ApprovalResponse response = adminService.suspendUser(id);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -75,10 +88,10 @@ public class AdminController {
      * POST /api/admin/reactivate/{userId}
      * Reactivates a suspended account
      */
-    @PostMapping("/reactivate/{userId}")
-    public ResponseEntity<?> reactivateUser(@PathVariable Long userId) {
+    @PostMapping("/reactivate/{id}")
+    public ResponseEntity<?> reactivateUser(@PathVariable Long id) {
         try {
-            ApprovalResponse response = adminService.reactivateUser(userId);
+            ApprovalResponse response = adminService.reactivateUser(id);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
