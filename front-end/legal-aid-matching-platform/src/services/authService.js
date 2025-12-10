@@ -187,7 +187,6 @@ const authService = {
       // Remove yearsOfExperience and yearsActive as they're not in backend yet
       delete updateData.yearsOfExperience;
       delete updateData.yearsActive;
-      delete updateData.phone;
       
       const response = await apiClient.put('/profile/update', updateData);
       

@@ -11,6 +11,13 @@ function Signup() {
     password: '',
     confirmPassword: '',
     role: 'CITIZEN',
+    // Lawyer fields
+    specialization: '',
+    barNumber: '',
+    // NGO fields
+    organizationName: '',
+    registrationNumber: '',
+    focusArea: '',
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -51,6 +58,29 @@ function Signup() {
 
     if (!formData.role) {
       newErrors.role = 'Please select a role';
+    }
+
+    // Lawyer-specific validation
+    if (formData.role === 'LAWYER') {
+      if (!formData.specialization.trim()) {
+        newErrors.specialization = 'Specialization is required for lawyers';
+      }
+      if (!formData.barNumber.trim()) {
+        newErrors.barNumber = 'Bar number is required for lawyers';
+      }
+    }
+
+    // NGO-specific validation
+    if (formData.role === 'NGO') {
+      if (!formData.organizationName.trim()) {
+        newErrors.organizationName = 'Organization name is required for NGOs';
+      }
+      if (!formData.registrationNumber.trim()) {
+        newErrors.registrationNumber = 'Registration number is required for NGOs';
+      }
+      if (!formData.focusArea.trim()) {
+        newErrors.focusArea = 'Focus area is required for NGOs';
+      }
     }
 
     setErrors(newErrors);
@@ -273,6 +303,101 @@ function Signup() {
               <p className="error-text">{errors.confirmPassword}</p>
             )}
           </div>
+
+          {/* Lawyer-specific fields */}
+          {formData.role === 'LAWYER' && (
+            <>
+              <div className="form-group">
+                <label htmlFor="specialization">Specialization</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="specialization"
+                    name="specialization"
+                    placeholder="e.g., Family Law, Criminal Law"
+                    value={formData.specialization}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.specialization && (
+                  <p className="error-text">{errors.specialization}</p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="barNumber">Bar Number</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="barNumber"
+                    name="barNumber"
+                    placeholder="Enter your bar number"
+                    value={formData.barNumber}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.barNumber && (
+                  <p className="error-text">{errors.barNumber}</p>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* NGO-specific fields */}
+          {formData.role === 'NGO' && (
+            <>
+              <div className="form-group">
+                <label htmlFor="organizationName">Organization Name</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="organizationName"
+                    name="organizationName"
+                    placeholder="Enter organization name"
+                    value={formData.organizationName}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.organizationName && (
+                  <p className="error-text">{errors.organizationName}</p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="registrationNumber">Registration Number</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="registrationNumber"
+                    name="registrationNumber"
+                    placeholder="Enter registration number"
+                    value={formData.registrationNumber}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.registrationNumber && (
+                  <p className="error-text">{errors.registrationNumber}</p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="focusArea">Focus Area</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="focusArea"
+                    name="focusArea"
+                    placeholder="e.g., Women's Rights, Housing"
+                    value={formData.focusArea}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.focusArea && (
+                  <p className="error-text">{errors.focusArea}</p>
+                )}
+              </div>
+            </>
+          )}
 
           <button type="submit" className="signup-btn" disabled={loading}>
             {loading ? 'Creating Account...' : 'Sign Up'}

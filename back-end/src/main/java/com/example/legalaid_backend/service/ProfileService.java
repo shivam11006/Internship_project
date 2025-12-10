@@ -28,7 +28,7 @@ public class ProfileService {
     public User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
-        return userRepository.findByEmail(email)
+        return userRepository.findByEmailWithProfiles(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
 import './Dashboard.css';
@@ -10,11 +10,30 @@ function DashboardLawyer() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
-    username: user?.username || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
+    username: '',
+    email: '',
+    specialization: '',
+    barNumber: '',
   });
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const result = await authService.getProfile();
+      console.log('Profile API Response:', result);
+      if (result.success) {
+        console.log('Profile data:', result.data);
+        console.log('Nested profile:', result.data.profile);
+        const profile = result.data.profile || {};
+        setProfileData({
+          username: result.data.username || '',
+          email: result.data.email || '',
+          specialization: profile.specialization || '',
+          barNumber: profile.barNumber || '',
+        });
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     authService.logout();
@@ -41,13 +60,17 @@ function DashboardLawyer() {
     }
   };
 
-  const handleCancelEdit = () => {
-    setProfileData({
-      username: user?.username || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
-      address: user?.address || '',
-    });
+  const handleCancelEdit = async () => {
+    const result = await authService.getProfile();
+    if (result.success) {
+      const profile = result.data.profile || {};
+      setProfileData({
+        username: result.data.username || '',
+        email: result.data.email || '',
+        specialization: profile.specialization || '',
+        barNumber: profile.barNumber || '',
+      });
+    }
     setIsEditing(false);
   };
 
@@ -72,13 +95,6 @@ function DashboardLawyer() {
             <span>Profile Management</span>
           </button>
         </nav>
-        
-        <div className="dashboard-user">
-          <div className="user-info">
-            <div className="user-avatar">{user?.username?.charAt(0).toUpperCase() || 'L'}</div>
-            <span className="user-name">{user?.username || 'Lawyer'}</span>
-          </div>
-        </div>
       </div>
 
       <div className="dashboard-main">
@@ -167,27 +183,27 @@ function DashboardLawyer() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Phone Number</label>
+                  <label>Specialization</label>
                   <input
-                    type="tel"
-                    name="phone"
-                    value={profileData.phone}
+                    type="text"
+                    name="specialization"
+                    value={profileData.specialization}
                     onChange={handleChange}
-                    placeholder="Enter phone number"
+                    placeholder="e.g., Family Law, Criminal Law"
                     disabled={!isEditing}
                     className={!isEditing ? 'disabled' : ''}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Address</label>
-                  <textarea
-                    name="address"
-                    value={profileData.address}
+                  <label>Bar Number</label>
+                  <input
+                    type="text"
+                    name="barNumber"
+                    value={profileData.barNumber}
                     onChange={handleChange}
-                    placeholder="Enter your address"
+                    placeholder="Enter your bar number"
                     disabled={!isEditing}
                     className={!isEditing ? 'disabled' : ''}
-                    rows="3"
                   />
                 </div>
               </div>

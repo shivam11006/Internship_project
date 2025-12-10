@@ -30,16 +30,34 @@ function DashboardAdmin() {
     setLoading(true);
     try {
       const result = await authService.getAllUsers();
+      
+      // Flatten profile data into user object for easier access
+      const flattenedUsers = result.map(user => {
+        const flatUser = { ...user };
+        if (user.profile) {
+          // Extract profile fields to top level
+          if (user.role === 'LAWYER') {
+            flatUser.specialization = user.profile.specialization;
+            flatUser.barNumber = user.profile.barNumber;
+          } else if (user.role === 'NGO') {
+            flatUser.organizationName = user.profile.organizationName;
+            flatUser.registrationNumber = user.profile.registrationNumber;
+            flatUser.focusArea = user.profile.focusArea;
+          }
+        }
+        return flatUser;
+      });
+      
       // Filter out CITIZEN role from all displays
-      const pending = result.filter(u => 
+      const pending = flattenedUsers.filter(u => 
         u.approvalStatus === 'PENDING' && 
         (u.role === 'LAWYER' || u.role === 'NGO')
       );
-      const approved = result.filter(u => 
+      const approved = flattenedUsers.filter(u => 
         u.approvalStatus === 'APPROVED' && 
         (u.role === 'LAWYER' || u.role === 'NGO')
       );
-      const rejected = result.filter(u => 
+      const rejected = flattenedUsers.filter(u => 
         u.approvalStatus === 'REJECTED' && 
         (u.role === 'LAWYER' || u.role === 'NGO')
       );

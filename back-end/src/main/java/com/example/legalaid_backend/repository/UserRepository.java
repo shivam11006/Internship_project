@@ -4,6 +4,8 @@ import com.example.legalaid_backend.entity.User;
 import com.example.legalaid_backend.util.ApprovalStatus;
 import com.example.legalaid_backend.util.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -12,6 +14,10 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
+    
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.lawyerProfile LEFT JOIN FETCH u.ngoProfile WHERE u.email = :email")
+    Optional<User> findByEmailWithProfiles(@Param("email") String email);
+    
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
 

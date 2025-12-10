@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
 import './Dashboard.css';
@@ -10,11 +10,29 @@ function DashboardNgo() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
-    username: user?.username || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
+    username: '',
+    email: '',
+    organizationName: '',
+    registrationNumber: '',
+    focusArea: '',
   });
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const result = await authService.getProfile();
+      if (result.success) {
+        const profile = result.data.profile || {};
+        setProfileData({
+          username: result.data.username || '',
+          email: result.data.email || '',
+          organizationName: profile.organizationName || '',
+          registrationNumber: profile.registrationNumber || '',
+          focusArea: profile.focusArea || '',
+        });
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     authService.logout();
@@ -41,13 +59,18 @@ function DashboardNgo() {
     }
   };
 
-  const handleCancelEdit = () => {
-    setProfileData({
-      username: user?.username || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
-      address: user?.address || '',
-    });
+  const handleCancelEdit = async () => {
+    const result = await authService.getProfile();
+    if (result.success) {
+      const profile = result.data.profile || {};
+      setProfileData({
+        username: result.data.username || '',
+        email: result.data.email || '',
+        organizationName: profile.organizationName || '',
+        registrationNumber: profile.registrationNumber || '',
+        focusArea: profile.focusArea || '',
+      });
+    }
     setIsEditing(false);
   };
 
@@ -72,13 +95,6 @@ function DashboardNgo() {
             <span>Profile Management</span>
           </button>
         </nav>
-        
-        <div className="dashboard-user">
-          <div className="user-info">
-            <div className="user-avatar">{user?.username?.charAt(0).toUpperCase() || 'N'}</div>
-            <span className="user-name">{user?.username || 'NGO'}</span>
-          </div>
-        </div>
       </div>
 
       <div className="dashboard-main">
@@ -167,27 +183,39 @@ function DashboardNgo() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Phone Number</label>
+                  <label>Organization Name</label>
                   <input
-                    type="tel"
-                    name="phone"
-                    value={profileData.phone}
+                    type="text"
+                    name="organizationName"
+                    value={profileData.organizationName}
                     onChange={handleChange}
-                    placeholder="Enter phone number"
+                    placeholder="Enter organization name"
                     disabled={!isEditing}
                     className={!isEditing ? 'disabled' : ''}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Address</label>
-                  <textarea
-                    name="address"
-                    value={profileData.address}
+                  <label>Registration Number</label>
+                  <input
+                    type="text"
+                    name="registrationNumber"
+                    value={profileData.registrationNumber}
                     onChange={handleChange}
-                    placeholder="Enter your address"
+                    placeholder="Enter registration number"
                     disabled={!isEditing}
                     className={!isEditing ? 'disabled' : ''}
-                    rows="3"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Focus Area</label>
+                  <input
+                    type="text"
+                    name="focusArea"
+                    value={profileData.focusArea}
+                    onChange={handleChange}
+                    placeholder="e.g., Women's Rights, Housing"
+                    disabled={!isEditing}
+                    className={!isEditing ? 'disabled' : ''}
                   />
                 </div>
               </div>
