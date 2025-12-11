@@ -31,7 +31,7 @@ function Signup() {
     const newErrors = {};
 
     if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
+      newErrors.fullName = 'Username is required';
     }
 
     if (!formData.email.trim()) {

@@ -9,6 +9,7 @@ function DashboardCitizen() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileData, setProfileData] = useState({
     username: '',
     email: '',
@@ -70,8 +71,18 @@ function DashboardCitizen() {
 
   return (
     <div className="dashboard-container">
+      {/* Mobile Menu Button */}
+      <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      
+      {/* Mobile Overlay */}
+      <div className={`mobile-overlay ${mobileMenuOpen ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}></div>
+      
       {/* Sidebar */}
-      <div className="dashboard-sidebar">
+      <div className={`dashboard-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="dashboard-logo">
           <div className="logo-icon">⚖️</div>
           <span className="logo-text">LegalMatch Pro</span>
@@ -178,15 +189,17 @@ function DashboardCitizen() {
               
               <div className="profile-form">
                 <div className="form-group">
-                  <label>Full Name</label>
+                  <label>Username</label>
                   <input
                     type="text"
                     name="username"
                     value={profileData.username}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={!isEditing ? 'disabled' : ''}
+                    disabled={true}
+                    className='disabled'
                   />
+                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    Username cannot be changed
+                  </small>
                 </div>
                 <div className="form-group">
                   <label>Email</label>
@@ -194,10 +207,12 @@ function DashboardCitizen() {
                     type="email"
                     name="email"
                     value={profileData.email}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={!isEditing ? 'disabled' : ''}
+                    disabled={true}
+                    className='disabled'
                   />
+                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    Email cannot be changed
+                  </small>
                 </div>
               </div>
             </div>

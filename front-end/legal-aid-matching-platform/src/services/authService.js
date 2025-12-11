@@ -116,15 +116,43 @@ const authService = {
       
       console.log('User profile:', user);
 
-      // Block login for pending lawyers and NGOs
-      if ((user.role === 'LAWYER' || user.role === 'NGO') && user.approvalStatus === 'PENDING') {
-        // Clear tokens if not approved
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        return {
-          success: false,
-          error: 'Your account is pending admin approval. Please wait for approval before logging in.'
-        };
+      // Block login for non-approved users
+      if (user.role === 'LAWYER' || user.role === 'NGO') {
+        if (user.approvalStatus === 'PENDING') {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          return {
+            success: false,
+            error: 'Your account is pending admin approval. Please wait for approval before logging in.'
+          };
+        }
+        
+        if (user.approvalStatus === 'REAPPROVAL_PENDING') {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          return {
+            success: false,
+            error: 'Your profile changes are pending admin approval. Please wait for re-approval before logging in.'
+          };
+        }
+        
+        if (user.approvalStatus === 'SUSPENDED') {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          return {
+            success: false,
+            error: 'Your account has been suspended. Please contact support for assistance.'
+          };
+        }
+        
+        if (user.approvalStatus === 'REJECTED') {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          return {
+            success: false,
+            error: 'Your account registration was rejected. Please contact support for more information.'
+          };
+        }
       }
 
       // Store user info
@@ -189,10 +217,31 @@ const authService = {
       delete updateData.yearsActive;
       
       const response = await apiClient.put('/profile/update', updateData);
+      const responseData = response.data;
       
-      // Update stored user data
+      // Check if response indicates reapproval is needed
+      if (responseData.requiresApproval || responseData.message) {
+        // Profile update requires admin approval
+        const profileData = responseData.profile || responseData;
+        const currentUser = authService.getCurrentUser();
+        const updatedUser = { 
+          ...currentUser, 
+          ...profileData,
+          approvalStatus: profileData.approvalStatus 
+        };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        return { 
+          success: true, 
+          data: updatedUser,
+          requiresApproval: true,
+          message: responseData.message || 'Profile changes are pending admin approval.'
+        };
+      }
+      
+      // Normal update without approval needed
       const currentUser = authService.getCurrentUser();
-      const updatedUser = { ...currentUser, ...response.data };
+      const updatedUser = { ...currentUser, ...responseData };
       localStorage.setItem('user', JSON.stringify(updatedUser));
 
       return { success: true, data: updatedUser };
@@ -244,6 +293,26 @@ const authService = {
       return response.data;
     } catch (error) {
       console.error('Reject user error:', error);
+      throw error;
+    }
+  },
+
+  suspendUser: async (userId) => {
+    try {
+      const response = await apiClient.post(`/admin/suspend/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Suspend user error:', error);
+      throw error;
+    }
+  },
+
+  reactivateUser: async (userId) => {
+    try {
+      const response = await apiClient.post(`/admin/reactivate/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Reactivate user error:', error);
       throw error;
     }
   },
