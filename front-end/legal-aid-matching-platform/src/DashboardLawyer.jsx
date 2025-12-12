@@ -24,6 +24,15 @@ function DashboardLawyer() {
       if (result.success) {
         console.log('Profile data:', result.data);
         console.log('Nested profile:', result.data.profile);
+        
+        // Check if user is suspended
+        if (result.data.approvalStatus === 'SUSPENDED') {
+          alert('Your account has been suspended. You will be logged out.');
+          authService.logout();
+          navigate('/signin');
+          return;
+        }
+        
         const profile = result.data.profile || {};
         setProfileData({
           username: result.data.username || '',
@@ -34,7 +43,7 @@ function DashboardLawyer() {
       }
     };
     fetchProfile();
-  }, []);
+  }, [navigate]);
 
   const handleLogout = () => {
     authService.logout();

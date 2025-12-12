@@ -200,6 +200,8 @@ const authService = {
     return token && isAuth;
   },
 
+
+
   // Update user profile
   updateProfile: async (profileData) => {
     try {

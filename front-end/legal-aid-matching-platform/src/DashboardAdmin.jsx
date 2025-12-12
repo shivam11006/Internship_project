@@ -24,7 +24,21 @@ function DashboardAdmin() {
   const [selectedUser, setSelectedUser] = useState(null);
 
   useEffect(() => {
+    // Initial fetch
     fetchUsers();
+    
+    // Auto-refresh when window/tab gets focus
+    const handleFocus = () => {
+      console.log('Window focused, refreshing users...');
+      fetchUsers();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const fetchUsers = async () => {
@@ -86,12 +100,26 @@ function DashboardAdmin() {
   };
 
   const handleReject = async (userId, username) => {
+    // Find the user to check their status
+    const user = [...pendingUsers, ...approvedUsers].find(u => u.id === userId);
+    const isPending = user?.approvalStatus === 'PENDING';
+    
+    const message = isPending 
+      ? `Are you sure you want to reject ${username}? Their status will be changed to REJECTED.`
+      : `Reject profile changes for ${username}? Their profile will be reverted to the previously approved version.`;
+    
+    if (!confirm(message)) {
+      return;
+    }
+    
     setActionLoading(userId);
     try {
       await authService.rejectUser(userId);
       await fetchUsers();
+      alert(isPending ? 'User has been rejected.' : 'Profile changes have been rejected and reverted.');
     } catch (error) {
       console.error('Failed to reject user:', error);
+      alert('Failed to reject user');
     }
     setActionLoading(null);
   };
@@ -246,6 +274,16 @@ function DashboardAdmin() {
         <div className="admin-top-bar">
           <h1 className="admin-page-title">Admin Panel</h1>
           <div className="admin-top-actions">
+            <button 
+              className="refresh-btn"
+              onClick={fetchUsers}
+              title="Refresh user list"
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
             <div className="profile-dropdown">
               <button 
                 className="profile-button" 
@@ -389,6 +427,16 @@ function DashboardAdmin() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
                                 Approve
+                              </button>
+                              <button
+                                className="action-btn reject-btn"
+                                onClick={() => handleReject(u.id, u.username)}
+                                disabled={actionLoading === u.id}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Reject
                               </button>
                             </td>
                           </tr>
@@ -618,15 +666,26 @@ function DashboardAdmin() {
               <div className="modal-footer">
                 <button className="btn-cancel" onClick={() => setShowUserDetails(false)}>Close</button>
                 {(selectedUser.approvalStatus === 'PENDING' || selectedUser.approvalStatus === 'REAPPROVAL_PENDING') && (
-                  <button 
-                    className="btn-save" 
-                    onClick={() => {
-                      handleApprove(selectedUser.id, selectedUser.username);
-                      setShowUserDetails(false);
-                    }}
-                  >
-                    Approve
-                  </button>
+                  <>
+                    <button 
+                      className="btn-reject" 
+                      onClick={() => {
+                        handleReject(selectedUser.id, selectedUser.username);
+                        setShowUserDetails(false);
+                      }}
+                    >
+                      Reject
+                    </button>
+                    <button 
+                      className="btn-save" 
+                      onClick={() => {
+                        handleApprove(selectedUser.id, selectedUser.username);
+                        setShowUserDetails(false);
+                      }}
+                    >
+                      Approve
+                    </button>
+                  </>
                 )}
                 {selectedUser.approvalStatus === 'APPROVED' && (
                   <button 

@@ -22,6 +22,14 @@ function DashboardNgo() {
     const fetchProfile = async () => {
       const result = await authService.getProfile();
       if (result.success) {
+        // Check if user is suspended
+        if (result.data.approvalStatus === 'SUSPENDED') {
+          alert('Your account has been suspended. You will be logged out.');
+          authService.logout();
+          navigate('/signin');
+          return;
+        }
+        
         const profile = result.data.profile || {};
         setProfileData({
           username: result.data.username || '',
@@ -33,7 +41,7 @@ function DashboardNgo() {
       }
     };
     fetchProfile();
-  }, []);
+  }, [navigate]);
 
   const handleLogout = () => {
     authService.logout();
