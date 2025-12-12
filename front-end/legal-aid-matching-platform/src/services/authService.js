@@ -200,7 +200,32 @@ const authService = {
     return token && isAuth;
   },
 
+  // Validate token (simple check)
+  validateToken: async () => {
+    const accessToken = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    
+    if (!accessToken || !refreshToken) {
+      return false;
+    }
 
+    // Check if token is expired by decoding JWT
+    try {
+      const payload = JSON.parse(atob(accessToken.split('.')[1]));
+      const expirationTime = payload.exp * 1000;
+      const currentTime = Date.now();
+      
+      // If token is still valid, return true
+      if (expirationTime > currentTime) {
+        return true;
+      }
+      
+      // Token expired, return false
+      return false;
+    } catch (error) {
+      return false;
+    }
+  },
 
   // Update user profile
   updateProfile: async (profileData) => {
