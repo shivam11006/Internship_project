@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
 import './Dashboard.css';
@@ -9,12 +9,24 @@ function DashboardCitizen() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileData, setProfileData] = useState({
-    username: user?.username || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
+    username: '',
+    email: '',
   });
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const result = await authService.getProfile();
+      if (result.success) {
+        setProfileData({
+          username: result.data.username || '',
+          email: result.data.email || '',
+        });
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     authService.logout();
@@ -41,13 +53,14 @@ function DashboardCitizen() {
     }
   };
 
-  const handleCancelEdit = () => {
-    setProfileData({
-      username: user?.username || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
-      address: user?.address || '',
-    });
+  const handleCancelEdit = async () => {
+    const result = await authService.getProfile();
+    if (result.success) {
+      setProfileData({
+        username: result.data.username || '',
+        email: result.data.email || '',
+      });
+    }
     setIsEditing(false);
   };
 
@@ -58,8 +71,18 @@ function DashboardCitizen() {
 
   return (
     <div className="dashboard-container">
+      {/* Mobile Menu Button */}
+      <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      
+      {/* Mobile Overlay */}
+      <div className={`mobile-overlay ${mobileMenuOpen ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}></div>
+      
       {/* Sidebar */}
-      <div className="dashboard-sidebar">
+      <div className={`dashboard-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="dashboard-logo">
           <div className="logo-icon">⚖️</div>
           <span className="logo-text">LegalMatch Pro</span>
@@ -101,13 +124,6 @@ function DashboardCitizen() {
             <span>Impact Dashboard</span>
           </button>
         </nav>
-        
-        <div className="dashboard-user">
-          <div className="user-info">
-            <div className="user-avatar">{user?.username?.charAt(0).toUpperCase() || 'C'}</div>
-            <span className="user-name">{user?.username || 'Citizen'}</span>
-          </div>
-        </div>
       </div>
 
       {/* Main Content */}
@@ -173,15 +189,17 @@ function DashboardCitizen() {
               
               <div className="profile-form">
                 <div className="form-group">
-                  <label>Full Name</label>
+                  <label>Username</label>
                   <input
                     type="text"
                     name="username"
                     value={profileData.username}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={!isEditing ? 'disabled' : ''}
+                    disabled={true}
+                    className='disabled'
                   />
+                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    Username cannot be changed
+                  </small>
                 </div>
                 <div className="form-group">
                   <label>Email</label>
@@ -189,34 +207,12 @@ function DashboardCitizen() {
                     type="email"
                     name="email"
                     value={profileData.email}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={!isEditing ? 'disabled' : ''}
+                    disabled={true}
+                    className='disabled'
                   />
-                </div>
-                <div className="form-group">
-                  <label>Phone Number</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={profileData.phone}
-                    onChange={handleChange}
-                    placeholder="Enter phone number"
-                    disabled={!isEditing}
-                    className={!isEditing ? 'disabled' : ''}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Address</label>
-                  <textarea
-                    name="address"
-                    value={profileData.address}
-                    onChange={handleChange}
-                    placeholder="Enter your address"
-                    disabled={!isEditing}
-                    rows={3}
-                    className={!isEditing ? 'disabled' : ''}
-                  />
+                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    Email cannot be changed
+                  </small>
                 </div>
               </div>
             </div>

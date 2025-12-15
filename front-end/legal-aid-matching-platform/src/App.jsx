@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import SignIn from './SignIn.jsx';
 import Signup from './signup.jsx';
@@ -19,23 +19,9 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-// Public Route - redirects to dashboard if already authenticated
+// Public Route - allows access to signin/signup even if authenticated
+// Users can logout from these pages or navigate to dashboard manually
 function PublicRoute({ children }) {
-  const isAuthenticated = authService.isAuthenticated();
-  
-  if (isAuthenticated) {
-    const user = authService.getCurrentUser();
-    if (user?.role === 'CITIZEN') {
-      return <Navigate to="/dashboard/citizen" replace />;
-    } else if (user?.role === 'LAWYER') {
-      return <Navigate to="/dashboard/lawyer" replace />;
-    } else if (user?.role === 'NGO') {
-      return <Navigate to="/dashboard/ngo" replace />;
-    } else if (user?.role === 'ADMIN') {
-      return <Navigate to="/dashboard/admin" replace />;
-    }
-  }
-  
   return children;
 }
 

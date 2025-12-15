@@ -8,6 +8,7 @@ function DashboardAdmin() {
   const user = authService.getCurrentUser();
   const [activeTab, setActiveTab] = useState('user-verification');
   const [activeView, setActiveView] = useState('pending');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pendingUsers, setPendingUsers] = useState([]);
   const [approvedUsers, setApprovedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,28 +24,64 @@ function DashboardAdmin() {
   const [selectedUser, setSelectedUser] = useState(null);
 
   useEffect(() => {
+    // Initial fetch
     fetchUsers();
+    
+    // Auto-refresh when window/tab gets focus
+    const handleFocus = () => {
+      console.log('Window focused, refreshing users...');
+      fetchUsers();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const result = await authService.getAllUsers();
+      
+      // Flatten profile data into user object for easier access
+      const flattenedUsers = result.map(user => {
+        const flatUser = { ...user };
+        if (user.profile) {
+          // Extract profile fields to top level
+          if (user.role === 'LAWYER') {
+            flatUser.specialization = user.profile.specialization;
+            flatUser.barNumber = user.profile.barNumber;
+          } else if (user.role === 'NGO') {
+            flatUser.organizationName = user.profile.organizationName;
+            flatUser.registrationNumber = user.profile.registrationNumber;
+            flatUser.focusArea = user.profile.focusArea;
+          }
+        }
+        return flatUser;
+      });
+      
       // Filter out CITIZEN role from all displays
-      const pending = result.filter(u => 
-        u.approvalStatus === 'PENDING' && 
+      const pending = flattenedUsers.filter(u => 
+        (u.approvalStatus === 'PENDING' || u.approvalStatus === 'REAPPROVAL_PENDING') && 
         (u.role === 'LAWYER' || u.role === 'NGO')
       );
-      const approved = result.filter(u => 
+      const approved = flattenedUsers.filter(u => 
         u.approvalStatus === 'APPROVED' && 
         (u.role === 'LAWYER' || u.role === 'NGO')
       );
-      const rejected = result.filter(u => 
+      const rejected = flattenedUsers.filter(u => 
         u.approvalStatus === 'REJECTED' && 
         (u.role === 'LAWYER' || u.role === 'NGO')
       );
+      const suspended = flattenedUsers.filter(u => 
+        u.approvalStatus === 'SUSPENDED' && 
+        (u.role === 'LAWYER' || u.role === 'NGO')
+      );
       setPendingUsers(pending);
-      setApprovedUsers([...approved, ...rejected]);
+      setApprovedUsers([...approved, ...rejected, ...suspended]);
     } catch (error) {
       console.error('Error fetching users:', error);
     }
@@ -63,12 +100,56 @@ function DashboardAdmin() {
   };
 
   const handleReject = async (userId, username) => {
+    // Find the user to check their status
+    const user = [...pendingUsers, ...approvedUsers].find(u => u.id === userId);
+    const isPending = user?.approvalStatus === 'PENDING';
+    
+    const message = isPending 
+      ? `Are you sure you want to reject ${username}? Their status will be changed to REJECTED.`
+      : `Reject profile changes for ${username}? Their profile will be reverted to the previously approved version.`;
+    
+    if (!confirm(message)) {
+      return;
+    }
+    
     setActionLoading(userId);
     try {
       await authService.rejectUser(userId);
       await fetchUsers();
+      alert(isPending ? 'User has been rejected.' : 'Profile changes have been rejected and reverted.');
     } catch (error) {
       console.error('Failed to reject user:', error);
+      alert('Failed to reject user');
+    }
+    setActionLoading(null);
+  };
+
+  const handleSuspend = async (userId, username) => {
+    if (!confirm(`Are you sure you want to suspend ${username}? They will not be able to access the system.`)) {
+      return;
+    }
+    setActionLoading(userId);
+    try {
+      await authService.suspendUser(userId);
+      await fetchUsers();
+    } catch (error) {
+      console.error('Failed to suspend user:', error);
+      alert('Failed to suspend user');
+    }
+    setActionLoading(null);
+  };
+
+  const handleReactivate = async (userId, username) => {
+    if (!confirm(`Reactivate ${username}'s account?`)) {
+      return;
+    }
+    setActionLoading(userId);
+    try {
+      await authService.reactivateUser(userId);
+      await fetchUsers();
+    } catch (error) {
+      console.error('Failed to reactivate user:', error);
+      alert('Failed to reactivate user');
     }
     setActionLoading(null);
   };
@@ -107,8 +188,18 @@ function DashboardAdmin() {
 
   return (
     <div className="admin-dashboard-layout">
+      {/* Mobile Menu Button */}
+      <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      
+      {/* Mobile Overlay */}
+      <div className={`mobile-overlay ${mobileMenuOpen ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}></div>
+      
       {/* Sidebar */}
-      <div className="admin-sidebar">
+      <div className={`admin-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="admin-logo">
           <div className="logo-icon">⚖️</div>
           <span className="logo-text">LegalMatch Pro</span>
@@ -183,6 +274,16 @@ function DashboardAdmin() {
         <div className="admin-top-bar">
           <h1 className="admin-page-title">Admin Panel</h1>
           <div className="admin-top-actions">
+            <button 
+              className="refresh-btn"
+              onClick={fetchUsers}
+              title="Refresh user list"
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
             <div className="profile-dropdown">
               <button 
                 className="profile-button" 
@@ -306,9 +407,17 @@ function DashboardAdmin() {
                               {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
                             </td>
                             <td className="status-cell">
-                              <span className="status-badge status-pending">Pending</span>
+                              <span className="status-badge status-pending">
+                                {u.approvalStatus === 'REAPPROVAL_PENDING' ? 'Re-approval Pending' : 'Pending'}
+                              </span>
                             </td>
                             <td className="actions-cell">
+                              <button 
+                                className="action-btn view-btn"
+                                onClick={() => handleViewDetails(u)}
+                              >
+                                View Details
+                              </button>
                               <button
                                 className="action-btn approve-btn"
                                 onClick={() => handleApprove(u.id, u.username)}
@@ -341,8 +450,14 @@ function DashboardAdmin() {
                               {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
                             </td>
                             <td className="status-cell">
-                              <span className={`status-badge ${u.approvalStatus === 'APPROVED' ? 'status-approved' : 'status-rejected'}`}>
-                                {u.approvalStatus === 'APPROVED' ? 'Approved' : 'Rejected'}
+                              <span className={`status-badge ${
+                                u.approvalStatus === 'APPROVED' ? 'status-approved' : 
+                                u.approvalStatus === 'SUSPENDED' ? 'status-suspended' : 
+                                'status-rejected'
+                              }`}>
+                                {u.approvalStatus === 'APPROVED' ? 'Approved' : 
+                                 u.approvalStatus === 'SUSPENDED' ? 'Suspended' : 
+                                 'Rejected'}
                               </span>
                             </td>
                             <td className="actions-cell">
@@ -352,6 +467,30 @@ function DashboardAdmin() {
                               >
                                 View Details
                               </button>
+                              {u.approvalStatus === 'APPROVED' && (
+                                <button
+                                  className="action-btn suspend-btn"
+                                  onClick={() => handleSuspend(u.id, u.username)}
+                                  disabled={actionLoading === u.id}
+                                >
+                                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                  </svg>
+                                  Suspend
+                                </button>
+                              )}
+                              {u.approvalStatus === 'SUSPENDED' && (
+                                <button
+                                  className="action-btn approve-btn"
+                                  onClick={() => handleReactivate(u.id, u.username)}
+                                  disabled={actionLoading === u.id}
+                                >
+                                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Reactivate
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -450,9 +589,9 @@ function DashboardAdmin() {
                 </div>
 
                 <div className="details-grid">
-                  <div className="detail-item">
-                    <label className="detail-label">Full Name</label>
-                    <p className="detail-value">{selectedUser.username || 'N/A'}</p>
+                <div className="detail-item">
+                  <label className="detail-label">Username</label>
+                  <p className="detail-value">{selectedUser.username || 'N/A'}</p>
                   </div>
                   <div className="detail-item">
                     <label className="detail-label">Email</label>
@@ -526,7 +665,7 @@ function DashboardAdmin() {
               </div>
               <div className="modal-footer">
                 <button className="btn-cancel" onClick={() => setShowUserDetails(false)}>Close</button>
-                {selectedUser.approvalStatus === 'PENDING' && (
+                {(selectedUser.approvalStatus === 'PENDING' || selectedUser.approvalStatus === 'REAPPROVAL_PENDING') && (
                   <>
                     <button 
                       className="btn-reject" 
@@ -547,6 +686,28 @@ function DashboardAdmin() {
                       Approve
                     </button>
                   </>
+                )}
+                {selectedUser.approvalStatus === 'APPROVED' && (
+                  <button 
+                    className="btn-suspend" 
+                    onClick={() => {
+                      handleSuspend(selectedUser.id, selectedUser.username);
+                      setShowUserDetails(false);
+                    }}
+                  >
+                    Suspend User
+                  </button>
+                )}
+                {selectedUser.approvalStatus === 'SUSPENDED' && (
+                  <button 
+                    className="btn-save" 
+                    onClick={() => {
+                      handleReactivate(selectedUser.id, selectedUser.username);
+                      setShowUserDetails(false);
+                    }}
+                  >
+                    Reactivate User
+                  </button>
                 )}
               </div>
             </div>

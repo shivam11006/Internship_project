@@ -11,6 +11,14 @@ function SignIn() {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
 
+  const handleGoogleLogin = () => {
+    alert('Google OAuth is not yet configured. Please use email/password login or contact the administrator.');
+  };
+
+  const handleGitHubLogin = () => {
+    alert('GitHub OAuth is not yet configured. Please use email/password login or contact the administrator.');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -56,7 +64,7 @@ function SignIn() {
         <p className="signin-subtitle">Sign in to your account to continue.</p>
         
         <div className="social-buttons">
-          <button type="button" className="social-btn google-btn">
+          <button type="button" className="social-btn google-btn" onClick={handleGoogleLogin}>
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M17.64 9.20454C17.64 8.56636 17.5827 7.95272 17.4764 7.36363H9V10.845H13.8436C13.635 11.97 13.0009 12.9231 12.0477 13.5613V15.8195H14.9564C16.6582 14.2527 17.64 11.9454 17.64 9.20454Z" fill="#4285F4"/>
               <path d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5613C11.2418 14.1013 10.2109 14.4204 9 14.4204C6.65591 14.4204 4.67182 12.8372 3.96409 10.71H0.957275V13.0418C2.43818 15.9831 5.48182 18 9 18Z" fill="#34A853"/>
@@ -66,7 +74,7 @@ function SignIn() {
             Continue with Google
           </button>
           
-          <button type="button" className="social-btn github-btn">
+          <button type="button" className="social-btn github-btn" onClick={handleGitHubLogin}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2C6.477 2 2 6.477 2 12C2 16.42 4.865 20.163 8.839 21.489C9.339 21.579 9.521 21.269 9.521 21.004C9.521 20.766 9.513 20.146 9.508 19.318C6.726 19.91 6.139 17.943 6.139 17.943C5.685 16.778 5.029 16.469 5.029 16.469C4.121 15.86 5.098 15.873 5.098 15.873C6.101 15.945 6.629 16.896 6.629 16.896C7.521 18.392 8.97 17.949 9.539 17.695C9.631 17.048 9.889 16.606 10.175 16.359C7.955 16.108 5.62 15.241 5.62 11.371C5.62 10.268 6.009 9.366 6.649 8.663C6.546 8.413 6.203 7.397 6.747 6.036C6.747 6.036 7.588 5.767 9.496 7.024C10.294 6.803 11.147 6.693 12 6.689C12.853 6.693 13.706 6.803 14.504 7.024C16.412 5.767 17.252 6.036 17.252 6.036C17.797 7.397 17.453 8.413 17.351 8.663C17.991 9.366 18.38 10.268 18.38 11.371C18.38 15.251 16.04 16.105 13.813 16.349C14.172 16.66 14.491 17.275 14.491 18.217C14.491 19.567 14.48 20.655 14.48 21.004C14.48 21.272 14.659 21.584 15.167 21.488C19.137 20.159 22 16.419 22 12C22 6.477 17.523 2 12 2Z" fill="#181717"/>
             </svg>
