@@ -9,6 +9,8 @@ import com.example.legalaid_backend.util.ApprovalStatus;
 import com.example.legalaid_backend.util.Role;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,18 +27,20 @@ import java.util.stream.Collectors;
 @PreAuthorize("isAuthenticated()")
 public class UserController {
 
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
+
     private final UserService userService;
     private final UserRepository userRepository;
 
     /**
-     SEARCH LAWYERS
+     * SEARCH LAWYERS
      * GET /api/users/lawyers
-     * Returns all APPROVED lawyers
-     * Citizens use this to find legal help
      */
     @GetMapping("/lawyers")
     public ResponseEntity<List<UserResponse>> getApprovedLawyers(
             @RequestParam(required = false) String specialization) {
+
+        logger.info("Request received: Fetching approved lawyers. Filter specialization = {}", specialization);
 
         // Get only APPROVED lawyers
         List<User> lawyers = userRepository.findByRoleAndApprovalStatus(
@@ -44,7 +48,9 @@ public class UserController {
                 ApprovalStatus.APPROVED
         );
 
-        // Filter by specialization if provided
+        logger.info("Found {} approved lawyers before filtering", lawyers.size());
+
+        // Filter by specialization if needed
         if (specialization != null && !specialization.isEmpty()) {
             lawyers = lawyers.stream()
                     .filter(user -> user.getLawyerProfile() != null &&
@@ -52,14 +58,14 @@ public class UserController {
                             user.getLawyerProfile().getSpecialization()
                                     .toLowerCase().contains(specialization.toLowerCase()))
                     .collect(Collectors.toList());
+            logger.info("{} lawyers match specialization '{}'", lawyers.size(), specialization);
         }
 
         List<UserResponse> response = lawyers.stream()
-                .map(lawyer -> {
-                    Object profile = lawyer.getLawyerProfile();
-                    return convertToPublicResponse(lawyer, profile);
-                })
+                .map(lawyer -> convertToPublicResponse(lawyer, lawyer.getLawyerProfile()))
                 .collect(Collectors.toList());
+
+        logger.info("Returning {} lawyer profiles", response.size());
 
         return ResponseEntity.ok(response);
     }
@@ -67,20 +73,20 @@ public class UserController {
     /**
      * SEARCH NGOs
      * GET /api/users/ngos
-     * Returns all APPROVED NGOs
-     * Citizens use this to find legal aid organizations
      */
     @GetMapping("/ngos")
     public ResponseEntity<List<UserResponse>> getApprovedNgos(
             @RequestParam(required = false) String focusArea) {
 
-        // Get only APPROVED NGOs
+        logger.info("Request received: Fetching approved NGOs. Filter focusArea = {}", focusArea);
+
         List<User> ngos = userRepository.findByRoleAndApprovalStatus(
                 Role.NGO,
                 ApprovalStatus.APPROVED
         );
 
-        // Filter by focus area if provided
+        logger.info("Found {} approved NGOs before filtering", ngos.size());
+
         if (focusArea != null && !focusArea.isEmpty()) {
             ngos = ngos.stream()
                     .filter(user -> user.getNgoProfile() != null &&
@@ -88,14 +94,14 @@ public class UserController {
                             user.getNgoProfile().getFocusArea()
                                     .toLowerCase().contains(focusArea.toLowerCase()))
                     .collect(Collectors.toList());
+            logger.info("{} NGOs match focus area '{}'", ngos.size(), focusArea);
         }
 
         List<UserResponse> response = ngos.stream()
-                .map(ngo -> {
-                    Object profile = ngo.getNgoProfile();
-                    return convertToPublicResponse(ngo, profile);
-                })
+                .map(ngo -> convertToPublicResponse(ngo, ngo.getNgoProfile()))
                 .collect(Collectors.toList());
+
+        logger.info("Returning {} NGO profiles", response.size());
 
         return ResponseEntity.ok(response);
     }
@@ -103,78 +109,75 @@ public class UserController {
     /**
      * VIEW PUBLIC PROFILE
      * GET /api/users/{id}/public
-     * Returns public information about a lawyer/NGO
-     *  IMPORTANT:
-     * - Only shows APPROVED users
-     * - Does NOT expose sensitive information
-     * - Suitable for public viewing
      */
     @GetMapping("/{id}/public")
     public ResponseEntity<?> getPublicProfile(@PathVariable Long id) {
+
+        logger.info("Request received: Fetching public profile for user ID {}", id);
+
         try {
             User user = userRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+                    .orElseThrow(() -> {
+                        logger.error("User not found: ID {}", id);
+                        return new RuntimeException("User not found");
+                    });
 
             // Only show approved professionals
             if (user.getApprovalStatus() != ApprovalStatus.APPROVED) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "Profile not available");
+                logger.warn("Public profile request denied — user {} not approved", id);
                 return ResponseEntity.notFound().build();
             }
 
-            // Only show lawyers and NGOs publicly
+            // Only lawyers and NGOs have public profiles
             if (user.getRole() != Role.LAWYER && user.getRole() != Role.NGO) {
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "Profile not available");
+                logger.warn("Public profile request denied — user {} is not lawyer/NGO", id);
                 return ResponseEntity.notFound().build();
             }
 
-            Object profile = null;
-            if (user.getRole() == Role.LAWYER) {
-                profile = user.getLawyerProfile();
-            } else if (user.getRole() == Role.NGO) {
-                profile = user.getNgoProfile();
-            }
+            Object profile = (user.getRole() == Role.LAWYER)
+                    ? user.getLawyerProfile()
+                    : user.getNgoProfile();
 
             UserResponse response = convertToPublicResponse(user, profile);
+
+            logger.info("Returning public profile for user ID {}", id);
+
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "User not found");
+            logger.error("Error fetching public profile for user {}: {}", id, e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
 
     /**
-     * GET STATISTICS (Public)
+     * GET PUBLIC STATISTICS
      * GET /api/users/stats
-     * Returns public statistics
-     * Useful for landing page
      */
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getPublicStats() {
+
+        logger.info("Request received: Fetching public statistics");
+
         Map<String, Object> stats = new HashMap<>();
 
         stats.put("approvedLawyers", userRepository.countByRoleAndApprovalStatus(
-                Role.LAWYER, ApprovalStatus.APPROVED
-        ));
-
+                Role.LAWYER, ApprovalStatus.APPROVED));
         stats.put("approvedNgos", userRepository.countByRoleAndApprovalStatus(
-                Role.NGO, ApprovalStatus.APPROVED
-        ));
-
+                Role.NGO, ApprovalStatus.APPROVED));
         stats.put("totalCitizens", userRepository.countByRole(Role.CITIZEN));
+
+        logger.info("Statistics fetched: {}", stats);
 
         return ResponseEntity.ok(stats);
     }
 
-    // Helper method - convert to public response (hides sensitive info)
+    // Helper method to convert to public profile
     private UserResponse convertToPublicResponse(User user, Object profile) {
         return UserResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
-                .email(user.getEmail())  // Consider hiding or masking this
+                .email(user.getEmail())   // optional to hide
                 .role(user.getRole())
                 .profile(profile)
                 .approvalStatus(user.getApprovalStatus())
