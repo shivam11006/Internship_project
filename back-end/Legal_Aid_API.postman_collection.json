@@ -1,0 +1,330 @@
+{
+	"info": {
+		"name": "Legal Aid Backend API",
+		"description": "Complete API collection for Legal Aid Matching Platform with Spring Security & JWT",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"token\", jsonData.token);",
+									"    pm.environment.set(\"token\", jsonData.token);",
+									"    console.log(\"Token saved: \" + jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"john@lawyer.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login with email and password to get JWT token. Token is automatically saved to collection variable."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "Register Lawyer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"john_lawyer\",\n    \"email\": \"john@lawyer.com\",\n    \"password\": \"password123\",\n    \"role\": \"LAWYER\",\n    \"specialization\": \"Criminal Law\",\n    \"yearsOfExperience\": 5\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "register"]
+						},
+						"description": "Register a new lawyer with profile information"
+					},
+					"response": []
+				},
+				{
+					"name": "Register NGO",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"help_ngo\",\n    \"email\": \"contact@helpngo.org\",\n    \"password\": \"password123\",\n    \"role\": \"NGO\",\n    \"ngoName\": \"Legal Aid Society\",\n    \"registrationNumber\": \"NGO12345\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "register"]
+						},
+						"description": "Register a new NGO with profile information"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Citizen",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"jane_citizen\",\n    \"email\": \"jane@example.com\",\n    \"password\": \"password123\",\n    \"role\": \"CITIZEN\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "register"]
+						},
+						"description": "Register a new citizen user"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/users",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users"]
+						},
+						"description": "Get list of all registered users (requires authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "1"]
+						},
+						"description": "Get user details by ID (requires authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by Email",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/email/john@lawyer.com",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "email", "john@lawyer.com"]
+						},
+						"description": "Get user details by email (requires authentication)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/3",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "3"]
+						},
+						"description": "Delete user by ID (requires authentication)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Test Cases",
+			"item": [
+				{
+					"name": "Test - Invalid Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"wrong@example.com\",\n    \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Test with invalid credentials - should return 401"
+					},
+					"response": []
+				},
+				{
+					"name": "Test - Duplicate Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"another_john\",\n    \"email\": \"john@lawyer.com\",\n    \"password\": \"password123\",\n    \"role\": \"CITIZEN\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "register"]
+						},
+						"description": "Test duplicate email registration - should return 400"
+					},
+					"response": []
+				},
+				{
+					"name": "Test - Missing Authentication",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users"]
+						},
+						"description": "Test accessing protected endpoint without token - should return 403"
+					},
+					"response": []
+				},
+				{
+					"name": "Test - Invalid Email Format",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"test_user\",\n    \"email\": \"invalid-email\",\n    \"password\": \"password123\",\n    \"role\": \"CITIZEN\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "register"]
+						},
+						"description": "Test with invalid email format - should return 400 with validation error"
+					},
+					"response": []
+				},
+				{
+					"name": "Test - Missing Required Fields",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"test_user\",\n    \"role\": \"CITIZEN\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "register"]
+						},
+						"description": "Test with missing required fields - should return 400 with validation errors"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
