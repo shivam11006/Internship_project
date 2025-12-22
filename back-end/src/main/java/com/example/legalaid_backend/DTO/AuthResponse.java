@@ -1,5 +1,6 @@
 package com.example.legalaid_backend.DTO;
 
+import com.example.legalaid_backend.util.ApprovalStatus;
 import com.example.legalaid_backend.util.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,4 +21,5 @@ public class AuthResponse {
     private String username;
     private String email;
     private Role role;
+    private ApprovalStatus status;
 }

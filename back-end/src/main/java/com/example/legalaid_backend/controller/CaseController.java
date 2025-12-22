@@ -4,34 +4,111 @@ import com.example.legalaid_backend.DTO.CaseResponse;
 import com.example.legalaid_backend.DTO.CreateCaseRequest;
 import com.example.legalaid_backend.service.CaseService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/cases")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class CaseController {
 
     private final CaseService caseService;
 
-    // POST /cases
+    /**
+     * CREATE CASE
+     * POST /api/cases
+     */
     @PostMapping
     public ResponseEntity<CaseResponse> createCase(
-            @RequestBody CreateCaseRequest request) {
-        return ResponseEntity.ok(caseService.createCase(request));
+            @RequestBody CreateCaseRequest request,
+            Authentication auth) {
+
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/cases");
+
+        try {
+            log.info("Case creation request received from user: {}, type: {}",
+                    auth.getName(),
+                    request.getCaseType());
+
+            CaseResponse response = caseService.createCase(request);
+
+            log.info("Case created successfully: ID {}, type: {}, status: {}",
+                    response.getId(),
+                    response.getCaseType(),
+                    response.getStatus());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to create case for user {}: {}", auth.getName(), e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
-    // GET /cases/my
+    /**
+     * GET MY CASES
+     * GET /api/cases/my
+     */
     @GetMapping("/my")
-    public ResponseEntity<List<CaseResponse>> getMyCases() {
-        return ResponseEntity.ok(caseService.getMyCases());
+    public ResponseEntity<List<CaseResponse>> getMyCases(Authentication auth) {
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/cases/my");
+
+        try {
+            log.info("User {} requested their cases", auth.getName());
+
+            List<CaseResponse> cases = caseService.getMyCases();
+
+            log.info("Retrieved {} cases for user {}", cases.size(), auth.getName());
+
+            return ResponseEntity.ok(cases);
+
+        } catch (Exception e) {
+            log.error("Failed to retrieve cases for user {}: {}", auth.getName(), e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
-    // GET /cases/{id}
+    /**
+     * GET CASE BY ID
+     * GET /api/cases/{id}
+     */
     @GetMapping("/{id}")
-    public ResponseEntity<CaseResponse> getCaseById(@PathVariable Long id) {
-        return ResponseEntity.ok(caseService.getCaseById(id));
+    public ResponseEntity<CaseResponse> getCaseById(
+            @PathVariable Long id,
+            Authentication auth) {
+
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/cases/" + id);
+
+        try {
+            log.info("User {} requested case ID {}", auth.getName(), id);
+
+            CaseResponse response = caseService.getCaseById(id);
+
+            log.info("Case retrieved successfully: ID {}, type: {}", id, response.getCaseType());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to retrieve case ID {} for user {}: {}",
+                    id, auth.getName(), e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 }

@@ -25,34 +25,24 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-
     private final UserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-          http.csrf(AbstractHttpConfigurer::disable)
-
+        http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/h2-console/**").permitAll()
 
-                        // Endpoints require authentication
+                        // All other endpoints require authentication
                         .anyRequest().authenticated()
-
                 )
-                  .sessionManagement(session ->
-                          session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                  .authenticationProvider(authenticationProvider())
-
-                  .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-
-
-        http.headers(headers -> headers.frameOptions(frame -> frame.disable()));
-
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -9,11 +9,14 @@ import com.example.legalaid_backend.util.ApprovalStatus;
 import com.example.legalaid_backend.util.Role;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -21,13 +24,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class UserController {
-
-    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     private final UserService userService;
     private final UserRepository userRepository;
@@ -38,36 +40,50 @@ public class UserController {
      */
     @GetMapping("/lawyers")
     public ResponseEntity<List<UserResponse>> getApprovedLawyers(
-            @RequestParam(required = false) String specialization) {
+            @RequestParam(required = false) String specialization,
+            Authentication auth) {
 
-        logger.info("Request received: Fetching approved lawyers. Filter specialization = {}", specialization);
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/users/lawyers");
 
-        // Get only APPROVED lawyers
-        List<User> lawyers = userRepository.findByRoleAndApprovalStatus(
-                Role.LAWYER,
-                ApprovalStatus.APPROVED
-        );
+        try {
+            log.info("User {} requested approved lawyers, filter: specialization={}",
+                    auth.getName(),
+                    specialization);
 
-        logger.info("Found {} approved lawyers before filtering", lawyers.size());
+            // Get only APPROVED lawyers
+            List<User> lawyers = userRepository.findByRoleAndApprovalStatus(
+                    Role.LAWYER,
+                    ApprovalStatus.APPROVED
+            );
 
-        // Filter by specialization if needed
-        if (specialization != null && !specialization.isEmpty()) {
-            lawyers = lawyers.stream()
-                    .filter(user -> user.getLawyerProfile() != null &&
-                            user.getLawyerProfile().getSpecialization() != null &&
-                            user.getLawyerProfile().getSpecialization()
-                                    .toLowerCase().contains(specialization.toLowerCase()))
+            log.debug("Found {} approved lawyers before filtering", lawyers.size());
+
+            // Filter by specialization if needed
+            if (specialization != null && !specialization.isEmpty()) {
+                lawyers = lawyers.stream()
+                        .filter(user -> user.getLawyerProfile() != null &&
+                                user.getLawyerProfile().getSpecialization() != null &&
+                                user.getLawyerProfile().getSpecialization()
+                                        .toLowerCase().contains(specialization.toLowerCase()))
+                        .collect(Collectors.toList());
+                log.info("{} lawyers match specialization '{}'", lawyers.size(), specialization);
+            }
+
+            List<UserResponse> response = lawyers.stream()
+                    .map(lawyer -> convertToPublicResponse(lawyer, lawyer.getLawyerProfile()))
                     .collect(Collectors.toList());
-            logger.info("{} lawyers match specialization '{}'", lawyers.size(), specialization);
+
+            log.info("Returning {} lawyer profiles to user {}", response.size(), auth.getName());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to fetch lawyers for user {}: {}", auth.getName(), e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
         }
-
-        List<UserResponse> response = lawyers.stream()
-                .map(lawyer -> convertToPublicResponse(lawyer, lawyer.getLawyerProfile()))
-                .collect(Collectors.toList());
-
-        logger.info("Returning {} lawyer profiles", response.size());
-
-        return ResponseEntity.ok(response);
     }
 
     /**
@@ -76,34 +92,48 @@ public class UserController {
      */
     @GetMapping("/ngos")
     public ResponseEntity<List<UserResponse>> getApprovedNgos(
-            @RequestParam(required = false) String focusArea) {
+            @RequestParam(required = false) String focusArea,
+            Authentication auth) {
 
-        logger.info("Request received: Fetching approved NGOs. Filter focusArea = {}", focusArea);
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/users/ngos");
 
-        List<User> ngos = userRepository.findByRoleAndApprovalStatus(
-                Role.NGO,
-                ApprovalStatus.APPROVED
-        );
+        try {
+            log.info("User {} requested approved NGOs, filter: focusArea={}",
+                    auth.getName(),
+                    focusArea);
 
-        logger.info("Found {} approved NGOs before filtering", ngos.size());
+            List<User> ngos = userRepository.findByRoleAndApprovalStatus(
+                    Role.NGO,
+                    ApprovalStatus.APPROVED
+            );
 
-        if (focusArea != null && !focusArea.isEmpty()) {
-            ngos = ngos.stream()
-                    .filter(user -> user.getNgoProfile() != null &&
-                            user.getNgoProfile().getFocusArea() != null &&
-                            user.getNgoProfile().getFocusArea()
-                                    .toLowerCase().contains(focusArea.toLowerCase()))
+            log.debug("Found {} approved NGOs before filtering", ngos.size());
+
+            if (focusArea != null && !focusArea.isEmpty()) {
+                ngos = ngos.stream()
+                        .filter(user -> user.getNgoProfile() != null &&
+                                user.getNgoProfile().getFocusArea() != null &&
+                                user.getNgoProfile().getFocusArea()
+                                        .toLowerCase().contains(focusArea.toLowerCase()))
+                        .collect(Collectors.toList());
+                log.info("{} NGOs match focus area '{}'", ngos.size(), focusArea);
+            }
+
+            List<UserResponse> response = ngos.stream()
+                    .map(ngo -> convertToPublicResponse(ngo, ngo.getNgoProfile()))
                     .collect(Collectors.toList());
-            logger.info("{} NGOs match focus area '{}'", ngos.size(), focusArea);
+
+            log.info("Returning {} NGO profiles to user {}", response.size(), auth.getName());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to fetch NGOs for user {}: {}", auth.getName(), e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
         }
-
-        List<UserResponse> response = ngos.stream()
-                .map(ngo -> convertToPublicResponse(ngo, ngo.getNgoProfile()))
-                .collect(Collectors.toList());
-
-        logger.info("Returning {} NGO profiles", response.size());
-
-        return ResponseEntity.ok(response);
     }
 
     /**
@@ -111,26 +141,33 @@ public class UserController {
      * GET /api/users/{id}/public
      */
     @GetMapping("/{id}/public")
-    public ResponseEntity<?> getPublicProfile(@PathVariable Long id) {
+    public ResponseEntity<?> getPublicProfile(
+            @PathVariable Long id,
+            Authentication auth) {
 
-        logger.info("Request received: Fetching public profile for user ID {}", id);
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/users/" + id + "/public");
 
         try {
+            log.info("User {} requested public profile for user ID {}", auth.getName(), id);
+
             User user = userRepository.findById(id)
                     .orElseThrow(() -> {
-                        logger.error("User not found: ID {}", id);
+                        log.warn("Public profile request failed - user ID {} not found", id);
                         return new RuntimeException("User not found");
                     });
 
             // Only show approved professionals
             if (user.getApprovalStatus() != ApprovalStatus.APPROVED) {
-                logger.warn("Public profile request denied — user {} not approved", id);
+                log.warn("Public profile request denied – user {} not approved (status: {})",
+                        id, user.getApprovalStatus());
                 return ResponseEntity.notFound().build();
             }
 
             // Only lawyers and NGOs have public profiles
             if (user.getRole() != Role.LAWYER && user.getRole() != Role.NGO) {
-                logger.warn("Public profile request denied — user {} is not lawyer/NGO", id);
+                log.warn("Public profile request denied – user {} is {} (not lawyer/NGO)",
+                        id, user.getRole());
                 return ResponseEntity.notFound().build();
             }
 
@@ -140,13 +177,16 @@ public class UserController {
 
             UserResponse response = convertToPublicResponse(user, profile);
 
-            logger.info("Returning public profile for user ID {}", id);
+            log.info("Public profile returned for user ID {} to requester {}", id, auth.getName());
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            logger.error("Error fetching public profile for user {}: {}", id, e.getMessage());
+            log.error("Error fetching public profile for user {} requested by {}: {}",
+                    id, auth.getName(), e.getMessage(), e);
             return ResponseEntity.notFound().build();
+        } finally {
+            MDC.clear();
         }
     }
 
@@ -155,21 +195,31 @@ public class UserController {
      * GET /api/users/stats
      */
     @GetMapping("/stats")
-    public ResponseEntity<Map<String, Object>> getPublicStats() {
+    public ResponseEntity<Map<String, Object>> getPublicStats(Authentication auth) {
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/users/stats");
 
-        logger.info("Request received: Fetching public statistics");
+        try {
+            log.info("User {} requested public statistics", auth.getName());
 
-        Map<String, Object> stats = new HashMap<>();
+            Map<String, Object> stats = new HashMap<>();
 
-        stats.put("approvedLawyers", userRepository.countByRoleAndApprovalStatus(
-                Role.LAWYER, ApprovalStatus.APPROVED));
-        stats.put("approvedNgos", userRepository.countByRoleAndApprovalStatus(
-                Role.NGO, ApprovalStatus.APPROVED));
-        stats.put("totalCitizens", userRepository.countByRole(Role.CITIZEN));
+            stats.put("approvedLawyers", userRepository.countByRoleAndApprovalStatus(
+                    Role.LAWYER, ApprovalStatus.APPROVED));
+            stats.put("approvedNgos", userRepository.countByRoleAndApprovalStatus(
+                    Role.NGO, ApprovalStatus.APPROVED));
+            stats.put("totalCitizens", userRepository.countByRole(Role.CITIZEN));
 
-        logger.info("Statistics fetched: {}", stats);
+            log.debug("Public statistics: {}", stats);
 
-        return ResponseEntity.ok(stats);
+            return ResponseEntity.ok(stats);
+
+        } catch (Exception e) {
+            log.error("Failed to fetch statistics for user {}: {}", auth.getName(), e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
     // Helper method to convert to public profile
@@ -177,7 +227,7 @@ public class UserController {
         return UserResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
-                .email(user.getEmail())   // optional to hide
+                .email(user.getEmail())
                 .role(user.getRole())
                 .profile(profile)
                 .approvalStatus(user.getApprovalStatus())
