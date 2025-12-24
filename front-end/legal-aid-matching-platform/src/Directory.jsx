@@ -129,6 +129,12 @@ const Directory = () => {
               <span className="detail-text">{detail2}</span>
             </div>
           )}
+          {profile.location && (
+            <div className="detail-row">
+              <span className="detail-icon">📍</span>
+              <span className="detail-text">{profile.location}</span>
+            </div>
+          )}
           <div className="detail-row">
             <span className="detail-icon">📧</span>
             <span className="detail-text">{email}</span>

@@ -147,7 +147,9 @@ public class DirectoryService {
         return user.getUsername().toLowerCase().contains(lowerKeyword) ||
                 user.getEmail().toLowerCase().contains(lowerKeyword) ||
                 (user.getLawyerProfile() != null &&
-                        user.getLawyerProfile().getBarNumber().toLowerCase().contains(lowerKeyword));
+                        user.getLawyerProfile().getBarNumber().toLowerCase().contains(lowerKeyword)) ||
+                (user.getLawyerProfile() != null &&
+                        user.getLawyerProfile().getSpecialization().toLowerCase().contains(lowerKeyword));
     }
 
     private boolean matchesNgoKeyword(User user, String keyword) {
@@ -155,7 +157,9 @@ public class DirectoryService {
         return user.getUsername().toLowerCase().contains(lowerKeyword) ||
                 user.getEmail().toLowerCase().contains(lowerKeyword) ||
                 (user.getNgoProfile() != null &&
-                        user.getNgoProfile().getOrganizationName().toLowerCase().contains(lowerKeyword));
+                        user.getNgoProfile().getOrganizationName().toLowerCase().contains(lowerKeyword)) ||
+                (user.getNgoProfile() != null &&
+                        user.getNgoProfile().getFocusArea().toLowerCase().contains(lowerKeyword));
     }
 
     private List<LawyerDirectoryResponse> applySorting(
