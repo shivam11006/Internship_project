@@ -13,6 +13,7 @@ public class NgoDirectoryResponse {
     private Long userId;
     private String username;
     private String email;
+    private String address;
     private String organizationName;
     private String registrationNumber;
     private String focusArea;

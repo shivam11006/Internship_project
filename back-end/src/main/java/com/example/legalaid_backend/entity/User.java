@@ -45,6 +45,9 @@ public class User {
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(length = 500)
+    private String location;
+
     // ✅ Keep only these profiles
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private LawyerProfile lawyerProfile;

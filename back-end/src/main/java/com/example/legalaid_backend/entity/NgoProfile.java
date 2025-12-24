@@ -38,4 +38,7 @@ public class NgoProfile {
     private String lastApprovedRegistrationNumber;
     private String lastApprovedFocusArea;
 
+    @Column(length = 500)
+    private String address;
+
 }

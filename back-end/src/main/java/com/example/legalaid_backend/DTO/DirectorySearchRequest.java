@@ -14,6 +14,9 @@ public class DirectorySearchRequest {
     // Search by username, email, organization name, etc.
     private String keyword;
 
+    // Filter by location
+    private String location;
+
     // Filter verified only (approved lawyers/NGOs)
     private Boolean verified = true;
 
@@ -22,6 +25,6 @@ public class DirectorySearchRequest {
     private Integer size = 20;
 
     // Sorting
-    private String sortBy = "username";  // username, specialization, focusArea
+    private String sortBy = "username";  // username, specialization, focusArea, location
     private String sortOrder = "asc";    // asc or desc
 }

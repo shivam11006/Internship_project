@@ -23,12 +23,17 @@ public class RegisterRequest {
     @NotNull(message = "Role is required")
     private Role role;
 
+    // Common field for all users
+    private String location;
+
     // Lawyer-specific fields (optional, used only if role is LAWYER)
     private String specialization;
     private String barNumber;
+    private String address;
 
     // NGO-specific fields (optional, used only if role is NGO)
     private String organizationName;
     private String registrationNumber;
     private String focusArea;
+    // address field is shared (see above)
 }

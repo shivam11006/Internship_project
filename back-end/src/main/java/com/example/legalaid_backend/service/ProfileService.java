@@ -70,6 +70,7 @@ public class ProfileService {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .role(user.getRole())
+                .location(user.getLocation())
                 .createdAt(user.getCreatedAt())
                 .profile(profile)
                 .approvalStatus(user.getApprovalStatus())
@@ -90,6 +91,11 @@ public class ProfileService {
         if (request.getUsername() != null) {
             logger.info("Updating username for user {} to {}", user.getEmail(), request.getUsername());
             user.setUsername(request.getUsername());
+        }
+
+        if (request.getLocation() != null) {
+            logger.info("Updating location for user {} to {}", user.getEmail(), request.getLocation());
+            user.setLocation(request.getLocation());
         }
 
         // Role-specific updates
@@ -138,6 +144,12 @@ public class ProfileService {
             logger.info("Crucial field changed: Specialization {} → {}", profile.getSpecialization(), request.getSpecialization());
             profile.setSpecialization(request.getSpecialization());
             crucialFieldChanged = true;
+        }
+
+        // Address (non-crucial)
+        if (request.getAddress() != null) {
+            logger.info("Updating address for lawyer {} to {}", user.getEmail(), request.getAddress());
+            profile.setAddress(request.getAddress());
         }
 
         // Trigger re-approval if needed
@@ -190,6 +202,12 @@ public class ProfileService {
             logger.info("Crucial field changed: FocusArea {} → {}", profile.getFocusArea(), request.getFocusArea());
             profile.setFocusArea(request.getFocusArea());
             crucialFieldChanged = true;
+        }
+
+        // Address (non-crucial)
+        if (request.getAddress() != null) {
+            logger.info("Updating address for NGO {} to {}", user.getEmail(), request.getAddress());
+            profile.setAddress(request.getAddress());
         }
 
         // Trigger re-approval
