@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
+import DirectoryIngestion from './DirectoryIngestion';
 import './AdminDashboard.css';
 
 function DashboardAdmin() {
@@ -483,6 +484,10 @@ function DashboardAdmin() {
                 </svg>
                 <p>System Logs will appear here</p>
               </div>
+            )}
+
+            {activeView === 'directory' && (
+              <DirectoryIngestion />
             )}
           </div>
         ) : (
