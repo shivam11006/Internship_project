@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import './CaseSubmission.css';
+import { apiClient } from './services/authService';
 
-function CaseSubmission() {
+function CaseSubmission({ onSuccess, onClose }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     title: '',
@@ -167,7 +168,7 @@ function CaseSubmission() {
 
   const validateStep1 = () => {
     const newErrors = {};
-    
+
     if (!formData.title.trim()) {
       newErrors.title = 'Case title is required';
     } else if (formData.title.trim().length < 10) {
@@ -198,7 +199,7 @@ function CaseSubmission() {
 
   const validateStep2 = () => {
     const newErrors = {};
-    
+
     if (!formData.location.trim()) {
       newErrors.location = 'Location is required';
     }
@@ -235,23 +236,43 @@ function CaseSubmission() {
   };
 
   const handleSubmit = async () => {
-    // This is UI only - no actual API call
     setIsSubmitting(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+    setErrors({});
+
+    try {
+      // Map frontend data to backend CreateCaseRequest DTO
+      const caseData = {
+        title: formData.title,
+        description: formData.description,
+        caseType: formData.caseType === 'Other' ? customCaseType : formData.caseType,
+        priority: formData.priority,
+        // The following fields are not currently in the backend but we send them anyway
+        // or we could update the backend to support them.
+        location: formData.location,
+        expertiseTags: formData.expertiseTags,
+        preferredLanguage: formData.preferredLanguage === 'Other' ? customLanguage : formData.preferredLanguage
+      };
+
+      const response = await apiClient.post('/cases', caseData);
+
+      if (response.status === 200 || response.status === 201) {
+        alert('Case submitted successfully!');
+        localStorage.removeItem('caseDraft');
+        if (onSuccess) onSuccess();
+        if (onClose) onClose();
+      }
+    } catch (error) {
+      console.error('Error submitting case:', error);
+      alert(error.response?.data?.message || 'Failed to submit case. Please try again.');
+    } finally {
       setIsSubmitting(false);
-      alert('Case submitted successfully! (UI Only - No backend integration)');
-      localStorage.removeItem('caseDraft');
-      if (onSuccess) onSuccess();
-      if (onClose) onClose();
-    }, 1500);
+    }
   };
 
   const renderStepIndicator = () => (
     <div className="case-steps-container">
       <div className="case-steps-progress">
-        <div 
+        <div
           className="case-steps-progress-bar"
           style={{ width: `${(currentStep / 4) * 100}%` }}
         />
@@ -260,14 +281,13 @@ function CaseSubmission() {
         {steps.map((step) => (
           <div
             key={step.number}
-            className={`case-step ${currentStep >= step.number ? 'active' : ''} ${
-              currentStep > step.number ? 'completed' : ''
-            }`}
+            className={`case-step ${currentStep >= step.number ? 'active' : ''} ${currentStep > step.number ? 'completed' : ''
+              }`}
           >
             <div className="case-step-number">
               {currentStep > step.number ? (
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M13.3337 4L6.00033 11.3333L2.66699 8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M13.3337 4L6.00033 11.3333L2.66699 8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               ) : (
                 step.number
@@ -346,7 +366,7 @@ function CaseSubmission() {
         <label className="case-form-label">
           Expertise Tags <span className="required">*</span>
         </label>
-        
+
         {/* Selected Tags */}
         {formData.expertiseTags.length > 0 && (
           <div className="selected-tags">
@@ -365,7 +385,7 @@ function CaseSubmission() {
             ))}
           </div>
         )}
-        
+
         {/* Predefined Tags */}
         <div className="expertise-tags">
           {expertiseTags.map(tag => (
@@ -379,7 +399,7 @@ function CaseSubmission() {
             </button>
           ))}
         </div>
-        
+
         {/* Custom Tag Input */}
         <div className="custom-tag-input">
           <input
@@ -398,7 +418,7 @@ function CaseSubmission() {
             Add
           </button>
         </div>
-        
+
         <p className="field-hint">Select from options above or add your own custom tag.</p>
         {errors.expertiseTags && <span className="error-message">{errors.expertiseTags}</span>}
       </div>
@@ -500,11 +520,11 @@ function CaseSubmission() {
         </div>
         <h3>Evidence & Documents</h3>
         <p className="evidence-description">
-          Upload any relevant documents that support your case. This could include contracts, 
+          Upload any relevant documents that support your case. This could include contracts,
           emails, photographs, police reports, or any other evidence.
         </p>
-        
-        <div 
+
+        <div
           className="upload-area"
           onDrop={handleFileDrop}
           onDragOver={handleDragOver}
@@ -629,7 +649,7 @@ function CaseSubmission() {
           <label className="consent-checkbox">
             <input type="checkbox" required />
             <span>
-              I confirm that all information provided is accurate and I understand that 
+              I confirm that all information provided is accurate and I understand that
               providing false information may affect my case.
             </span>
           </label>
@@ -648,7 +668,7 @@ function CaseSubmission() {
     <div className="case-submission-content">
       <div className="case-content-wrapper">
         {renderStepIndicator()}
-        
+
         <div className="case-form-content">
           {currentStep === 1 && renderStep1()}
           {currentStep === 2 && renderStep2()}

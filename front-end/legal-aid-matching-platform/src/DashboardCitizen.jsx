@@ -81,14 +81,14 @@ function DashboardCitizen() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </button>
-      
+
       {/* Mobile Overlay */}
       <div className={`mobile-overlay ${mobileMenuOpen ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}></div>
-      
+
       {/* Sidebar */}
       <div className={`dashboard-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <nav className="dashboard-nav">
-          <button 
+          <button
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => setActiveTab('dashboard')}
           >
@@ -97,8 +97,8 @@ function DashboardCitizen() {
             </svg>
             <span>Dashboard</span>
           </button>
-          
-          <button 
+
+          <button
             className={`nav-item ${activeTab === 'case-submission' ? 'active' : ''}`}
             onClick={() => setActiveTab('case-submission')}
           >
@@ -108,7 +108,7 @@ function DashboardCitizen() {
             <span>Case Submission</span>
           </button>
 
-          <button 
+          <button
             className={`nav-item ${activeTab === 'my-cases' ? 'active' : ''}`}
             onClick={() => setActiveTab('my-cases')}
           >
@@ -117,8 +117,8 @@ function DashboardCitizen() {
             </svg>
             <span>My Cases</span>
           </button>
-          
-          <button 
+
+          <button
             className={`nav-item ${activeTab === 'directory' ? 'active' : ''}`}
             onClick={() => setActiveTab('directory')}
           >
@@ -127,14 +127,14 @@ function DashboardCitizen() {
             </svg>
             <span>Directory</span>
           </button>
-          
+
           <button className="nav-item">
             <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
             <span>Matches</span>
           </button>
-          
+
           <button className="nav-item">
             <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -202,7 +202,7 @@ function DashboardCitizen() {
                   Welcome to your Legal Aid dashboard. Navigate through the menu to submit cases, search the directory, or view your matches.
                 </p>
               </div>
-              
+
               <div className="feature-cards">
                 <div className="feature-card">
                   <div className="feature-icon blue">
@@ -213,7 +213,7 @@ function DashboardCitizen() {
                   <h3>Find Legal Help</h3>
                   <p>Browse our directory of verified lawyers and NGOs</p>
                 </div>
-                
+
                 <div className="feature-card">
                   <div className="feature-icon purple">
                     <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -223,7 +223,7 @@ function DashboardCitizen() {
                   <h3>Smart Matching</h3>
                   <p>Get matched with the right legal professionals</p>
                 </div>
-                
+
                 <div className="feature-card">
                   <div className="feature-icon green">
                     <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,15 +236,15 @@ function DashboardCitizen() {
               </div>
             </div>
           )}
-          
+
           {activeTab === 'case-submission' && (
-            <CaseSubmission />
+            <CaseSubmission onSuccess={() => setActiveTab('my-cases')} />
           )}
 
           {activeTab === 'my-cases' && (
             <CaseManagement />
           )}
-          
+
           {activeTab === 'directory' && (
             <Directory />
           )}
@@ -266,7 +266,7 @@ function DashboardCitizen() {
                 </div>
                 <div className="profile-role-badge">{user?.role || 'CITIZEN'}</div>
               </div>
-              
+
               <div className="profile-form">
                 <div className="form-group">
                   <label>Username</label>

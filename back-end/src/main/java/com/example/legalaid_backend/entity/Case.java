@@ -30,6 +30,17 @@ public class Case {
     @Column(nullable = false)
     private String priority;
 
+    @Column
+    private String location;
+
+    @Column
+    private String preferredLanguage;
+
+    @ElementCollection
+    @CollectionTable(name = "case_expertise_tags", joinColumns = @JoinColumn(name = "case_id"))
+    @Column(name = "tag")
+    private java.util.List<String> expertiseTags;
+
     @Column(nullable = false)
     private String status;
 

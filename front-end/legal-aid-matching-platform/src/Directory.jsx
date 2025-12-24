@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Directory.css';
+import { apiClient } from './services/authService';
 
 const PRACTICE_AREAS = [
   'Family Law', 'Property Disputes', 'Human Rights', 'Environmental Law',
@@ -36,9 +37,8 @@ const Directory = () => {
   const fetchProfiles = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const endpoint = role === 'Lawyer' ? '/api/directory/lawyers/search' : '/api/directory/ngos/search';
-      
+      const endpoint = role === 'Lawyer' ? '/directory/lawyers/search' : '/directory/ngos/search';
+
       const requestBody = {
         expertise: selectedPracticeAreas.join(','),
         keyword: searchKeyword,
@@ -49,24 +49,11 @@ const Directory = () => {
         sortOrder: 'asc'
       };
 
-      const response = await fetch(`http://localhost:8080${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setProfiles(data.content || []);
-        setTotalPages(data.totalPages || 1);
-        setTotalElements(data.totalElements || 0);
-      } else {
-        console.error('Failed to fetch profiles');
-        setProfiles([]);
-      }
+      const response = await apiClient.post(endpoint, requestBody);
+      const data = response.data;
+      setProfiles(data.content || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalElements(data.totalElements || 0);
     } catch (error) {
       console.error('Error fetching profiles:', error);
       setProfiles([]);

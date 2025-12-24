@@ -40,6 +40,9 @@ public class CaseService {
         legalCase.setDescription(request.getDescription());
         legalCase.setCaseType(request.getCaseType());
         legalCase.setPriority(request.getPriority());
+        legalCase.setLocation(request.getLocation());
+        legalCase.setPreferredLanguage(request.getPreferredLanguage());
+        legalCase.setExpertiseTags(request.getExpertiseTags());
         legalCase.setStatus("SUBMITTED"); // ✅ default status
         legalCase.setCreatedBy(currentUser);
 
@@ -95,6 +98,9 @@ public class CaseService {
         response.setCaseType(legalCase.getCaseType());
         response.setPriority(legalCase.getPriority());
         response.setStatus(legalCase.getStatus());
+        response.setLocation(legalCase.getLocation());
+        response.setPreferredLanguage(legalCase.getPreferredLanguage());
+        response.setExpertiseTags(legalCase.getExpertiseTags());
         response.setCreatedBy(legalCase.getCreatedBy().getId());
         response.setCreatedAt(legalCase.getCreatedAt());
         response.setUpdatedAt(legalCase.getUpdatedAt());

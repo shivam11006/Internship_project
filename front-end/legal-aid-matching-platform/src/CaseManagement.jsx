@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './CaseManagement.css';
+import { apiClient } from './services/authService';
 
 const CaseManagement = () => {
   const [cases, setCases] = useState([]);
@@ -14,20 +15,8 @@ const CaseManagement = () => {
   const fetchMyCases = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8080/api/cases/my', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCases(data);
-      } else {
-        console.error('Failed to fetch cases');
-      }
+      const response = await apiClient.get('/cases/my');
+      setCases(response.data);
     } catch (error) {
       console.error('Error fetching cases:', error);
     } finally {
@@ -37,21 +26,9 @@ const CaseManagement = () => {
 
   const viewCaseDetails = async (caseId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8080/api/cases/${caseId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSelectedCase(data);
-        setShowDetailModal(true);
-      } else {
-        console.error('Failed to fetch case details');
-      }
+      const response = await apiClient.get(`/cases/${caseId}`);
+      setSelectedCase(response.data);
+      setShowDetailModal(true);
     } catch (error) {
       console.error('Error fetching case details:', error);
     }
@@ -248,13 +225,13 @@ const CaseManagement = () => {
                     </span>
                   </div>
                   <p className="status-description">
-                    {selectedCase.status?.toLowerCase() === 'submitted' && 
+                    {selectedCase.status?.toLowerCase() === 'submitted' &&
                       'Your case has been submitted and is awaiting review.'}
-                    {selectedCase.status?.toLowerCase() === 'in_review' && 
+                    {selectedCase.status?.toLowerCase() === 'in_review' &&
                       'Your case is currently being reviewed by our team.'}
-                    {selectedCase.status?.toLowerCase() === 'matched' && 
+                    {selectedCase.status?.toLowerCase() === 'matched' &&
                       'Your case has been matched with a legal professional.'}
-                    {selectedCase.status?.toLowerCase() === 'closed' && 
+                    {selectedCase.status?.toLowerCase() === 'closed' &&
                       'This case has been closed.'}
                   </p>
                 </div>

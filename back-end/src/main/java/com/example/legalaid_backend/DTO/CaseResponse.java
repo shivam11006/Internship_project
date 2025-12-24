@@ -13,6 +13,9 @@ public class CaseResponse {
     private String caseType;
     private String priority;
     private String status;
+    private String location;
+    private String preferredLanguage;
+    private java.util.List<String> expertiseTags;
 
     private Long createdBy;
 

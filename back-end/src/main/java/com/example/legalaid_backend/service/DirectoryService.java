@@ -30,8 +30,7 @@ public class DirectoryService {
         List<User> allLawyers = userRepository.findByRoleAndApprovalStatusAndEnabled(
                 Role.LAWYER,
                 ApprovalStatus.APPROVED,
-                true
-        );
+                true);
 
         // Apply filters
         List<LawyerDirectoryResponse> filtered = allLawyers.stream()
@@ -39,9 +38,9 @@ public class DirectoryService {
                 // Filter by expertise (specialization)
                 .filter(user -> request.getExpertise() == null ||
                         request.getExpertise().isBlank() ||
-                        user.getLawyerProfile().getSpecialization()
-                                .toLowerCase()
-                                .contains(request.getExpertise().toLowerCase()))
+                        java.util.Arrays.stream(request.getExpertise().split(","))
+                                .anyMatch(exp -> user.getLawyerProfile().getSpecialization().toLowerCase()
+                                        .contains(exp.trim().toLowerCase())))
                 // Filter by keyword (searches username, email, barNumber)
                 .filter(user -> request.getKeyword() == null ||
                         request.getKeyword().isBlank() ||
@@ -65,8 +64,7 @@ public class DirectoryService {
         List<User> allNgos = userRepository.findByRoleAndApprovalStatusAndEnabled(
                 Role.NGO,
                 ApprovalStatus.APPROVED,
-                true
-        );
+                true);
 
         // Apply filters
         List<NgoDirectoryResponse> filtered = allNgos.stream()
@@ -74,9 +72,9 @@ public class DirectoryService {
                 // Filter by expertise (focusArea)
                 .filter(user -> request.getExpertise() == null ||
                         request.getExpertise().isBlank() ||
-                        user.getNgoProfile().getFocusArea()
-                                .toLowerCase()
-                                .contains(request.getExpertise().toLowerCase()))
+                        java.util.Arrays.stream(request.getExpertise().split(","))
+                                .anyMatch(exp -> user.getNgoProfile().getFocusArea().toLowerCase()
+                                        .contains(exp.trim().toLowerCase())))
                 // Filter by keyword (searches username, email, organization name)
                 .filter(user -> request.getKeyword() == null ||
                         request.getKeyword().isBlank() ||

@@ -29,9 +29,9 @@ public class DataInitializer {
                 admin.setRole(Role.ADMIN);
                 admin.setApprovalStatus(ApprovalStatus.APPROVED);
                 admin.setEnabled(true);
-                
+
                 userRepository.save(admin);
-                
+
                 System.out.println("\n=================================");
                 System.out.println("Default Admin Account Created:");
                 System.out.println("Email: admin@legalaid.com");

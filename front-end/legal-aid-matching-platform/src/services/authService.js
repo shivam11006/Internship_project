@@ -3,7 +3,7 @@ import axios from 'axios';
 const API_BASE_URL = 'http://localhost:8080/api';
 
 // Create axios instance with default config
-const apiClient = axios.create({
+export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ const authService = {
         password: userData.password,
         role: userData.role.toUpperCase() // CITIZEN, LAWYER, NGO, ADMIN
       };
-      
+
       // Add role-specific fields if provided
       if (userData.role.toUpperCase() === 'LAWYER') {
         if (userData.specialization) registerData.specialization = userData.specialization;
@@ -81,7 +81,7 @@ const authService = {
         if (userData.registrationNumber) registerData.registrationNumber = userData.registrationNumber;
         if (userData.focusArea) registerData.focusArea = userData.focusArea;
       }
-      
+
       const response = await apiClient.post('/auth/register', registerData);
       return { success: true, data: response.data };
     } catch (error) {
@@ -96,13 +96,13 @@ const authService = {
   login: async (credentials) => {
     try {
       console.log('Login attempt for:', credentials.email);
-      
+
       // Call backend login endpoint
       const response = await apiClient.post('/auth/login', {
         email: credentials.email,
         password: credentials.password
       });
-      
+
       const data = response.data;
       console.log('Login response:', data);
 
@@ -113,7 +113,7 @@ const authService = {
       // Fetch full user profile including approval status
       const profileResponse = await apiClient.get('/profile/me');
       const user = profileResponse.data;
-      
+
       console.log('User profile:', user);
 
       // Block login for non-approved users
@@ -126,7 +126,7 @@ const authService = {
             error: 'Your account is pending admin approval. Please wait for approval before logging in.'
           };
         }
-        
+
         if (user.approvalStatus === 'REAPPROVAL_PENDING') {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
@@ -135,7 +135,7 @@ const authService = {
             error: 'Your profile changes are pending admin approval. Please wait for re-approval before logging in.'
           };
         }
-        
+
         if (user.approvalStatus === 'SUSPENDED') {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
@@ -144,7 +144,7 @@ const authService = {
             error: 'Your account has been suspended. Please contact support for assistance.'
           };
         }
-        
+
         if (user.approvalStatus === 'REJECTED') {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
@@ -204,7 +204,7 @@ const authService = {
   validateToken: async () => {
     const accessToken = localStorage.getItem('accessToken');
     const refreshToken = localStorage.getItem('refreshToken');
-    
+
     if (!accessToken || !refreshToken) {
       return false;
     }
@@ -214,12 +214,12 @@ const authService = {
       const payload = JSON.parse(atob(accessToken.split('.')[1]));
       const expirationTime = payload.exp * 1000;
       const currentTime = Date.now();
-      
+
       // If token is still valid, return true
       if (expirationTime > currentTime) {
         return true;
       }
-      
+
       // Token expired, return false
       return false;
     } catch (error) {
@@ -232,40 +232,40 @@ const authService = {
     try {
       // Map frontend fields to backend fields
       const updateData = { ...profileData };
-      
+
       // For lawyers: licenseNumber maps to barNumber in backend
       if (profileData.licenseNumber) {
         updateData.barNumber = profileData.licenseNumber;
         delete updateData.licenseNumber;
       }
-      
+
       // Remove yearsOfExperience and yearsActive as they're not in backend yet
       delete updateData.yearsOfExperience;
       delete updateData.yearsActive;
-      
+
       const response = await apiClient.put('/profile/update', updateData);
       const responseData = response.data;
-      
+
       // Check if response indicates reapproval is needed
       if (responseData.requiresApproval || responseData.message) {
         // Profile update requires admin approval
         const profileData = responseData.profile || responseData;
         const currentUser = authService.getCurrentUser();
-        const updatedUser = { 
-          ...currentUser, 
+        const updatedUser = {
+          ...currentUser,
           ...profileData,
-          approvalStatus: profileData.approvalStatus 
+          approvalStatus: profileData.approvalStatus
         };
         localStorage.setItem('user', JSON.stringify(updatedUser));
-        
-        return { 
-          success: true, 
+
+        return {
+          success: true,
           data: updatedUser,
           requiresApproval: true,
           message: responseData.message || 'Profile changes are pending admin approval.'
         };
       }
-      
+
       // Normal update without approval needed
       const currentUser = authService.getCurrentUser();
       const updatedUser = { ...currentUser, ...responseData };

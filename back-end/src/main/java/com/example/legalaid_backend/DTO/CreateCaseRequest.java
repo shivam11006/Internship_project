@@ -9,5 +9,7 @@ public class CreateCaseRequest {
     private String description;
     private String caseType;
     private String priority;
+    private String location;
+    private String preferredLanguage;
+    private java.util.List<String> expertiseTags;
 }
-
