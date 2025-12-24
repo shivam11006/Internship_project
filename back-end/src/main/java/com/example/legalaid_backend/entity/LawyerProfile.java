@@ -31,4 +31,7 @@ public class LawyerProfile {
     // ⭐ NEW: Track last approved values for crucial fields
     private String lastApprovedBarNumber;
     private String lastApprovedSpecialization;
+
+    @Column(length = 500)
+    private String address;
 }
