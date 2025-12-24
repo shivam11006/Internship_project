@@ -34,10 +34,11 @@ public class DirectoryController {
         MDC.put("endpoint", "/api/directory/lawyers/search");
 
         try {
-            log.info("Lawyer search request from user {}: specialization={}, keyword={}, page={}",
+            log.info("Lawyer search request from user {}: specialization={},location{}, keyword={}, page={}",
                     auth.getName(),
                     request.getExpertise(),
                     request.getKeyword(),
+                    request.getLocation(),
                     request.getPage());
 
             Page<LawyerDirectoryResponse> results = directoryService.searchLawyers(request);

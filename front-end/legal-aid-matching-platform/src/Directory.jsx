@@ -32,7 +32,7 @@ const Directory = () => {
 
   useEffect(() => {
     fetchProfiles();
-  }, [role, selectedPracticeAreas, verifiedOnly, sortBy, currentPage]);
+  }, [role, selectedPracticeAreas, verifiedOnly, sortBy, currentPage, location]);
 
   const fetchProfiles = async () => {
     setLoading(true);
@@ -40,8 +40,9 @@ const Directory = () => {
       const endpoint = role === 'Lawyer' ? '/directory/lawyers/search' : '/directory/ngos/search';
 
       const requestBody = {
-        expertise: selectedPracticeAreas.join(','),
+        expertise: selectedPracticeAreas.length > 0 ? selectedPracticeAreas.join(',') : '',
         keyword: searchKeyword,
+        location: location,
         verified: verifiedOnly,
         page: currentPage - 1,
         size: 8,
