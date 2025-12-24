@@ -31,8 +31,12 @@ const Directory = () => {
   const [totalElements, setTotalElements] = useState(0);
 
   useEffect(() => {
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [role, selectedPracticeAreas, verifiedOnly, sortBy, location, searchKeyword]);
+
+  useEffect(() => {
     fetchProfiles();
-  }, [role, selectedPracticeAreas, verifiedOnly, sortBy, currentPage, location]);
+  }, [role, selectedPracticeAreas, verifiedOnly, sortBy, currentPage, location, searchKeyword]);
 
   const fetchProfiles = async () => {
     setLoading(true);
