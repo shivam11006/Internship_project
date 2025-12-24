@@ -14,6 +14,7 @@ public class NgoDirectoryResponse {
     private String username;
     private String email;
     private String address;
+    private String location;
     private String organizationName;
     private String registrationNumber;
     private String focusArea;

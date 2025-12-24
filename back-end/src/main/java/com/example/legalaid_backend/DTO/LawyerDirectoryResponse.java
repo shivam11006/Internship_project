@@ -14,6 +14,7 @@ public class LawyerDirectoryResponse {
     private String username;
     private String email;
     private String address;
+    private String location;
     private String barNumber;
     private String specialization;
     private boolean verified; // Based on ApprovalStatus.APPROVED

@@ -45,6 +45,11 @@ public class DirectoryService {
                 .filter(user -> request.getKeyword() == null ||
                         request.getKeyword().isBlank() ||
                         matchesKeyword(user, request.getKeyword()))
+                // Filter by location
+                .filter(user -> request.getLocation() == null ||
+                        request.getLocation().isBlank() ||
+                        (user.getLocation() != null &&
+                        user.getLocation().toLowerCase().contains(request.getLocation().trim().toLowerCase())))
                 // Convert to DTO
                 .map(this::convertToLawyerResponse)
                 .collect(Collectors.toList());
@@ -79,6 +84,11 @@ public class DirectoryService {
                 .filter(user -> request.getKeyword() == null ||
                         request.getKeyword().isBlank() ||
                         matchesNgoKeyword(user, request.getKeyword()))
+                // Filter by location
+                .filter(user -> request.getLocation() == null ||
+                        request.getLocation().isBlank() ||
+                        (user.getLocation() != null &&
+                        user.getLocation().toLowerCase().contains(request.getLocation().trim().toLowerCase())))
                 // Convert to DTO
                 .map(this::convertToNgoResponse)
                 .collect(Collectors.toList());
@@ -244,6 +254,7 @@ public class DirectoryService {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
+                .location(user.getLocation())
                 .barNumber(user.getLawyerProfile().getBarNumber())
                 .specialization(user.getLawyerProfile().getSpecialization())
                 .verified(user.getApprovalStatus() == ApprovalStatus.APPROVED)
@@ -255,6 +266,7 @@ public class DirectoryService {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
+                .location(user.getLocation())
                 .organizationName(user.getNgoProfile().getOrganizationName())
                 .registrationNumber(user.getNgoProfile().getRegistrationNumber())
                 .focusArea(user.getNgoProfile().getFocusArea())
