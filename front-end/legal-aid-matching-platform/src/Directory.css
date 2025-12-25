@@ -432,15 +432,27 @@
 }
 
 .profile-details {
-  margin-top: 12px;
+  margin-top: 4px;
 }
 
 .detail-row {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-size: 13px;
+}
+
+.detail-label {
+  color: #6b7280;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  min-width: 125px;
+  flex-shrink: 0;
+  line-height: 1.5;
 }
 
 .detail-icon {
@@ -451,6 +463,8 @@
 .detail-text {
   color: #4b5563;
   line-height: 1.5;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* Pagination */

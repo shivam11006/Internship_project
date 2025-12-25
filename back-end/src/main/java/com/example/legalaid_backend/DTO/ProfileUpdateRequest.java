@@ -14,6 +14,7 @@ public class ProfileUpdateRequest {
     private String barNumber;              // ⚠️ CRUCIAL - triggers re-approval
     private String specialization;         // ⚠️ CRUCIAL - triggers re-approval
     private String address;
+    private String languages;
 
     // NGO-specific fields
     private String organizationName;       // ⚠️ CRUCIAL - triggers re-approval

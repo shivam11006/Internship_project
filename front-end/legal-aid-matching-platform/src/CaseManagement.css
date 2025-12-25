@@ -109,6 +109,9 @@
   margin: 0;
   flex: 1;
   line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 /* Status Badges */
@@ -177,6 +180,8 @@
   color: #4b5563;
   line-height: 1.6;
   margin: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .case-meta {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
+import logService from './services/logService';
 import DirectoryIngestion from './DirectoryIngestion';
 import './AdminDashboard.css';
 
@@ -23,6 +24,17 @@ function DashboardAdmin() {
   });
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  
+  // Logs state
+  const [logs, setLogs] = useState([]);
+  const [logStats, setLogStats] = useState(null);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logSearchTerm, setLogSearchTerm] = useState('');
+  const [logSortBy, setLogSortBy] = useState('timestamp');
+  const [logSortOrder, setLogSortOrder] = useState('desc');
+  const [logPageSize, setLogPageSize] = useState(20);
+  const [logPage, setLogPage] = useState(0);
+  const [totalLogPages, setTotalLogPages] = useState(0);
 
   useEffect(() => {
     // Initial fetch
@@ -41,6 +53,13 @@ function DashboardAdmin() {
       window.removeEventListener('focus', handleFocus);
     };
   }, []);
+
+  useEffect(() => {
+    if (activeView === 'logs') {
+      fetchLogs();
+      fetchLogStats();
+    }
+  }, [activeView, logPage, logPageSize, logSortBy, logSortOrder]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -155,6 +174,113 @@ function DashboardAdmin() {
     setActionLoading(null);
   };
 
+  const fetchLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const searchRequest = {
+        page: logPage,
+        size: logPageSize,
+        sortBy: logSortBy,
+        sortOrder: logSortOrder
+      };
+
+      // Add filter based on sortBy field
+      if (logSearchTerm) {
+        if (logSortBy === 'level') {
+          searchRequest.level = logSearchTerm;
+        } else if (logSortBy === 'username') {
+          searchRequest.username = logSearchTerm;
+        } else if (logSortBy === 'endpoint') {
+          searchRequest.endpoint = logSearchTerm;
+        } else if (logSortBy === 'timestamp') {
+          // Parse date and create date range for the entire day
+          try {
+            const searchDate = new Date(logSearchTerm);
+            if (!isNaN(searchDate.getTime())) {
+              // Start of day
+              const startDate = new Date(searchDate);
+              startDate.setHours(0, 0, 0, 0);
+              
+              // End of day
+              const endDate = new Date(searchDate);
+              endDate.setHours(23, 59, 59, 999);
+              
+              searchRequest.startDate = startDate.toISOString();
+              searchRequest.endDate = endDate.toISOString();
+            }
+          } catch (error) {
+            console.error('Invalid date format:', error);
+          }
+        }
+      }
+
+      const result = await logService.searchLogs(searchRequest);
+      if (result.success) {
+        setLogs(result.data.content || []);
+        setTotalLogPages(result.data.totalPages || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  const fetchLogStats = async () => {
+    try {
+      const result = await logService.getLogStats();
+      if (result.success) {
+        setLogStats(result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching log stats:', error);
+    }
+  };
+
+  const handleLogSearch = () => {
+    setLogPage(0);
+    fetchLogs();
+  };
+
+  const handleClearFilters = () => {
+    setLogSearchTerm('');
+    setLogPage(0);
+    setTimeout(fetchLogs, 100);
+  };
+
+  const getSearchPlaceholder = () => {
+    switch (logSortBy) {
+      case 'level': return 'Search by level (ERROR, WARN, INFO, DEBUG)...';
+      case 'username': return 'Search by username...';
+      case 'endpoint': return 'Search by endpoint...';
+      case 'timestamp': return 'Search by date (e.g., 2025-12-24 or Dec 24, 2025)...';
+      default: return 'Search logs...';
+    }
+  };
+
+  const formatLogTimestamp = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
+
+  const getLogLevelColor = (level) => {
+    switch (level?.toUpperCase()) {
+      case 'ERROR': return '#dc2626';
+      case 'WARN': return '#f59e0b';
+      case 'INFO': return '#3b82f6';
+      case 'DEBUG': return '#8b5cf6';
+      default: return '#6b7280';
+    }
+  };
+
   const handleLogout = () => {
     authService.logout();
     navigate('/signin');
@@ -236,6 +362,16 @@ function DashboardAdmin() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             <span>Admin Panel</span>
+          </button>
+
+          <button 
+            className={`admin-nav-item ${activeTab === 'logs' ? 'active' : ''}`}
+            onClick={() => setActiveTab('logs')}
+          >
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Application Logs</span>
           </button>
         </nav>
       </div>
@@ -477,18 +613,435 @@ function DashboardAdmin() {
               </>
             )}
 
-            {activeView === 'logs' && (
-              <div className="empty-section">
-                <svg width="64" height="64" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p>System Logs will appear here</p>
-              </div>
-            )}
-
             {activeView === 'directory' && (
               <DirectoryIngestion />
             )}
+
+            {activeView === 'logs' && (
+              <>
+                <div className="section-header-new">
+                  <h2 className="section-title-new">Application Logs</h2>
+                  <p className="section-subtitle">Monitor system activity and troubleshoot issues</p>
+                </div>
+
+                {/* Log Statistics */}
+                {logStats && (
+                  <div className="stats-grid" style={{ marginBottom: '24px' }}>
+                    <div className="stat-card">
+                      <div className="stat-icon" style={{ background: '#dbeafe' }}>
+                        <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div className="stat-content">
+                        <p className="stat-label">Total Logs</p>
+                        <p className="stat-value">{logStats.totalLogs || 0}</p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon" style={{ background: '#fee2e2' }}>
+                        <svg width="24" height="24" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="stat-content">
+                        <p className="stat-label">Errors (24h)</p>
+                        <p className="stat-value" style={{ color: '#dc2626' }}>{logStats.errorCount || 0}</p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon" style={{ background: '#fef3c7' }}>
+                        <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
+                      <div className="stat-content">
+                        <p className="stat-label">Warnings (24h)</p>
+                        <p className="stat-value" style={{ color: '#f59e0b' }}>{logStats.warnCount || 0}</p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-icon" style={{ background: '#dbeafe' }}>
+                        <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="stat-content">
+                        <p className="stat-label">Info Logs (24h)</p>
+                        <p className="stat-value">{logStats.infoCount || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Log Filters */}
+                <div className="log-filters" style={{ marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    placeholder={getSearchPlaceholder()}
+                    className="search-input-new"
+                    style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '300px', flex: '1' }}
+                    value={logSearchTerm}
+                    onChange={(e) => setLogSearchTerm(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleLogSearch()}
+                  />
+                  <select
+                    className="filter-select"
+                    style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                    value={logSortBy}
+                    onChange={(e) => setLogSortBy(e.target.value)}
+                    title="Sort By"
+                  >
+                    <option value="timestamp">Sort: Timestamp</option>
+                    <option value="level">Sort: Level</option>
+                    <option value="endpoint">Sort: Endpoint</option>
+                    <option value="username">Sort: Username</option>
+                  </select>
+                  <select
+                    className="filter-select"
+                    style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                    value={logSortOrder}
+                    onChange={(e) => setLogSortOrder(e.target.value)}
+                    title="Sort Order"
+                  >
+                    <option value="desc">↓ Newest First</option>
+                    <option value="asc">↑ Oldest First</option>
+                  </select>
+                  <select
+                    className="filter-select"
+                    style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                    value={logPageSize}
+                    onChange={(e) => { setLogPageSize(Number(e.target.value)); setLogPage(0); }}
+                    title="Page Size"
+                  >
+                    <option value="10">10 per page</option>
+                    <option value="20">20 per page</option>
+                    <option value="50">50 per page</option>
+                    <option value="100">100 per page</option>
+                  </select>
+                  <button
+                    className="btn-primary"
+                    onClick={handleLogSearch}
+                    style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Search
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    onClick={handleClearFilters}
+                    style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Clear
+                  </button>
+                </div>
+
+                {/* Logs Table */}
+                <div className="table-wrapper">
+                  {logsLoading ? (
+                    <div className="loading-state">
+                      <div className="spinner"></div>
+                      <p>Loading logs...</p>
+                    </div>
+                  ) : logs.length === 0 ? (
+                    <div className="empty-state">
+                      <svg width="80" height="80" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <h3>No Logs Found</h3>
+                      <p>No logs match your search criteria</p>
+                    </div>
+                  ) : (
+                    <>
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Timestamp</th>
+                            <th>Level</th>
+                            <th>Logger</th>
+                            <th>Endpoint</th>
+                            <th>Message</th>
+                            <th>Username</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {logs.map((log) => (
+                            <tr key={log.id}>
+                              <td style={{ fontSize: '0.875rem' }}>{formatLogTimestamp(log.timestamp)}</td>
+                              <td>
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    padding: '4px 12px',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600',
+                                    color: '#fff',
+                                    backgroundColor: getLogLevelColor(log.level)
+                                  }}
+                                >
+                                  {log.level}
+                                </span>
+                              </td>
+                              <td style={{ fontSize: '0.875rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {log.logger || 'N/A'}
+                              </td>
+                              <td style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}>{log.endpoint || '-'}</td>
+                              <td style={{ fontSize: '0.875rem', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {log.message}
+                              </td>
+                              <td style={{ fontSize: '0.875rem' }}>{log.username || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                      {/* Pagination */}
+                      {totalLogPages > 1 && (
+                        <div className="pagination" style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => setLogPage(Math.max(0, logPage - 1))}
+                            disabled={logPage === 0}
+                            style={{ padding: '8px 16px' }}
+                          >
+                            Previous
+                          </button>
+                          <span style={{ padding: '8px 16px', display: 'flex', alignItems: 'center' }}>
+                            Page {logPage + 1} of {totalLogPages}
+                          </span>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => setLogPage(Math.min(totalLogPages - 1, logPage + 1))}
+                            disabled={logPage >= totalLogPages - 1}
+                            style={{ padding: '8px 16px' }}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        ) : activeTab === 'logs' ? (
+          <div className="admin-content-section">
+            <div className="admin-panel-header">
+              <h2 className="section-title-new">Application Logs</h2>
+              <p className="section-subtitle">Monitor system activity and troubleshoot issues</p>
+            </div>
+
+            {/* Log Statistics */}
+            {logStats && (
+              <div className="stats-grid" style={{ marginBottom: '24px' }}>
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ background: '#dbeafe' }}>
+                    <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div className="stat-content">
+                    <p className="stat-label">Total Logs</p>
+                    <p className="stat-value">{logStats.totalLogs || 0}</p>
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ background: '#fee2e2' }}>
+                    <svg width="24" height="24" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="stat-content">
+                    <p className="stat-label">Errors (24h)</p>
+                    <p className="stat-value" style={{ color: '#dc2626' }}>{logStats.errorCount || 0}</p>
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ background: '#fef3c7' }}>
+                    <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="stat-content">
+                    <p className="stat-label">Warnings (24h)</p>
+                    <p className="stat-value" style={{ color: '#f59e0b' }}>{logStats.warnCount || 0}</p>
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ background: '#dbeafe' }}>
+                    <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="stat-content">
+                    <p className="stat-label">Info Logs (24h)</p>
+                    <p className="stat-value">{logStats.infoCount || 0}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Log Filters */}
+            <div className="log-filters" style={{ marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder={getSearchPlaceholder()}
+                className="search-input-new"
+                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '300px', flex: '1' }}
+                value={logSearchTerm}
+                onChange={(e) => setLogSearchTerm(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogSearch()}
+              />
+              <select
+                className="filter-select"
+                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                value={logSortBy}
+                onChange={(e) => setLogSortBy(e.target.value)}
+                title="Sort By"
+              >
+                <option value="timestamp">Sort: Timestamp</option>
+                <option value="level">Sort: Level</option>
+                <option value="endpoint">Sort: Endpoint</option>
+                <option value="username">Sort: Username</option>
+              </select>
+              <select
+                className="filter-select"
+                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                value={logSortOrder}
+                onChange={(e) => setLogSortOrder(e.target.value)}
+                title="Sort Order"
+              >
+                <option value="desc">↓ Newest First</option>
+                <option value="asc">↑ Oldest First</option>
+              </select>
+              <select
+                className="filter-select"
+                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                value={logPageSize}
+                onChange={(e) => { setLogPageSize(Number(e.target.value)); setLogPage(0); }}
+                title="Page Size"
+              >
+                <option value="10">10 per page</option>
+                <option value="20">20 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+              </select>
+              <button
+                className="btn-primary"
+                onClick={handleLogSearch}
+                style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Search
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={handleClearFilters}
+                style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear
+              </button>
+            </div>
+
+            {/* Logs Table */}
+            <div className="table-wrapper">
+              {logsLoading ? (
+                <div className="loading-state">
+                  <div className="spinner"></div>
+                  <p>Loading logs...</p>
+                </div>
+              ) : logs.length === 0 ? (
+                <div className="empty-state">
+                  <svg width="80" height="80" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <h3>No Logs Found</h3>
+                  <p>No logs match your search criteria</p>
+                </div>
+              ) : (
+                <>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>Level</th>
+                        <th>Logger</th>
+                        <th>Endpoint</th>
+                        <th>Message</th>
+                        <th>Username</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logs.map((log) => (
+                        <tr key={log.id}>
+                          <td style={{ fontSize: '0.875rem' }}>{formatLogTimestamp(log.timestamp)}</td>
+                          <td>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '4px 12px',
+                                borderRadius: '12px',
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                color: '#fff',
+                                backgroundColor: getLogLevelColor(log.level)
+                              }}
+                            >
+                              {log.level}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '0.875rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {log.logger || 'N/A'}
+                          </td>
+                          <td style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}>{log.endpoint || '-'}</td>
+                          <td style={{ fontSize: '0.875rem', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {log.message}
+                          </td>
+                          <td style={{ fontSize: '0.875rem' }}>{log.username || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Pagination */}
+                  {totalLogPages > 1 && (
+                    <div className="pagination" style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => setLogPage(Math.max(0, logPage - 1))}
+                        disabled={logPage === 0}
+                        style={{ padding: '8px 16px' }}
+                      >
+                        Previous
+                      </button>
+                      <span style={{ padding: '8px 16px', display: 'flex', alignItems: 'center' }}>
+                        Page {logPage + 1} of {totalLogPages}
+                      </span>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => setLogPage(Math.min(totalLogPages - 1, logPage + 1))}
+                        disabled={logPage >= totalLogPages - 1}
+                        style={{ padding: '8px 16px' }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         ) : (
           <div className="empty-section">

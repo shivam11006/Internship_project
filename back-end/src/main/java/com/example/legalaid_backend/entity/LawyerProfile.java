@@ -34,4 +34,7 @@ public class LawyerProfile {
 
     @Column(length = 500)
     private String address;
+    
+    @Column(length = 500)
+    private String languages;
 }

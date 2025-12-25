@@ -57,6 +57,9 @@ public class AuthService {
         user.setRole(request.getRole());
         user.setEnabled(true);
 
+        // Set location from request
+        user.setLocation(request.getLocation());
+
         // Set approval based on role
         if (request.getRole() == Role.CITIZEN || request.getRole() == Role.ADMIN) {
             user.setApprovalStatus(ApprovalStatus.APPROVED);
@@ -204,6 +207,8 @@ public class AuthService {
         profile.setUser(user);
         profile.setSpecialization(request.getSpecialization());
         profile.setBarNumber(request.getBarNumber());
+        profile.setAddress(request.getAddress());
+        profile.setLanguages(request.getLanguages());
         return lawyerProfileRepository.save(profile);
     }
 
@@ -214,6 +219,8 @@ public class AuthService {
         profile.setRegistrationNumber(request.getRegistrationNumber());
         profile.setOrganizationName(request.getOrganizationName());
         profile.setFocusArea(request.getFocusArea());
+        profile.setAddress(request.getAddress());
+        profile.setLanguages(request.getLanguages());
         return ngoProfileRepository.save(profile);
     }
 

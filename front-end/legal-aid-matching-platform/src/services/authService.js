@@ -72,6 +72,11 @@ const authService = {
         role: userData.role.toUpperCase() // CITIZEN, LAWYER, NGO, ADMIN
       };
 
+      // Add common fields for all roles
+      if (userData.address) registerData.address = userData.address;
+      if (userData.location) registerData.location = userData.location;
+      if (userData.languages) registerData.languages = userData.languages;
+
       // Add role-specific fields if provided
       if (userData.role.toUpperCase() === 'LAWYER') {
         if (userData.specialization) registerData.specialization = userData.specialization;

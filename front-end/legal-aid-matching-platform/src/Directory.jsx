@@ -17,12 +17,12 @@ const Directory = () => {
   const [selectedPracticeAreas, setSelectedPracticeAreas] = useState([]);
   const [availability, setAvailability] = useState('');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [maxDistance, setMaxDistance] = useState(100);
   const [selectedLanguages, setSelectedLanguages] = useState([]);
+  const [practiceAreaSearch, setPracticeAreaSearch] = useState('');
+  const [languageSearch, setLanguageSearch] = useState('');
   const [sortBy, setSortBy] = useState('Relevance');
   const [searchKeyword, setSearchKeyword] = useState('');
   const [location, setLocation] = useState('');
-  const [radius, setRadius] = useState(50);
   const [viewMode, setViewMode] = useState('List'); // 'List' or 'Map'
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -31,26 +31,41 @@ const Directory = () => {
   const [totalElements, setTotalElements] = useState(0);
 
   useEffect(() => {
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [role, selectedPracticeAreas, verifiedOnly, sortBy, location, searchKeyword]);
+    fetchProfiles();
+  }, [currentPage]);
 
   useEffect(() => {
-    fetchProfiles();
-  }, [role, selectedPracticeAreas, verifiedOnly, sortBy, currentPage, location, searchKeyword]);
+    setCurrentPage(1);
+    fetchProfiles({ page: 0 });
+  }, [role]);
 
-  const fetchProfiles = async () => {
+  const fetchProfiles = async (overrideParams = {}) => {
     setLoading(true);
     try {
       const endpoint = role === 'Lawyer' ? '/directory/lawyers/search' : '/directory/ngos/search';
 
+      // Use practiceAreaSearch text if no areas are explicitly selected
+      const expertiseValue = overrideParams.expertise !== undefined 
+        ? overrideParams.expertise 
+        : (selectedPracticeAreas.length > 0 
+            ? selectedPracticeAreas.join(',') 
+            : (practiceAreaSearch.trim() || ''));
+
+      const languagesValue = overrideParams.languages !== undefined 
+        ? overrideParams.languages 
+        : (selectedLanguages.length > 0 
+            ? selectedLanguages.join(',') 
+            : '');
+
       const requestBody = {
-        expertise: selectedPracticeAreas.length > 0 ? selectedPracticeAreas.join(',') : '',
-        keyword: searchKeyword,
-        location: location,
-        verified: verifiedOnly,
-        page: currentPage - 1,
+        expertise: expertiseValue,
+        keyword: overrideParams.keyword !== undefined ? overrideParams.keyword : searchKeyword,
+        location: overrideParams.location !== undefined ? overrideParams.location : location,
+        languages: languagesValue,
+        verified: overrideParams.verified !== undefined ? overrideParams.verified : verifiedOnly,
+        page: overrideParams.page !== undefined ? overrideParams.page : (currentPage - 1),
         size: 8,
-        sortBy: sortBy.toLowerCase(),
+        sortBy: overrideParams.sortBy !== undefined ? overrideParams.sortBy : sortBy.toLowerCase(),
         sortOrder: 'asc'
       };
 
@@ -92,9 +107,6 @@ const Directory = () => {
     const isLawyer = role === 'Lawyer';
     const name = profile.username;
     const email = profile.email;
-    const specialization = isLawyer ? profile.specialization : profile.focusArea;
-    const detail1 = isLawyer ? profile.barNumber : profile.organizationName;
-    const detail2 = isLawyer ? null : profile.registrationNumber;
 
     return (
       <div key={profile.userId} className="profile-card">
@@ -111,33 +123,48 @@ const Directory = () => {
           )}
         </div>
         <div className="profile-details">
-          {specialization && (
-            <div className="detail-row">
-              <span className="detail-icon">⚖️</span>
-              <span className="detail-text">{specialization}</span>
-            </div>
-          )}
-          {detail1 && (
-            <div className="detail-row">
-              <span className="detail-icon">📋</span>
-              <span className="detail-text">{detail1}</span>
-            </div>
-          )}
-          {detail2 && (
-            <div className="detail-row">
-              <span className="detail-icon">🆔</span>
-              <span className="detail-text">{detail2}</span>
-            </div>
-          )}
-          {profile.location && (
-            <div className="detail-row">
-              <span className="detail-icon">📍</span>
-              <span className="detail-text">{profile.location}</span>
-            </div>
+          {isLawyer ? (
+            <>
+              <div className="detail-row">
+                <span className="detail-label">PRACTICE AREA:</span>
+                <span className="detail-text">{profile.specialization || 'N/A'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">BAR NUMBER:</span>
+                <span className="detail-text">{profile.barNumber || 'N/A'}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="detail-row">
+                <span className="detail-label">ORGANIZATION NAME:</span>
+                <span className="detail-text">{profile.organizationName || 'N/A'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">REGISTRATION NUMBER:</span>
+                <span className="detail-text">{profile.registrationNumber || 'N/A'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="detail-label">FOCUS AREA:</span>
+                <span className="detail-text">{profile.focusArea || 'N/A'}</span>
+              </div>
+            </>
           )}
           <div className="detail-row">
-            <span className="detail-icon">📧</span>
-            <span className="detail-text">{email}</span>
+            <span className="detail-label">EMAIL:</span>
+            <span className="detail-text">{email || 'N/A'}</span>
+          </div>
+          <div className="detail-row">
+            <span className="detail-label">LOCATION:</span>
+            <span className="detail-text">{profile.location || 'N/A'}</span>
+          </div>
+          <div className="detail-row">
+            <span className="detail-label">ADDRESS:</span>
+            <span className="detail-text" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{profile.address || 'N/A'}</span>
+          </div>
+          <div className="detail-row">
+            <span className="detail-label">LANGUAGES:</span>
+            <span className="detail-text">{profile.languages || 'N/A'}</span>
           </div>
         </div>
       </div>
@@ -174,16 +201,57 @@ const Directory = () => {
         {/* Practice Areas */}
         <div className="sidebar-section">
           <h3>Practice Areas</h3>
+          <input
+            type="text"
+            placeholder="Type to search practice areas..."
+            value={practiceAreaSearch}
+            onChange={(e) => setPracticeAreaSearch(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                setCurrentPage(1);
+                fetchProfiles();
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              marginBottom: '12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '14px',
+              outline: 'none'
+            }}
+          />
           <div className="practice-areas">
-            {PRACTICE_AREAS.map(area => (
-              <button
-                key={area}
-                className={`practice-tag ${selectedPracticeAreas.includes(area) ? 'active' : ''}`}
-                onClick={() => togglePracticeArea(area)}
-              >
-                {area}
-              </button>
-            ))}
+            {practiceAreaSearch === '' ? (
+              PRACTICE_AREAS.map(area => (
+                <button
+                  key={area}
+                  className={`practice-tag ${selectedPracticeAreas.includes(area) ? 'active' : ''}`}
+                  onClick={() => togglePracticeArea(area)}
+                >
+                  {area}
+                </button>
+              ))
+            ) : (
+              PRACTICE_AREAS.filter(area => 
+                area.toLowerCase().includes(practiceAreaSearch.toLowerCase())
+              ).length > 0 ? (
+                PRACTICE_AREAS.filter(area => 
+                  area.toLowerCase().includes(practiceAreaSearch.toLowerCase())
+                ).map(area => (
+                  <button
+                    key={area}
+                    className={`practice-tag ${selectedPracticeAreas.includes(area) ? 'active' : ''}`}
+                    onClick={() => togglePracticeArea(area)}
+                  >
+                    {area}
+                  </button>
+                ))
+              ) : (
+                <p style={{ color: '#6b7280', fontSize: '14px', padding: '8px 0' }}>No matching practice areas</p>
+              )
+            )}
           </div>
         </div>
 
@@ -216,34 +284,60 @@ const Directory = () => {
           </div>
         </div>
 
-        {/* Max Distance */}
-        <div className="sidebar-section">
-          <h3>Max Distance: {maxDistance} km</h3>
-          <div className="distance-slider">
-            <input
-              type="range"
-              min="0"
-              max="200"
-              value={maxDistance}
-              onChange={(e) => setMaxDistance(e.target.value)}
-              className="slider"
-            />
-          </div>
-        </div>
-
         {/* Languages */}
         <div className="sidebar-section">
           <h3>Languages</h3>
+          <input
+            type="text"
+            placeholder="Type to search languages..."
+            value={languageSearch}
+            onChange={(e) => setLanguageSearch(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                setCurrentPage(1);
+                fetchProfiles();
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              marginBottom: '12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '14px',
+              outline: 'none'
+            }}
+          />
           <div className="languages-grid">
-            {LANGUAGES.map(lang => (
-              <button
-                key={lang}
-                className={`language-tag ${selectedLanguages.includes(lang) ? 'active' : ''}`}
-                onClick={() => toggleLanguage(lang)}
-              >
-                {lang}
-              </button>
-            ))}
+            {languageSearch === '' ? (
+              LANGUAGES.map(lang => (
+                <button
+                  key={lang}
+                  className={`language-tag ${selectedLanguages.includes(lang) ? 'active' : ''}`}
+                  onClick={() => toggleLanguage(lang)}
+                >
+                  {lang}
+                </button>
+              ))
+            ) : (
+              LANGUAGES.filter(lang => 
+                lang.toLowerCase().includes(languageSearch.toLowerCase())
+              ).length > 0 ? (
+                LANGUAGES.filter(lang => 
+                  lang.toLowerCase().includes(languageSearch.toLowerCase())
+                ).map(lang => (
+                  <button
+                    key={lang}
+                    className={`language-tag ${selectedLanguages.includes(lang) ? 'active' : ''}`}
+                    onClick={() => toggleLanguage(lang)}
+                  >
+                    {lang}
+                  </button>
+                ))
+              ) : (
+                <p style={{ color: '#6b7280', fontSize: '14px', padding: '8px 0' }}>No matching languages</p>
+              )
+            )}
           </div>
         </div>
 
@@ -260,42 +354,141 @@ const Directory = () => {
             <option value="Specialization">Specialization</option>
           </select>
         </div>
+
+        {/* Action Buttons */}
+        <div className="sidebar-section" style={{ marginTop: '20px' }}>
+          <button
+            className="show-results-btn"
+            onClick={() => {
+              setCurrentPage(1);
+              fetchProfiles();
+            }}
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: '#4F46E5',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              marginBottom: '10px'
+            }}
+          >
+            Show Results
+          </button>
+          <button
+            className="clear-filters-btn"
+            onClick={() => {
+              setSelectedPracticeAreas([]);
+              setAvailability('');
+              setVerifiedOnly(false);
+              setSelectedLanguages([]);
+              setPracticeAreaSearch('');
+              setLanguageSearch('');
+              setSortBy('Relevance');
+              setSearchKeyword('');
+              setLocation('');
+              setCurrentPage(1);
+              // Immediately fetch with cleared values
+              fetchProfiles({
+                expertise: '',
+                keyword: '',
+                location: '',
+                languages: '',
+                verified: false,
+                page: 0,
+                sortBy: 'relevance'
+              });
+            }}
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: '#e5e7eb',
+              color: '#374151',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            Clear All Filters
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
       <main className="directory-main">
         {/* Header with Search and Filters */}
         <div className="directory-header">
-          <div className="search-filters">
-            <div className="search-input-wrapper">
-              <input
-                type="text"
-                placeholder="Search..."
-                className="search-input"
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-              />
-            </div>
-            <div className="location-input-wrapper">
-              <input
-                type="text"
-                placeholder="Location"
-                className="location-input"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
-            </div>
-            <div className="radius-control">
-              <span className="radius-label">Radius: {radius} km</span>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={radius}
-                onChange={(e) => setRadius(e.target.value)}
-                className="slider radius-slider"
-              />
-            </div>
+          <div className="search-filters" style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Search..."
+              className="search-input"
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  setCurrentPage(1);
+                  fetchProfiles();
+                }
+              }}
+              style={{
+                flex: '1',
+                minWidth: '250px',
+                padding: '12px 16px',
+                border: '2px solid #4F46E5',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none'
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Location"
+              className="location-input"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  setCurrentPage(1);
+                  fetchProfiles();
+                }
+              }}
+              style={{
+                flex: '1',
+                minWidth: '250px',
+                padding: '12px 16px',
+                border: '2px solid #4F46E5',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none'
+              }}
+            />
+            <button
+              className="go-btn"
+              onClick={() => {
+                setCurrentPage(1);
+                fetchProfiles();
+              }}
+              style={{
+                padding: '12px 32px',
+                backgroundColor: '#4F46E5',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                height: '46px'
+              }}
+            >
+              Go
+            </button>
           </div>
           <div className="view-toggle">
             <button

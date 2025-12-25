@@ -30,10 +30,11 @@ public class RegisterRequest {
     private String specialization;
     private String barNumber;
     private String address;
+    private String languages;
 
     // NGO-specific fields (optional, used only if role is NGO)
     private String organizationName;
     private String registrationNumber;
     private String focusArea;
-    // address field is shared (see above)
+    // address and languages fields are shared (see above)
 }

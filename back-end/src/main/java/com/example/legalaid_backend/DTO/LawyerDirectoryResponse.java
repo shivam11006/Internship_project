@@ -17,5 +17,6 @@ public class LawyerDirectoryResponse {
     private String location;
     private String barNumber;
     private String specialization;
+    private String languages;
     private boolean verified; // Based on ApprovalStatus.APPROVED
 }

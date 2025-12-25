@@ -18,5 +18,6 @@ public class NgoDirectoryResponse {
     private String organizationName;
     private String registrationNumber;
     private String focusArea;
+    private String languages;
     private boolean verified; // Based on ApprovalStatus.APPROVED
 }

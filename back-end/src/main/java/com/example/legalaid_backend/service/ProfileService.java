@@ -152,6 +152,12 @@ public class ProfileService {
             profile.setAddress(request.getAddress());
         }
 
+        // Languages (non-crucial)
+        if (request.getLanguages() != null) {
+            logger.info("Updating languages for lawyer {} to {}", user.getEmail(), request.getLanguages());
+            profile.setLanguages(request.getLanguages());
+        }
+
         // Trigger re-approval if needed
         if (crucialFieldChanged && user.getApprovalStatus() == ApprovalStatus.APPROVED) {
             logger.warn("Crucial lawyer field changed — setting user {} approval to REAPPROVAL_PENDING", user.getEmail());
@@ -208,6 +214,12 @@ public class ProfileService {
         if (request.getAddress() != null) {
             logger.info("Updating address for NGO {} to {}", user.getEmail(), request.getAddress());
             profile.setAddress(request.getAddress());
+        }
+
+        // Languages (non-crucial)
+        if (request.getLanguages() != null) {
+            logger.info("Updating languages for NGO {} to {}", user.getEmail(), request.getLanguages());
+            profile.setLanguages(request.getLanguages());
         }
 
         // Trigger re-approval

@@ -14,6 +14,9 @@ function Signup() {
     // Lawyer fields
     specialization: '',
     barNumber: '',
+    address: '',
+    location: '',
+    languages: '',
     // NGO fields
     organizationName: '',
     registrationNumber: '',
@@ -304,6 +307,26 @@ function Signup() {
             )}
           </div>
 
+          {/* Location for Citizen */}
+          {formData.role === 'CITIZEN' && (
+            <div className="form-group">
+              <label htmlFor="location">Location</label>
+              <div className="input-wrapper">
+                <input
+                  type="text"
+                  id="location"
+                  name="location"
+                  placeholder="Enter your location"
+                  value={formData.location}
+                  onChange={handleChange}
+                />
+              </div>
+              {errors.location && (
+                <p className="error-text">{errors.location}</p>
+              )}
+            </div>
+          )}
+
           {/* Lawyer-specific fields */}
           {formData.role === 'LAWYER' && (
             <>
@@ -339,6 +362,58 @@ function Signup() {
                 {errors.barNumber && (
                   <p className="error-text">{errors.barNumber}</p>
                 )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="address">Address</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="address"
+                    name="address"
+                    placeholder="Enter your address"
+                    value={formData.address}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.address && (
+                  <p className="error-text">{errors.address}</p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="location">Location</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    placeholder="Enter your location"
+                    value={formData.location}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.location && (
+                  <p className="error-text">{errors.location}</p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="languages">Languages</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="languages"
+                    name="languages"
+                    placeholder="e.g., English, Hindi, Tamil"
+                    value={formData.languages}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.languages && (
+                  <p className="error-text">{errors.languages}</p>
+                )}
+                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>Separate multiple languages with commas</p>
               </div>
             </>
           )}
@@ -396,7 +471,57 @@ function Signup() {
                   <p className="error-text">{errors.focusArea}</p>
                 )}
               </div>
-            </>
+              <div className="form-group">
+                <label htmlFor="address">Address</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="address"
+                    name="address"
+                    placeholder="Enter your address"
+                    value={formData.address}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.address && (
+                  <p className="error-text">{errors.address}</p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="location">Location</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    placeholder="Enter your location"
+                    value={formData.location}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.location && (
+                  <p className="error-text">{errors.location}</p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="languages">Languages</label>
+                <div className="input-wrapper">
+                  <input
+                    type="text"
+                    id="languages"
+                    name="languages"
+                    placeholder="e.g., English, Hindi, Tamil"
+                    value={formData.languages}
+                    onChange={handleChange}
+                  />
+                </div>
+                {errors.languages && (
+                  <p className="error-text">{errors.languages}</p>
+                )}
+                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>Separate multiple languages with commas</p>
+              </div>            </>
           )}
 
           <button type="submit" className="signup-btn" disabled={loading}>

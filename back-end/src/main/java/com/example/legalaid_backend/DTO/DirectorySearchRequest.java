@@ -17,6 +17,9 @@ public class DirectorySearchRequest {
     // Filter by location
     private String location;
 
+    // Filter by languages (comma-separated)
+    private String languages;
+
     // Filter verified only (approved lawyers/NGOs)
     private Boolean verified = true;
 

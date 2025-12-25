@@ -50,6 +50,13 @@ public class DirectoryService {
                         request.getLocation().isBlank() ||
                         (user.getLocation() != null &&
                         user.getLocation().toLowerCase().contains(request.getLocation().trim().toLowerCase())))
+                // Filter by languages
+                .filter(user -> request.getLanguages() == null ||
+                        request.getLanguages().isBlank() ||
+                        (user.getLawyerProfile().getLanguages() != null &&
+                        java.util.Arrays.stream(request.getLanguages().split(","))
+                                .anyMatch(lang -> user.getLawyerProfile().getLanguages().toLowerCase()
+                                        .contains(lang.trim().toLowerCase()))))
                 // Convert to DTO
                 .map(this::convertToLawyerResponse)
                 .collect(Collectors.toList());
@@ -89,6 +96,13 @@ public class DirectoryService {
                         request.getLocation().isBlank() ||
                         (user.getLocation() != null &&
                         user.getLocation().toLowerCase().contains(request.getLocation().trim().toLowerCase())))
+                // Filter by languages
+                .filter(user -> request.getLanguages() == null ||
+                        request.getLanguages().isBlank() ||
+                        (user.getNgoProfile().getLanguages() != null &&
+                        java.util.Arrays.stream(request.getLanguages().split(","))
+                                .anyMatch(lang -> user.getNgoProfile().getLanguages().toLowerCase()
+                                        .contains(lang.trim().toLowerCase()))))
                 // Convert to DTO
                 .map(this::convertToNgoResponse)
                 .collect(Collectors.toList());
@@ -259,8 +273,10 @@ public class DirectoryService {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .location(user.getLocation())
+                .address(user.getLawyerProfile().getAddress())
                 .barNumber(user.getLawyerProfile().getBarNumber())
                 .specialization(user.getLawyerProfile().getSpecialization())
+                .languages(user.getLawyerProfile().getLanguages())
                 .verified(user.getApprovalStatus() == ApprovalStatus.APPROVED)
                 .build();
     }
@@ -271,9 +287,11 @@ public class DirectoryService {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .location(user.getLocation())
+                .address(user.getNgoProfile().getAddress())
                 .organizationName(user.getNgoProfile().getOrganizationName())
                 .registrationNumber(user.getNgoProfile().getRegistrationNumber())
                 .focusArea(user.getNgoProfile().getFocusArea())
+                .languages(user.getNgoProfile().getLanguages())
                 .verified(user.getApprovalStatus() == ApprovalStatus.APPROVED)
                 .build();
     }

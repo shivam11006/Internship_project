@@ -17,6 +17,7 @@ function DashboardCitizen() {
   const [profileData, setProfileData] = useState({
     username: '',
     email: '',
+    location: '',
   });
 
   useEffect(() => {
@@ -26,6 +27,7 @@ function DashboardCitizen() {
         setProfileData({
           username: result.data.username || '',
           email: result.data.email || '',
+          location: result.data.location || '',
         });
       }
     };
@@ -63,6 +65,7 @@ function DashboardCitizen() {
       setProfileData({
         username: result.data.username || '',
         email: result.data.email || '',
+        location: result.data.location || '',
       });
     }
     setIsEditing(false);
@@ -293,6 +296,18 @@ function DashboardCitizen() {
                   <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
                     Email cannot be changed
                   </small>
+                </div>
+                <div className="form-group">
+                  <label>Location</label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={profileData.location}
+                    onChange={handleChange}
+                    disabled={!isEditing}
+                    className={!isEditing ? 'disabled' : ''}
+                    placeholder="Enter your location"
+                  />
                 </div>
               </div>
             </div>

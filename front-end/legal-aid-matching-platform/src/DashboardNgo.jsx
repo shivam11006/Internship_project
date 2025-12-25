@@ -16,6 +16,9 @@ function DashboardNgo() {
     organizationName: '',
     registrationNumber: '',
     focusArea: '',
+    address: '',
+    location: '',
+    languages: '',
   });
 
   useEffect(() => {
@@ -37,6 +40,9 @@ function DashboardNgo() {
           organizationName: profile.organizationName || '',
           registrationNumber: profile.registrationNumber || '',
           focusArea: profile.focusArea || '',
+          address: profile.address || '',
+          location: result.data.location || '',
+          languages: profile.languages || '',
         });
       }
     };
@@ -82,6 +88,9 @@ function DashboardNgo() {
         organizationName: profile.organizationName || '',
         registrationNumber: profile.registrationNumber || '',
         focusArea: profile.focusArea || '',
+        address: profile.address || '',
+        location: result.data.location || '',
+        languages: profile.languages || '',
       });
     }
     setIsEditing(false);
@@ -244,6 +253,45 @@ function DashboardNgo() {
                     disabled={!isEditing}
                     className={!isEditing ? 'disabled' : ''}
                   />
+                </div>
+                <div className="form-group">
+                  <label>Address</label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={profileData.address}
+                    onChange={handleChange}
+                    placeholder="Enter your address"
+                    disabled={!isEditing}
+                    className={!isEditing ? 'disabled' : ''}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Location</label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={profileData.location}
+                    onChange={handleChange}
+                    placeholder="Enter your location"
+                    disabled={!isEditing}
+                    className={!isEditing ? 'disabled' : ''}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Languages</label>
+                  <input
+                    type="text"
+                    name="languages"
+                    value={profileData.languages}
+                    onChange={handleChange}
+                    placeholder="e.g., English, Hindi, Tamil"
+                    disabled={!isEditing}
+                    className={!isEditing ? 'disabled' : ''}
+                  />
+                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    Separate multiple languages with commas
+                  </small>
                 </div>
               </div>
             </div>
