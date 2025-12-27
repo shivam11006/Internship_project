@@ -88,6 +88,19 @@ const CaseManagement = () => {
     setSelectedCase(null);
   };
 
+  const downloadAttachment = (attachment) => {
+    try {
+      const linkSource = `data:${attachment.type};base64,${attachment.content}`;
+      const downloadLink = document.createElement("a");
+      downloadLink.href = linkSource;
+      downloadLink.download = attachment.name;
+      downloadLink.click();
+    } catch (error) {
+      console.error('Error downloading attachment:', error);
+      alert('Failed to download attachment');
+    }
+  };
+
   return (
     <div className="case-management">
       <div className="case-header">
@@ -134,6 +147,13 @@ const CaseManagement = () => {
                     </span>
                   </div>
                 </div>
+                {caseItem.expertiseTags && caseItem.expertiseTags.filter(tag => tag && tag.trim() !== '').length > 0 && (
+                  <div className="case-tags-preview">
+                    {caseItem.expertiseTags.filter(tag => tag && tag.trim() !== '').map((tag, index) => (
+                      <span key={index} className="case-tag-mini">{tag}</span>
+                    ))}
+                  </div>
+                )}
                 <div className="case-timestamp">
                   <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -192,6 +212,16 @@ const CaseManagement = () => {
                   <span className="detail-label">Created By</span>
                   <span className="detail-value">User #{selectedCase.createdBy}</span>
                 </div>
+                {selectedCase.expertiseTags && selectedCase.expertiseTags.filter(tag => tag && tag.trim() !== '').length > 0 && (
+                  <div className="detail-item full-width">
+                    <span className="detail-label">Expertise Tags</span>
+                    <div className="detail-tags-container">
+                      {selectedCase.expertiseTags.filter(tag => tag && tag.trim() !== '').map((tag, index) => (
+                        <span key={index} className="detail-tag-badge">{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="detail-section">
@@ -215,6 +245,32 @@ const CaseManagement = () => {
                   )}
                 </div>
               </div>
+
+              {selectedCase.attachments && selectedCase.attachments.length > 0 && (
+                <div className="detail-section attachments-section">
+                  <h4>Evidence & Documents</h4>
+                  <div className="attachments-grid">
+                    {selectedCase.attachments.map((attachment, index) => (
+                      <div
+                        key={index}
+                        className="attachment-item"
+                        onClick={() => downloadAttachment(attachment)}
+                        title="Click to download"
+                      >
+                        <div className="attachment-icon">
+                          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div className="attachment-info">
+                          <span className="attachment-name">{attachment.name}</span>
+                          <span className="attachment-type">{attachment.type.split('/')[1] || 'file'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="detail-section current-status-section">
                 <h4>Current Status</h4>
@@ -241,9 +297,9 @@ const CaseManagement = () => {
               <button className="btn-secondary" onClick={closeModal}>Close</button>
             </div>
           </div>
-        </div>
+        </div >
       )}
-    </div>
+    </div >
   );
 };
 

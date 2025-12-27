@@ -12,4 +12,5 @@ public class CreateCaseRequest {
     private String location;
     private String preferredLanguage;
     private java.util.List<String> expertiseTags;
+    private java.util.List<AttachmentDTO> attachments;
 }

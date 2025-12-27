@@ -235,22 +235,42 @@ function CaseSubmission({ onSuccess, onClose }) {
     alert('Draft saved successfully! You can continue later from where you left off.');
   };
 
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        // Remove data:image/png;base64, etc.
+        const base64String = reader.result.split(',')[1];
+        resolve(base64String);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setErrors({});
 
     try {
       // Map frontend data to backend CreateCaseRequest DTO
+      const attachments = await Promise.all(
+        uploadedFiles.map(async (fileObj) => ({
+          name: fileObj.name,
+          type: fileObj.type,
+          content: await fileToBase64(fileObj.file)
+        }))
+      );
+
       const caseData = {
         title: formData.title,
         description: formData.description,
         caseType: formData.caseType === 'Other' ? customCaseType : formData.caseType,
         priority: formData.priority,
-        // The following fields are not currently in the backend but we send them anyway
-        // or we could update the backend to support them.
         location: formData.location,
         expertiseTags: formData.expertiseTags,
-        preferredLanguage: formData.preferredLanguage === 'Other' ? customLanguage : formData.preferredLanguage
+        preferredLanguage: formData.preferredLanguage === 'Other' ? customLanguage : formData.preferredLanguage,
+        attachments: attachments
       };
 
       const response = await apiClient.post('/cases', caseData);

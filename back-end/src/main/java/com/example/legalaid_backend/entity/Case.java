@@ -38,8 +38,11 @@ public class Case {
 
     @ElementCollection
     @CollectionTable(name = "case_expertise_tags", joinColumns = @JoinColumn(name = "case_id"))
-    @Column(name = "tag")
+    @Column(name = "expertise_tags")
     private java.util.List<String> expertiseTags;
+
+    @OneToMany(mappedBy = "legalCase", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<CaseAttachment> attachments = new java.util.ArrayList<>();
 
     @Column(nullable = false)
     private String status;

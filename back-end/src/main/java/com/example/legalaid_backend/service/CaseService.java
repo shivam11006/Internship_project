@@ -1,13 +1,16 @@
 package com.example.legalaid_backend.service;
 
+import com.example.legalaid_backend.DTO.AttachmentDTO;
 import com.example.legalaid_backend.DTO.CaseResponse;
 import com.example.legalaid_backend.DTO.CreateCaseRequest;
 import com.example.legalaid_backend.entity.Case;
+import com.example.legalaid_backend.entity.CaseAttachment;
 import com.example.legalaid_backend.entity.User;
 import com.example.legalaid_backend.repository.CaseRepository;
 import com.example.legalaid_backend.repository.UserRepository;
 import com.example.legalaid_backend.util.Role;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -16,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CaseService {
@@ -45,6 +49,26 @@ public class CaseService {
         legalCase.setExpertiseTags(request.getExpertiseTags());
         legalCase.setStatus("SUBMITTED"); // ✅ default status
         legalCase.setCreatedBy(currentUser);
+
+        // Handle Attachments
+        if (request.getAttachments() != null && !request.getAttachments().isEmpty()) {
+            log.info("Processing {} attachments for new case", request.getAttachments().size());
+            java.util.List<CaseAttachment> attachments = request.getAttachments().stream().map(dto -> {
+                try {
+                    CaseAttachment attachment = new CaseAttachment();
+                    attachment.setFileName(dto.getName());
+                    attachment.setFileType(dto.getType());
+                    attachment.setContent(java.util.Base64.getDecoder().decode(dto.getContent()));
+                    attachment.setLegalCase(legalCase);
+                    log.debug("Decoded attachment: {} ({} bytes)", dto.getName(), attachment.getContent().length);
+                    return attachment;
+                } catch (Exception e) {
+                    log.error("Failed to decode attachment {}: {}", dto.getName(), e.getMessage());
+                    throw new RuntimeException("Invalid attachment data: " + dto.getName());
+                }
+            }).collect(Collectors.toList());
+            legalCase.setAttachments(attachments);
+        }
 
         return toResponse(caseRepository.save(legalCase));
     }
@@ -104,6 +128,17 @@ public class CaseService {
         response.setCreatedBy(legalCase.getCreatedBy().getId());
         response.setCreatedAt(legalCase.getCreatedAt());
         response.setUpdatedAt(legalCase.getUpdatedAt());
+
+        // Map Attachments
+        if (legalCase.getAttachments() != null) {
+            response.setAttachments(legalCase.getAttachments().stream().map(attachment -> {
+                AttachmentDTO dto = new AttachmentDTO();
+                dto.setName(attachment.getFileName());
+                dto.setType(attachment.getFileType());
+                dto.setContent(java.util.Base64.getEncoder().encodeToString(attachment.getContent()));
+                return dto;
+            }).collect(Collectors.toList()));
+        }
 
         return response;
     }

@@ -35,9 +35,10 @@ public class CaseController {
         MDC.put("endpoint", "/api/cases");
 
         try {
-            log.info("Case creation request received from user: {}, type: {}",
+            log.info("Case creation request received from user: {}, type: {}, attachments: {}",
                     auth.getName(),
-                    request.getCaseType());
+                    request.getCaseType(),
+                    request.getAttachments() != null ? request.getAttachments().size() : 0);
 
             CaseResponse response = caseService.createCase(request);
 
