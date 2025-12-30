@@ -4,6 +4,7 @@ import authService from './services/authService';
 import CaseSubmission from './CaseSubmission';
 import Directory from './Directory';
 import CaseManagement from './CaseManagement';
+import Matches from './Matches';
 import './Dashboard.css';
 import './SecureChat.css';
 
@@ -201,11 +202,14 @@ function DashboardCitizen() {
             <span>Directory</span>
           </button>
 
-          <button className="nav-item">
+          <button 
+            className={`nav-item ${activeTab === 'matches' ? 'active' : ''}`}
+            onClick={() => setActiveTab('matches')}
+          >
             <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
-            <span>Matches</span>
+            <span>My Matches</span>
           </button>
 
           <button className="nav-item">
@@ -232,6 +236,7 @@ function DashboardCitizen() {
               {activeTab === 'case-submission' && 'Case Submission'}
               {activeTab === 'my-cases' && 'My Cases'}
               {activeTab === 'directory' && 'Filterable Directory'}
+              {activeTab === 'matches' && 'My Matches'}
             </h1>
           </div>
           <div className="header-profile">
@@ -443,6 +448,37 @@ function DashboardCitizen() {
 
           {activeTab === 'directory' && (
             <Directory />
+          )}
+
+          {activeTab === 'matches' && (
+            <div className="matches-view">
+              <div className="matches-info-banner" style={{
+                padding: '24px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                borderRadius: '12px',
+                marginBottom: '20px',
+                display: 'flex',
+                gap: '16px',
+                alignItems: 'center'
+              }}>
+                <div style={{ fontSize: '32px' }}>💡</div>
+                <div>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '20px' }}>About Matches</h3>
+                  <p style={{ margin: 0, opacity: 0.95 }}>View matched lawyers and NGOs for your submitted cases. Accept or reject matches to find the perfect legal assistance.</p>
+                </div>
+              </div>
+              <div style={{
+                padding: '16px',
+                background: '#fef3c7',
+                border: '2px solid #fbbf24',
+                borderRadius: '8px',
+                marginBottom: '20px'
+              }}>
+                <strong>🔧 Demo Mode:</strong> Click "View Matches" button on any case in "My Cases" tab to see the matches interface.
+                <br /><small>In production, matches will be auto-generated when cases are submitted.</small>
+              </div>
+            </div>
           )}
         </div>
       </div>

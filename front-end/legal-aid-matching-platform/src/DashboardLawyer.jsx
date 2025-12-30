@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
+import AssignedCases from './AssignedCases';
 import './Dashboard.css';
 
 function DashboardLawyer() {
@@ -10,6 +11,7 @@ function DashboardLawyer() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('profile'); // profile or assigned-cases
   const [profileData, setProfileData] = useState({
     username: '',
     email: '',
@@ -121,18 +123,32 @@ function DashboardLawyer() {
         </div>
         
         <nav className="dashboard-nav">
-          <button className="nav-item active">
+          <button 
+            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => setActiveTab('profile')}
+          >
             <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             <span>Profile Management</span>
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'assigned-cases' ? 'active' : ''}`}
+            onClick={() => setActiveTab('assigned-cases')}
+          >
+            <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <span>Assigned Cases</span>
           </button>
         </nav>
       </div>
 
       <div className="dashboard-main">
         <div className="dashboard-header">
-          <h1 className="dashboard-title">Lawyer Dashboard</h1>
+          <h1 className="dashboard-title">
+            {activeTab === 'profile' ? 'Lawyer Dashboard' : 'Assigned Cases'}
+          </h1>
           <div className="header-profile">
             <div className="profile-dropdown" onClick={() => setShowProfileMenu(!showProfileMenu)}>
               <div className="profile-avatar">
@@ -166,13 +182,19 @@ function DashboardLawyer() {
         </div>
 
         <div className="dashboard-content">
-          <div className="empty-state">
-            <svg width="80" height="80" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
-            <h2 className="empty-title">Welcome, {user?.username}</h2>
-            <p className="empty-description">Your lawyer dashboard features are coming soon</p>
-          </div>
+          {activeTab === 'profile' && (
+            <div className="empty-state">
+              <svg width="80" height="80" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <h2 className="empty-title">Welcome, {user?.username}</h2>
+              <p className="empty-description">Your lawyer dashboard features are coming soon</p>
+            </div>
+          )}
+
+          {activeTab === 'assigned-cases' && (
+            <AssignedCases />
+          )}
         </div>
       </div>
 
