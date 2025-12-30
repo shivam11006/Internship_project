@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import './CaseManagement.css';
 import { apiClient } from './services/authService';
+import Matches from './Matches';
 
 const CaseManagement = () => {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedCase, setSelectedCase] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showMatchesModal, setShowMatchesModal] = useState(false);
+  const [selectedCaseIdForMatches, setSelectedCaseIdForMatches] = useState(null);
 
   useEffect(() => {
     fetchMyCases();
@@ -160,10 +163,45 @@ const CaseManagement = () => {
                   </svg>
                   <span>Submitted {formatDateTime(caseItem.createdAt)}</span>
                 </div>
+                <button 
+                  className="btn-view-matches"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCaseIdForMatches(caseItem.id);
+                    setShowMatchesModal(true);
+                  }}
+                  style={{
+                    width: '100%',
+                    marginTop: '12px',
+                    padding: '10px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s'
+                  }}
+                  onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
+                  onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
+                >
+                  💘 View Matches
+                </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Matches Modal */}
+      {showMatchesModal && selectedCaseIdForMatches && (
+        <Matches 
+          caseId={selectedCaseIdForMatches} 
+          onClose={() => {
+            setShowMatchesModal(false);
+            setSelectedCaseIdForMatches(null);
+          }} 
+        />
       )}
 
       {/* Case Detail Modal */}
