@@ -91,20 +91,99 @@ function CaseSubmission({ onSuccess, onClose }) {
     'Other'
   ];
 
-  const expertiseTags = [
-    'Divorce',
-    'Child Custody',
-    'Real Estate',
-    'Discrimination',
-    'Fraud',
-    'Employment',
-    'Domestic Violence',
-    'Debt',
-    'Tenant Rights',
-    'Immigration',
-    'Personal Injury',
-    'Contract Dispute'
-  ];
+  const expertiseTagsMap = {
+    'Civil Law': [
+      'Property Dispute',
+      'Breach of Contract',
+      'Defamation',
+      'Debt Recovery',
+      'Tenant-Landlord Dispute',
+      'Personal Injury',
+      'Contract Dispute'
+    ],
+    'Criminal Law': [
+      'Theft/Robbery',
+      'Assault/Battery',
+      'Fraud/Forgery',
+      'Cyber Crime',
+      'Murder/Attempt to Murder',
+      'Drug offenses (NDPS)',
+      'Fraud'
+    ],
+    'Family Law': [
+      'Divorce',
+      'Child Custody',
+      'Domestic Violence',
+      'Live-in Relationship Disputes',
+      'Dowry Harassment',
+      'Maintenance/Alimony',
+      'Marriage Registration'
+    ],
+    'Property Law': [
+      'Real Estate',
+      'Land Acquisition',
+      'Inheritance/Succession',
+      'Property Registration',
+      'Tenant Rights'
+    ],
+    'Labor Law': [
+      'Wrongful Termination',
+      'Wage Disputes',
+      'Workplace Harassment',
+      'Employment',
+      'Labor Union Issues'
+    ],
+    'Constitutional Law': [
+      'Fundamental Rights',
+      'Writ Petitions',
+      'PIL (Public Interest Litigation)',
+      'Discrimination'
+    ],
+    'Consumer Protection': [
+      'Product Defect',
+      'Service Deficiency',
+      'Unfair Trade Practices',
+      'Insurance Claims'
+    ],
+    'Human Rights': [
+      'Discrimination',
+      'Police Brutality',
+      'Freedom of Speech',
+      'Right to Education'
+    ],
+    'Immigration': [
+      'Visa Issues',
+      'Deportation',
+      'Citizenship',
+      'Asylum/Refugee Status'
+    ],
+    'Tax Law': [
+      'Income Tax',
+      'GST',
+      'Tax Evasion',
+      'Corporate Tax'
+    ],
+    'Environmental Law': [
+      'Pollution',
+      'Wildlife Protection',
+      'Forest Conservation',
+      'Waste Management'
+    ],
+    'Other': [
+      'General Legal Advice',
+      'Mediation',
+      'Arbitration',
+      'Notary Services'
+    ]
+  };
+
+  const getExpertiseTags = () => {
+    if (!formData.caseType || formData.caseType === '') {
+      // Show all tags if no type selected, or a default set
+      return Object.values(expertiseTagsMap).flat().filter((value, index, self) => self.indexOf(value) === index).slice(0, 15);
+    }
+    return expertiseTagsMap[formData.caseType] || [];
+  };
 
   const priorities = [
     { value: 'LOW', label: 'Low Priority' },
@@ -408,7 +487,7 @@ function CaseSubmission({ onSuccess, onClose }) {
 
         {/* Predefined Tags */}
         <div className="expertise-tags">
-          {expertiseTags.map(tag => (
+          {getExpertiseTags().map(tag => (
             <button
               key={tag}
               type="button"
