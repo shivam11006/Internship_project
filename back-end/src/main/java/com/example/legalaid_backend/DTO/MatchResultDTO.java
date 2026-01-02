@@ -17,4 +17,5 @@ public class MatchResultDTO {
     private Double score;
     private Boolean verified;
     private Boolean canInteract;
+    private String status; // "PENDING", "ACCEPTED", "REJECTED"
 }

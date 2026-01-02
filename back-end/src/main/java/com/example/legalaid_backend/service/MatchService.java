@@ -72,7 +72,7 @@ public class MatchService {
 
             double score = calculateMatchScore(legalCase, lawyer, Role.LAWYER);
             
-            if (score > 0) { // Only create matches with positive scores
+            if (score > 30) { // Only create matches with positive scores
                 Match match = new Match();
                 match.setLegalCase(legalCase);
                 match.setLawyer(lawyer);
@@ -95,7 +95,7 @@ public class MatchService {
 
             double score = calculateMatchScore(legalCase, ngo, Role.NGO);
             
-            if (score > 0) { // Only create matches with positive scores
+            if (score > 30) { // Only create matches with positive scores
                 Match match = new Match();
                 match.setLegalCase(legalCase);
                 match.setNgo(ngo);
@@ -142,9 +142,11 @@ public class MatchService {
             throw new RuntimeException("Access denied: You can only view matches for your own cases");
         }
 
+        // Only return PENDING matches - accepted/rejected ones should not appear in this view
         List<Match> matches = matchRepository.findByLegalCaseId(caseId);
         
         return matches.stream()
+                .filter(match -> match.getStatus() == MatchStatus.PENDING)
                 .map(this::toMatchResultDTO)
                 .sorted(Comparator.comparing(MatchResultDTO::getScore).reversed())
                 .collect(Collectors.toList());
@@ -562,6 +564,7 @@ public class MatchService {
         dto.setMatchId(match.getId());
         dto.setScore(match.getMatchScore());
         dto.setCanInteract(match.getStatus() == MatchStatus.PENDING);
+        dto.setStatus(match.getStatus().name());
 
         if (match.getLawyer() != null) {
             User lawyer = match.getLawyer();

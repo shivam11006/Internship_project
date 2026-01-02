@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './CaseManagement.css';
 import { apiClient } from './services/authService';
+import * as matchService from './services/matchService';
 import Matches from './Matches';
 
 const CaseManagement = () => {
@@ -10,6 +11,7 @@ const CaseManagement = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showMatchesModal, setShowMatchesModal] = useState(false);
   const [selectedCaseIdForMatches, setSelectedCaseIdForMatches] = useState(null);
+  const [generatingMatches, setGeneratingMatches] = useState(false);
 
   useEffect(() => {
     fetchMyCases();
@@ -91,6 +93,26 @@ const CaseManagement = () => {
     setSelectedCase(null);
   };
 
+  const handleViewMatches = async (caseId) => {
+    try {
+      setGeneratingMatches(true);
+      console.log('Generating matches for case:', caseId);
+      
+      // Call the generate matches API
+      const generateResponse = await matchService.generateMatches(caseId);
+      console.log('Matches generated:', generateResponse);
+      
+      // Now open the matches modal
+      setSelectedCaseIdForMatches(caseId);
+      setShowMatchesModal(true);
+    } catch (error) {
+      console.error('Error generating matches:', error);
+      alert('Failed to generate matches. Please try again.');
+    } finally {
+      setGeneratingMatches(false);
+    }
+  };
+
   const downloadAttachment = (attachment) => {
     try {
       const linkSource = `data:${attachment.type};base64,${attachment.content}`;
@@ -167,25 +189,27 @@ const CaseManagement = () => {
                   className="btn-view-matches"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSelectedCaseIdForMatches(caseItem.id);
-                    setShowMatchesModal(true);
+                    handleViewMatches(caseItem.id);
                   }}
+                  disabled={generatingMatches}
                   style={{
                     width: '100%',
                     marginTop: '12px',
                     padding: '10px',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    background: generatingMatches 
+                      ? '#ccc' 
+                      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',
                     fontWeight: '600',
-                    cursor: 'pointer',
+                    cursor: generatingMatches ? 'not-allowed' : 'pointer',
                     transition: 'transform 0.2s'
                   }}
-                  onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
-                  onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
+                  onMouseOver={(e) => !generatingMatches && (e.target.style.transform = 'translateY(-2px)')}
+                  onMouseOut={(e) => !generatingMatches && (e.target.style.transform = 'translateY(0)')}
                 >
-                  💘 View Matches
+                  {generatingMatches ? '⏳ Generating Matches...' : '💘 View Matches'}
                 </button>
               </div>
             </div>
