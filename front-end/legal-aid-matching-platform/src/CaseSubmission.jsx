@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import './CaseSubmission.css';
 import { apiClient } from './services/authService';
+import TermsOfService from './TermsOfService';
+import PrivacyPolicy from './PrivacyPolicy';
 
 function CaseSubmission({ onSuccess, onClose }) {
   const [currentStep, setCurrentStep] = useState(1);
@@ -19,6 +21,8 @@ function CaseSubmission({ onSuccess, onClose }) {
   const [customTag, setCustomTag] = useState('');
   const [customCaseType, setCustomCaseType] = useState('');
   const [customLanguage, setCustomLanguage] = useState('');
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const fileInputRef = useRef(null);
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -755,7 +759,26 @@ function CaseSubmission({ onSuccess, onClose }) {
           <label className="consent-checkbox">
             <input type="checkbox" required />
             <span>
-              I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
+              I agree to the{' '}
+              <a 
+                href="#" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowTerms(true);
+                }}
+              >
+                Terms of Service
+              </a>{' '}
+              and{' '}
+              <a 
+                href="#" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowPrivacy(true);
+                }}
+              >
+                Privacy Policy
+              </a>
             </span>
           </label>
         </div>
@@ -764,61 +787,66 @@ function CaseSubmission({ onSuccess, onClose }) {
   );
 
   return (
-    <div className="case-submission-content">
-      <div className="case-content-wrapper">
-        {renderStepIndicator()}
+    <>
+      <div className="case-submission-content">
+        <div className="case-content-wrapper">
+          {renderStepIndicator()}
 
-        <div className="case-form-content">
-          {currentStep === 1 && renderStep1()}
-          {currentStep === 2 && renderStep2()}
-          {currentStep === 3 && renderStep3()}
-          {currentStep === 4 && renderStep4()}
-        </div>
-
-        <div className="case-submission-footer">
-          <div className="footer-left">
-            {currentStep < 4 && (
-              <button
-                type="button"
-                onClick={handleSaveDraft}
-                className="case-btn case-btn-secondary"
-              >
-                Save Draft
-              </button>
-            )}
+          <div className="case-form-content">
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+            {currentStep === 3 && renderStep3()}
+            {currentStep === 4 && renderStep4()}
           </div>
-          <div className="footer-right">
-            {currentStep > 1 && (
-              <button
-                type="button"
-                onClick={handleBack}
-                className="case-btn case-btn-outline"
-              >
-                Back
-              </button>
-            )}
-            {currentStep < 4 ? (
-              <button
-                type="button"
-                onClick={handleNext}
-                className="case-btn case-btn-primary"
-              >
-                Next
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="case-btn case-btn-primary"
-              >
-                {isSubmitting ? 'Submitting...' : 'Submit Case'}
-              </button>
-            )}
+
+          <div className="case-submission-footer">
+            <div className="footer-left">
+              {currentStep < 4 && (
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  className="case-btn case-btn-secondary"
+                >
+                  Save Draft
+                </button>
+              )}
+            </div>
+            <div className="footer-right">
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="case-btn case-btn-outline"
+                >
+                  Back
+                </button>
+              )}
+              {currentStep < 4 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="case-btn case-btn-primary"
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="case-btn case-btn-primary"
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit Case'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <TermsOfService isOpen={showTerms} onClose={() => setShowTerms(false)} />
+      <PrivacyPolicy isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
+    </>
   );
 }
 
