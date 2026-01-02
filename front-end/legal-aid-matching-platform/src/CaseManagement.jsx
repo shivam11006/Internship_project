@@ -163,7 +163,7 @@ const CaseManagement = () => {
                   </svg>
                   <span>Submitted {formatDateTime(caseItem.createdAt)}</span>
                 </div>
-                <button 
+                <button
                   className="btn-view-matches"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -195,12 +195,12 @@ const CaseManagement = () => {
 
       {/* Matches Modal */}
       {showMatchesModal && selectedCaseIdForMatches && (
-        <Matches 
-          caseId={selectedCaseIdForMatches} 
+        <Matches
+          caseId={selectedCaseIdForMatches}
           onClose={() => {
             setShowMatchesModal(false);
             setSelectedCaseIdForMatches(null);
-          }} 
+          }}
         />
       )}
 
@@ -332,6 +332,16 @@ const CaseManagement = () => {
               </div>
             </div>
             <div className="modal-footer">
+              <button
+                className={`btn-edit ${selectedCase.status?.toLowerCase() !== 'submitted' ? 'disabled' : ''}`}
+                disabled={selectedCase.status?.toLowerCase() !== 'submitted'}
+                onClick={() => alert('Edit functionality is under development.')}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '8px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Case
+              </button>
               <button className="btn-secondary" onClick={closeModal}>Close</button>
             </div>
           </div>

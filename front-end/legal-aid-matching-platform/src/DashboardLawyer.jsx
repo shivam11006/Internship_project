@@ -3,15 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
 import AssignedCases from './AssignedCases';
 import './Dashboard.css';
+import './SecureChat.css';
 
 function DashboardLawyer() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('profile'); // profile or assigned-cases
+  const [activeTab, setActiveTab] = useState('profile'); // profile, assigned-cases, secure-chat
+  const [activeChat, setActiveChat] = useState(0);
+  const [messageText, setMessageText] = useState('');
   const [profileData, setProfileData] = useState({
     username: '',
     email: '',
@@ -22,22 +26,59 @@ function DashboardLawyer() {
     languages: '',
   });
 
+  // Mock Data for Secure Chat
+  const [conversations] = useState([
+    {
+      id: 0,
+      name: 'Rajesh Kumar (Citizen)',
+      role: 'Citizen',
+      lastMsg: 'I have uploaded the property documents as requested.',
+      time: '11:15 AM',
+      unread: 1,
+      matchScore: '92%',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+    },
+    {
+      id: 1,
+      name: 'Community Justice Center (NGO)',
+      role: 'NGO',
+      lastMsg: 'Could you please provide your legal opinion on this case?',
+      time: '09:45 AM',
+      unread: 0,
+      matchScore: '85%',
+      avatar: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+    },
+    {
+      id: 2,
+      name: 'Priya Singh (Citizen)',
+      role: 'Citizen',
+      lastMsg: 'When can we discuss the next steps for my case?',
+      time: 'Yesterday',
+      unread: 3,
+      matchScore: '95%',
+      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+    }
+  ]);
+
+  const [messages] = useState([
+    { id: 1, text: 'Hello, I see you have a dispute regarding your property boundaries.', sender: 'user', time: '10:00 AM' },
+    { id: 2, text: 'Yes, that is correct. My neighbor is claiming two feet of my land.', sender: 'contact', time: '10:05 AM' },
+    { id: 3, text: 'I understand. Have you already filed any formal complaint or had a survey done?', sender: 'user', time: '10:10 AM' },
+    { id: 4, text: 'Not yet, I was waiting for legal advice first.', sender: 'contact', time: '10:15 AM' },
+    { id: 5, text: 'I have uploaded the property documents as requested.', sender: 'contact', time: '11:15 AM' },
+  ]);
+
   useEffect(() => {
     const fetchProfile = async () => {
       const result = await authService.getProfile();
-      console.log('Profile API Response:', result);
       if (result.success) {
-        console.log('Profile data:', result.data);
-        console.log('Nested profile:', result.data.profile);
-        
-        // Check if user is suspended
         if (result.data.approvalStatus === 'SUSPENDED') {
           alert('Your account has been suspended. You will be logged out.');
           authService.logout();
           navigate('/signin');
           return;
         }
-        
+
         const profile = result.data.profile || {};
         setProfileData({
           username: result.data.username || '',
@@ -72,7 +113,7 @@ function DashboardLawyer() {
     const result = await authService.updateProfile(profileData);
     if (result.success) {
       if (result.requiresApproval) {
-        alert('Profile changes submitted. Your updates are pending admin approval. You will be notified once approved.');
+        alert('Profile changes submitted. Your updates are pending admin approval.');
       } else {
         alert('Profile updated successfully!');
       }
@@ -104,6 +145,8 @@ function DashboardLawyer() {
     setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
+  const currentContact = conversations[activeChat];
+
   return (
     <div className="dashboard-container">
       {/* Mobile Menu Button */}
@@ -112,18 +155,18 @@ function DashboardLawyer() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </button>
-      
+
       {/* Mobile Overlay */}
       <div className={`mobile-overlay ${mobileMenuOpen ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}></div>
-      
+
       <div className={`dashboard-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="dashboard-logo">
           <div className="logo-icon">⚖️</div>
           <span className="logo-text">LegalMatch Pro</span>
         </div>
-        
+
         <nav className="dashboard-nav">
-          <button 
+          <button
             className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
             onClick={() => setActiveTab('profile')}
           >
@@ -132,7 +175,18 @@ function DashboardLawyer() {
             </svg>
             <span>Profile Management</span>
           </button>
-          <button 
+
+          <button
+            className={`nav-item ${activeTab === 'secure-chat' ? 'active' : ''}`}
+            onClick={() => setActiveTab('secure-chat')}
+          >
+            <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <span>Secure Chat</span>
+          </button>
+
+          <button
             className={`nav-item ${activeTab === 'assigned-cases' ? 'active' : ''}`}
             onClick={() => setActiveTab('assigned-cases')}
           >
@@ -147,7 +201,9 @@ function DashboardLawyer() {
       <div className="dashboard-main">
         <div className="dashboard-header">
           <h1 className="dashboard-title">
-            {activeTab === 'profile' ? 'Lawyer Dashboard' : 'Assigned Cases'}
+            {activeTab === 'profile' && 'Lawyer Dashboard'}
+            {activeTab === 'secure-chat' && 'Secure Chat'}
+            {activeTab === 'assigned-cases' && 'Assigned Cases'}
           </h1>
           <div className="header-profile">
             <div className="profile-dropdown" onClick={() => setShowProfileMenu(!showProfileMenu)}>
@@ -192,6 +248,123 @@ function DashboardLawyer() {
             </div>
           )}
 
+          {activeTab === 'secure-chat' && (
+            <div className="secure-chat-container">
+              {/* Chat Sidebar */}
+              <div className="chat-sidebar">
+                <div className="chat-sidebar-header">
+                  <div className="chat-search-container">
+                    <svg className="chat-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input type="text" className="chat-search-input" placeholder="Search conversations..." />
+                  </div>
+                </div>
+                <div className="conversation-list">
+                  {conversations.map((convo, index) => (
+                    <div
+                      key={convo.id}
+                      className={`conversation-item ${activeChat === index ? 'active' : ''}`}
+                      onClick={() => setActiveChat(index)}
+                    >
+                      <div className="convo-avatar">
+                        <img src={convo.avatar} alt={convo.name} />
+                      </div>
+                      <div className="convo-details">
+                        <div className="convo-header">
+                          <span className="convo-name">{convo.name}</span>
+                          <span className="convo-time">{convo.time}</span>
+                        </div>
+                        <div className="convo-last-msg">
+                          <span>{convo.lastMsg}</span>
+                          {convo.unread > 0 && <span className="unread-badge">{convo.unread}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Main Chat Window */}
+              <div className="chat-window">
+                <div className="chat-header">
+                  <div className="chat-contact-info">
+                    <img className="chat-contact-avatar" src={currentContact.avatar} alt={currentContact.name} />
+                    <div className="chat-contact-details">
+                      <h3>{currentContact.name}</h3>
+                      <span className="match-score-pill">{currentContact.role} • Match Score: {currentContact.matchScore}</span>
+                    </div>
+                  </div>
+                  <div className="chat-header-actions">
+                    <button className="btn-header-action btn-view-profile">
+                      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span>View Profile</span>
+                    </button>
+                    <button className="btn-header-action btn-schedule" onClick={() => setShowScheduleModal(true)}>
+                      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>Schedule Call</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="messages-container">
+                  <div className="message-date-divider">
+                    <span>Today</span>
+                  </div>
+                  {messages.map((msg) => (
+                    <div key={msg.id} className={`message ${msg.sender}`}>
+                      <div className="message-bubble">
+                        {msg.text}
+                      </div>
+                      <div className="message-info">
+                        <span>{msg.time}</span>
+                        {msg.sender === 'user' && (
+                          <svg className="msg-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7m-12 6l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="suggested-replies">
+                  {['Understood.', 'Please send the documents.', 'I am available for a call.', 'What is the current status?', 'Let\'s meet next week.'].map((reply, i) => (
+                    <button key={i} className="suggested-reply-btn" onClick={() => setMessageText(reply)}>
+                      {reply}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="chat-input-container">
+                  <div className="chat-input-wrapper">
+                    <button className="btn-input-icon">
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                    </button>
+                    <textarea
+                      className="chat-input-field"
+                      placeholder="Type your message here..."
+                      rows="1"
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
+                    ></textarea>
+                    <button className="btn-send-msg">
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'assigned-cases' && (
             <AssignedCases />
           )}
@@ -213,7 +386,7 @@ function DashboardLawyer() {
                 </div>
                 <div className="profile-role-badge">{user?.role || 'LAWYER'}</div>
               </div>
-              
+
               <div className="profile-form">
                 <div className="form-group">
                   <label>Username</label>
@@ -300,9 +473,6 @@ function DashboardLawyer() {
                     disabled={!isEditing}
                     className={!isEditing ? 'disabled' : ''}
                   />
-                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                    Separate multiple languages with commas
-                  </small>
                 </div>
               </div>
             </div>
@@ -320,6 +490,68 @@ function DashboardLawyer() {
                   <button className="btn-primary" onClick={handleSaveProfile}>Save Changes</button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Call Modal */}
+      {showScheduleModal && (
+        <div className="modal-overlay" onClick={() => setShowScheduleModal(false)}>
+          <div className="modal-content schedule-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="schedule-header">
+                <h2>Schedule a Call</h2>
+                <div className="schedule-subtitle">Propose a time to connect with {currentContact.name}</div>
+              </div>
+              <button className="modal-close" onClick={() => setShowScheduleModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="contact-preview-card">
+                <img className="contact-preview-avatar" src={currentContact.avatar} alt={currentContact.name} />
+                <div className="contact-preview-info">
+                  <h4>{currentContact.name} <span className="contact-preview-role">{currentContact.role}</span></h4>
+                  <span className="match-score-pill">Match Score: {currentContact.matchScore}</span>
+                </div>
+              </div>
+
+              <div className="profile-form">
+                <div className="form-group">
+                  <label>Date</label>
+                  <input type="date" defaultValue="2025-12-28" />
+                </div>
+
+                <div className="form-group">
+                  <label>Time Zone</label>
+                  <select className="chat-search-input" style={{ paddingLeft: '12px' }}>
+                    <option selected>India Standard Time (IST)</option>
+                    <option>Pacific Standard Time (PST)</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Proposed Time Slots</label>
+                  <div className="time-slots-grid">
+                    {['10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '4:00 PM'].map((slot, i) => (
+                      <button key={i} className={`time-slot-btn ${slot === '10:00 AM' ? 'selected' : ''}`}>
+                        {slot}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Call Duration</label>
+                  <select className="chat-search-input" style={{ paddingLeft: '12px' }}>
+                    <option selected>30 minutes</option>
+                    <option>1 hour</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
+              <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowScheduleModal(false)}>Cancel</button>
+              <button className="btn-primary btn-confirm-schedule" style={{ flex: 2 }} onClick={() => setShowScheduleModal(false)}>Confirm Call</button>
             </div>
           </div>
         </div>
