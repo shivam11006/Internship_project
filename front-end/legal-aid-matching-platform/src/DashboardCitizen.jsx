@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import authService from './services/authService';
 import CaseSubmission from './CaseSubmission';
 import Directory from './Directory';
@@ -24,6 +25,10 @@ function DashboardCitizen() {
     email: '',
     location: '',
   });
+
+  // State for Match Profile Modal
+  const [showMatchProfileModal, setShowMatchProfileModal] = useState(false);
+  const [selectedMatchProfile, setSelectedMatchProfile] = useState(null);
 
   // Mock Data for Secure Chat
   const [conversations] = useState([
@@ -76,8 +81,117 @@ function DashboardCitizen() {
     { id: 4, text: 'I see. Do you have the property documents?', sender: 'contact', time: '10:15 AM' },
     { id: 5, text: 'Yes, I have them ready.', sender: 'user', time: '10:20 AM' },
     { id: 6, text: 'Great. Please share them here or we can schedule a call.', sender: 'contact', time: '10:25 AM' },
+    { id: 6, text: 'Great. Please share them here or we can schedule a call.', sender: 'contact', time: '10:25 AM' },
     { id: 7, text: 'Thank you for the update. I\'ll review it.', sender: 'contact', time: '10:30 AM' },
   ]);
+
+  // Mock Data for Dashboard
+  const dashboardStats = {
+    newMatches: { value: 12, label: 'This week' },
+    activeConversations: { value: 7, label: 'With lawyers/NGOs' },
+    scheduledCalls: { value: 3, label: 'Upcoming sessions' },
+    resolvedCases: { value: 25, label: 'Total cases' }
+  };
+
+  const recentMatches = [
+    {
+      id: 1,
+      name: 'Sarah Chen, Esq.',
+      role: 'Lawyer',
+      description: 'New match, specializes in Family Law',
+      time: '2 hours ago',
+      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      online: true,
+      rating: 4.8,
+      location: 'New York, NY',
+      email: 'sarah.chen@examplelaw.com',
+      phone: '+1 (212) 555-0188',
+      website: 'www.sarahchenlaw.com',
+      practiceAreas: ['Family Law', 'Immigration', 'Civil Rights', 'Housing Law', 'Employment Law'],
+      availability: 'Available for new consultations',
+      matchPercentage: 92,
+      recentActivity: [
+        'Responded to 3 inquiries this week.',
+        'Updated availability for April.',
+        'Featured in "Legal Aid Hero" article.',
+        'Completed "Advanced Immigration Law" training.',
+        'Resolved 2 pro bono cases last month.'
+      ]
+    },
+    {
+      id: 2,
+      name: 'Justice Alliance',
+      role: 'NGO',
+      description: 'Responded to your inquiry',
+      time: 'Yesterday',
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      online: false,
+      rating: 4.9,
+      location: 'Washington, DC',
+      email: 'contact@justicealliance.org',
+      phone: '+1 (202) 555-0199',
+      website: 'www.justicealliance.org',
+      practiceAreas: ['Human Rights', 'Public Interest', 'Environmental Law'],
+      availability: 'Accepting new cases',
+      matchPercentage: 88,
+      recentActivity: [
+        'Organized a community legal clinic.',
+        'Published annual impact report.',
+        'Partnered with 5 new law firms.'
+      ]
+    },
+    {
+      id: 3,
+      name: 'Legal Aid Corps',
+      role: 'NGO',
+      description: 'Confirmed call for next Tuesday',
+      time: '2 days ago',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      online: true,
+      rating: 4.7,
+      location: 'Chicago, IL',
+      email: 'info@legalaidcorps.org',
+      phone: '+1 (312) 555-0177',
+      website: 'www.legalaidcorps.org',
+      practiceAreas: ['Housing Law', 'Debt Relief', 'Veterans Rights'],
+      availability: 'Limited availability',
+      matchPercentage: 85,
+      recentActivity: [
+        'Provided aid to 500+ families this year.',
+        'launched a new legal helpline.'
+      ]
+    },
+    {
+      id: 4,
+      name: 'Advocate Sharma',
+      role: 'Lawyer',
+      description: 'Viewed your profile',
+      time: '3 days ago',
+      avatar: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      online: false,
+      rating: 4.5,
+      location: 'Mumbai, MH',
+      email: 'sharma.advocate@law.in',
+      phone: '+91 98765 43210',
+      website: 'www.sharmalaw.in',
+      practiceAreas: ['Property Law', 'Criminal Defense', 'Tax Law'],
+      availability: 'Consultation by appointment',
+      matchPercentage: 80,
+      recentActivity: [
+        'Won a high-profile property case.',
+        'Joined the Bar Association panel.'
+      ]
+    }
+  ];
+
+  const matchesOverTimeData = [
+    { name: 'Jan', matches: 5 },
+    { name: 'Feb', matches: 7 },
+    { name: 'Mar', matches: 10 },
+    { name: 'Apr', matches: 12 },
+    { name: 'May', matches: 15 },
+    { name: 'Jun', matches: 18 }
+  ];
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -133,6 +247,22 @@ function DashboardCitizen() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setProfileData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleChatClick = (match) => {
+    // In a real app, you might want to set the active chat to this specific match
+    // For now, we just navigate to the tab
+    setActiveTab('secure-chat');
+  };
+
+  const handleProfileClick = (match) => {
+    setSelectedMatchProfile(match);
+    setShowMatchProfileModal(true);
+  };
+
+  const handleCloseMatchProfile = () => {
+    setShowMatchProfileModal(false);
+    setSelectedMatchProfile(null);
   };
 
   const currentContact = conversations[activeChat];
@@ -202,7 +332,7 @@ function DashboardCitizen() {
             <span>Directory</span>
           </button>
 
-          <button 
+          <button
             className={`nav-item ${activeTab === 'matches' ? 'active' : ''}`}
             onClick={() => setActiveTab('matches')}
           >
@@ -239,78 +369,186 @@ function DashboardCitizen() {
               {activeTab === 'matches' && 'My Matches'}
             </h1>
           </div>
-          <div className="header-profile">
-            <div className="profile-dropdown" onClick={() => setShowProfileMenu(!showProfileMenu)}>
-              <div className="profile-avatar">
-                {user?.username?.charAt(0).toUpperCase() || 'C'}
-              </div>
-              <div className="profile-info">
-                <div className="profile-name">{user?.username || 'Citizen'}</div>
-                <div className="profile-email">{user?.email || ''}</div>
-              </div>
-              <svg className="dropdown-icon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+          <div className="header-right">
+            <button className="notification-btn">
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-            </div>
-            {showProfileMenu && (
-              <div className="profile-menu">
-                <button className="profile-menu-item" onClick={handleViewProfile}>
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  View Profile
-                </button>
-                <button className="profile-menu-item" onClick={handleLogout}>
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  Logout
-                </button>
+              <span className="notification-indicator"></span>
+            </button>
+            <div className="header-profile">
+              <div className="profile-dropdown" onClick={() => setShowProfileMenu(!showProfileMenu)}>
+                <div className="profile-avatar">
+                  {user?.username?.charAt(0).toUpperCase() || 'C'}
+                </div>
+                <div className="profile-info">
+                  <div className="profile-name">{user?.username || 'Citizen'}</div>
+                  <div className="profile-email">{user?.email || ''}</div>
+                </div>
+                <svg className="dropdown-icon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
               </div>
-            )}
+              {showProfileMenu && (
+                <div className="profile-menu">
+                  <button className="profile-menu-item" onClick={handleViewProfile}>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    View Profile
+                  </button>
+                  <button className="profile-menu-item" onClick={handleLogout}>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="dashboard-content">
           {activeTab === 'dashboard' && (
-            <div className="welcome-section">
-              <div className="welcome-card">
-                <div className="welcome-icon">👋</div>
-                <h2 className="welcome-title">Hi, {user?.username}!</h2>
-                <p className="welcome-text">
-                  Welcome to your Legal Aid dashboard. Navigate through the menu to submit cases, search the directory, or view your matches.
-                </p>
+            <div className="new-dashboard-container">
+              <div className="dashboard-intro">
+                <h2 className="intro-title">Notifications & Matches Dashboard</h2>
+                <p className="intro-subtitle">Overview of your recent legal aid activity and matching metrics.</p>
               </div>
 
-              <div className="feature-cards">
-                <div className="feature-card">
-                  <div className="feature-icon blue">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              {/* Metrics Cards */}
+              <div className="metrics-grid">
+                <div className="metric-card">
+                  <div className="metric-header">
+                    <span className="metric-title">New Matches</span>
+                    <svg className="metric-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                     </svg>
                   </div>
-                  <h3>Find Legal Help</h3>
-                  <p>Browse our directory of verified lawyers and NGOs</p>
+                  <div className="metric-value">{dashboardStats.newMatches.value}</div>
+                  <div className="metric-label">{dashboardStats.newMatches.label}</div>
                 </div>
 
-                <div className="feature-card">
-                  <div className="feature-icon purple">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                <div className="metric-card">
+                  <div className="metric-header">
+                    <span className="metric-title">Active Conversations</span>
+                    <svg className="metric-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                     </svg>
                   </div>
-                  <h3>Smart Matching</h3>
-                  <p>Get matched with the right legal professionals</p>
+                  <div className="metric-value">{dashboardStats.activeConversations.value}</div>
+                  <div className="metric-label">{dashboardStats.activeConversations.label}</div>
                 </div>
 
-                <div className="feature-card">
-                  <div className="feature-icon green">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                <div className="metric-card">
+                  <div className="metric-header">
+                    <span className="metric-title">Scheduled Calls</span>
+                    <svg className="metric-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <h3>Secure & Confidential</h3>
-                  <p>Your information is protected and encrypted</p>
+                  <div className="metric-value">{dashboardStats.scheduledCalls.value}</div>
+                  <div className="metric-label">{dashboardStats.scheduledCalls.label}</div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="metric-header">
+                    <span className="metric-title">Resolved Cases</span>
+                    <svg className="metric-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="metric-value">{dashboardStats.resolvedCases.value}</div>
+                  <div className="metric-label">{dashboardStats.resolvedCases.label}</div>
+                </div>
+              </div>
+
+              <div className="dashboard-grid-layout">
+                {/* Recent Matches Section */}
+                <div className="recent-matches-section">
+                  <h3 className="section-title">Recent Matches</h3>
+                  <div className="recent-matches-list">
+                    {recentMatches.map((match) => (
+                      <div key={match.id} className="match-card-item">
+                        <div className="match-card-left">
+                          <div className="match-avatar-wrapper">
+                            <img src={match.avatar} alt={match.name} className="match-avatar" />
+                            <span className={`status-dot ${match.online ? 'online' : 'offline'}`}></span>
+                          </div>
+                          <div className="match-info">
+                            <div className="match-name-row">
+                              <span className="match-name">{match.name}</span>
+                              <span className="match-role">({match.role})</span>
+                            </div>
+                            <div className="match-desc">{match.description}</div>
+                            <div className="match-time">{match.time}</div>
+                          </div>
+                        </div>
+                        <div className="match-actions">
+                          <button
+                            className="btn-match-action btn-chat"
+                            onClick={() => handleChatClick(match)}
+                          >
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                            Chat
+                          </button>
+                          <button
+                            className="btn-match-action btn-profile"
+                            onClick={() => handleProfileClick(match)}
+                          >
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            Profile
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Chart Section */}
+                <div className="chart-section">
+                  <h3 className="section-title">Matches Over Time</h3>
+                  <div className="chart-wrapper">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={matchesOverTimeData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                        <XAxis
+                          dataKey="name"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                          dy={10}
+                        />
+                        <YAxis
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: '#6b7280', fontSize: 12 }}
+                          domain={[4, 20]}
+                          ticks={[4, 8, 12, 16, 20]}
+                        />
+                        <Tooltip
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="matches"
+                          stroke="#7c3aed"
+                          strokeWidth={2}
+                          dot={{ fill: '#7c3aed', stroke: '#fff', strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    <div className="chart-legend">
+                      <span className="legend-dot"></span>
+                      <span className="legend-text">Matches</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -554,6 +792,135 @@ function DashboardCitizen() {
                   <button className="btn-primary" onClick={handleSaveProfile}>Save Changes</button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Match Profile Modal */}
+      {showMatchProfileModal && selectedMatchProfile && (
+        <div className="modal-overlay" onClick={handleCloseMatchProfile}>
+          <div className="modal-content profile-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Match Profile</h2>
+              <button className="modal-close" onClick={handleCloseMatchProfile}>×</button>
+            </div>
+            <div className="modal-body profile-modal-body">
+              <div className="profile-modal-grid">
+                {/* Left Column: Details */}
+                <div className="profile-left-col">
+                  <div className="profile-header-new">
+                    <img
+                      src={selectedMatchProfile.avatar}
+                      alt={selectedMatchProfile.name}
+                      className="profile-modal-avatar"
+                    />
+                    <div className="profile-header-info">
+                      <div className="profile-name-row">
+                        <h2>{selectedMatchProfile.name}</h2>
+                        <span className="verified-badge">
+                          <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          Verified {selectedMatchProfile.role}
+                        </span>
+                      </div>
+                      <div className="profile-rating">
+                        <span className="stars">⭐ {selectedMatchProfile.rating || 'N/A'}</span>
+                        <span className="rating-count">(4.8)</span>
+                      </div>
+                      <div className="profile-contact-info">
+                        <div className="contact-row">
+                          <span className="icon">📍</span> {selectedMatchProfile.location || 'Location N/A'}
+                        </div>
+                        <div className="contact-row">
+                          <span className="icon">✉️</span> {selectedMatchProfile.email || 'email@example.com'}
+                        </div>
+                        <div className="contact-row">
+                          <span className="icon">📞</span> {selectedMatchProfile.phone || '+1 (555) 000-0000'}
+                        </div>
+                        <div className="contact-row">
+                          <span className="icon">🌐</span> {selectedMatchProfile.website || 'www.website.com'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="profile-section-block">
+                    <h3>Practice Areas</h3>
+                    <div className="practice-areas-list">
+                      {selectedMatchProfile.practiceAreas?.map((area, idx) => (
+                        <span key={idx} className="practice-area-tag">{area}</span>
+                      )) || <span className="practice-area-tag">General Law</span>}
+                    </div>
+                  </div>
+
+                  <div className="profile-section-block">
+                    <h3>Availability</h3>
+                    <p className="availability-text">{selectedMatchProfile.availability || 'Contact for availability'}</p>
+
+                    <div className="match-score-banner">
+                      <div className="score-ring">
+                        <svg viewBox="0 0 36 36" className="circular-chart">
+                          <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#eee" strokeWidth="3" />
+                          <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#7c3aed" strokeWidth="3" strokeDasharray={`${selectedMatchProfile.matchPercentage || 100}, 100`} />
+                        </svg>
+                        <span className="score-text">{selectedMatchProfile.matchPercentage || 90}%</span>
+                      </div>
+                      <div className="score-details">
+                        <h4 style={{ color: '#5b21b6' }}>High Compatibility</h4>
+                        <p>Based on your case details and preferences.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="profile-section-block">
+                    <h3>Case History & Experience</h3>
+                    <p className="placeholder-text">Detailed case history and verified experience data would appear here.</p>
+                  </div>
+                </div>
+
+                {/* Right Column: Actions & Activity */}
+                <div className="profile-right-col">
+                  <div className="action-card">
+                    <h3>Actions</h3>
+                    <button className="btn-action-primary" onClick={() => { handleCloseMatchProfile(); handleChatClick(selectedMatchProfile); }}>
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
+                      Message
+                    </button>
+                    <button className="btn-action-outline">
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Schedule Call
+                    </button>
+                    <button className="btn-action-outline">
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                      </svg>
+                      Add to Shortlist
+                    </button>
+                  </div>
+
+                  <div className="activity-card">
+                    <h3>Recent Activity</h3>
+                    <ul className="activity-list">
+                      {selectedMatchProfile.recentActivity?.map((activity, idx) => (
+                        <li key={idx} className="activity-item">{activity}</li>
+                      )) || <li className="activity-item">No recent activity.</li>}
+                    </ul>
+                  </div>
+
+                  <div className="activity-card">
+                    <h3>Documents</h3>
+                    <div className="document-placeholder">
+                      No public documents available.
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
