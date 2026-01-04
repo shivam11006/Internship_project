@@ -1,183 +1,95 @@
 import React, { useState, useEffect } from 'react';
 import './AssignedCases.css';
+import * as matchService from './services/matchService';
 
 function AssignedCases() {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState('all'); // all, pending, accepted, declined
-  const [sortBy, setSortBy] = useState('date'); // date, priority, location
+  const [error, setError] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [sortBy, setSortBy] = useState('date');
   const [selectedCase, setSelectedCase] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-    // TODO: Replace with actual API call
-    // fetch('/api/my-assigned-cases')
-    fetchMockCases();
+    fetchAssignedCases();
   }, []);
 
-  const fetchMockCases = () => {
-    // Mock data - replace with actual API call later
-    setTimeout(() => {
-      const mockCases = [
-        {
-          id: 1,
-          title: 'Custody Dispute - Child Welfare',
-          description: 'Need legal assistance for child custody case. Ex-spouse is not following court orders regarding visitation rights. Looking for immediate help to file contempt motion.',
-          caseType: 'Family Law',
-          priority: 'High',
-          location: 'Mumbai, Maharashtra',
-          preferredLanguage: 'Hindi, English',
-          expertiseTags: ['Child Custody', 'Family Law', 'Court Motions'],
-          status: 'pending', // pending, accepted, declined
-          citizenName: 'Priya Mehta',
-          citizenEmail: 'priya.mehta@example.com',
-          submittedDate: '2025-12-28',
-          matchScore: 95,
-          matchReason: 'High expertise match and location proximity',
-          attachments: [
-            { name: 'court_order.pdf', size: '2.3 MB' },
-            { name: 'evidence_docs.pdf', size: '1.8 MB' }
-          ],
-          urgency: 'Requires immediate attention',
-          estimatedTimeframe: '2-3 weeks'
-        },
-        {
-          id: 2,
-          title: 'Property Inheritance Dispute',
-          description: 'Family property dispute after father\'s death. Need help with will verification and property division among siblings. Multiple legal heirs involved.',
-          caseType: 'Property Law',
-          priority: 'Medium',
-          location: 'Thane, Maharashtra',
-          preferredLanguage: 'Marathi, English',
-          expertiseTags: ['Property Law', 'Inheritance', 'Will Verification'],
-          status: 'pending',
-          citizenName: 'Rahul Deshmukh',
-          citizenEmail: 'rahul.d@example.com',
-          submittedDate: '2025-12-27',
-          matchScore: 88,
-          matchReason: 'Expertise in property law and inheritance cases',
-          attachments: [
-            { name: 'will_document.pdf', size: '1.2 MB' },
-            { name: 'property_papers.pdf', size: '3.5 MB' }
-          ],
-          urgency: 'Standard processing',
-          estimatedTimeframe: '4-6 weeks'
-        },
-        {
-          id: 3,
-          title: 'Domestic Violence Case - Protection Order',
-          description: 'Urgent help needed to file protection order against abusive spouse. Already contacted local police. Need legal representation for court proceedings.',
-          caseType: 'Domestic Violence',
-          priority: 'Urgent',
-          location: 'Mumbai, Maharashtra',
-          preferredLanguage: 'Hindi',
-          expertiseTags: ['Domestic Violence', 'Protection Orders', 'Women Rights'],
-          status: 'accepted',
-          citizenName: 'Anonymous (Protected)',
-          citizenEmail: 'protected@legalaid.org',
-          submittedDate: '2025-12-29',
-          matchScore: 92,
-          matchReason: 'Specialization in domestic violence and urgent cases',
-          attachments: [
-            { name: 'police_complaint.pdf', size: '890 KB' },
-            { name: 'medical_report.pdf', size: '1.5 MB' }
-          ],
-          urgency: 'URGENT - Immediate action required',
-          estimatedTimeframe: '1 week',
-          acceptedDate: '2025-12-29'
-        },
-        {
-          id: 4,
-          title: 'Employment Termination - Wrongful Dismissal',
-          description: 'Was terminated without proper notice or severance pay. Company violated labor laws. Need help to file complaint and recover dues.',
-          caseType: 'Labor Law',
-          priority: 'Medium',
-          location: 'Navi Mumbai, Maharashtra',
-          preferredLanguage: 'English',
-          expertiseTags: ['Labor Law', 'Employment Rights', 'Wrongful Termination'],
-          status: 'declined',
-          citizenName: 'Amit Sharma',
-          citizenEmail: 'amit.sharma@example.com',
-          submittedDate: '2025-12-26',
-          matchScore: 76,
-          matchReason: 'Basic expertise match',
-          attachments: [
-            { name: 'termination_letter.pdf', size: '450 KB' },
-            { name: 'employment_contract.pdf', size: '980 KB' }
-          ],
-          urgency: 'Standard processing',
-          estimatedTimeframe: '3-4 weeks',
-          declinedDate: '2025-12-27',
-          declineReason: 'Conflict of interest - currently handling similar case with same employer'
-        }
-      ];
-      setCases(mockCases);
+  const fetchAssignedCases = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await matchService.getAssignedCases();
+      
+      // Handle different response formats
+      let casesData = [];
+      if (Array.isArray(response)) {
+        casesData = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        casesData = response.data;
+      }
+      
+      setCases(casesData);
+    } catch (err) {
+      console.error('Failed to fetch assigned cases:', err);
+      setError('Failed to load assigned cases. Please check your connection.');
+      setCases([]);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
-  const handleAccept = async (caseId) => {
-    // TODO: Replace with actual API call
-    // await fetch(`/api/assigned-cases/${caseId}/accept`, { method: 'POST' })
-    
-    const confirmed = window.confirm(
-      'Accept this case? This will notify the citizen and start the case process.'
-    );
-    
+  const handleAccept = async (matchId) => {
+    const confirmed = window.confirm('Accept this case assignment?');
     if (confirmed) {
-      setCases(cases.map(c => 
-        c.id === caseId 
-          ? { ...c, status: 'accepted', acceptedDate: new Date().toISOString().split('T')[0] }
-          : c
-      ));
-      setShowDetails(false);
-      alert('Case accepted! The citizen has been notified.');
+      try {
+        await matchService.acceptCaseAssignment(matchId);
+        setCases(cases.map(c => 
+          c.id === matchId ? { ...c, status: 'accepted' } : c
+        ));
+        setShowDetails(false);
+        alert('Case assignment accepted!');
+      } catch (err) {
+        console.error('Error accepting case:', err);
+        alert('Failed to accept case. Please try again.');
+      }
     }
   };
 
-  const handleDecline = async (caseId) => {
-    // TODO: Replace with actual API call
-    // await fetch(`/api/assigned-cases/${caseId}/decline`, { method: 'POST' })
-    
-    const reason = prompt(
-      'Please provide a reason for declining (optional but recommended):'
-    );
-    
-    if (reason !== null) { // User didn't cancel
-      setCases(cases.map(c => 
-        c.id === caseId 
-          ? { 
-              ...c, 
-              status: 'declined', 
-              declinedDate: new Date().toISOString().split('T')[0],
-              declineReason: reason || 'No reason provided'
-            }
-          : c
-      ));
-      setShowDetails(false);
-      alert('Case declined. The system will find alternative matches for the citizen.');
+  const handleDecline = async (matchId) => {
+    const confirmed = window.confirm('Decline this case assignment?');
+    if (confirmed) {
+      try {
+        await matchService.declineCaseAssignment(matchId);
+        setCases(cases.map(c => 
+          c.id === matchId ? { ...c, status: 'declined' } : c
+        ));
+        setShowDetails(false);
+        alert('Case assignment declined.');
+      } catch (err) {
+        console.error('Error declining case:', err);
+        alert('Failed to decline case. Please try again.');
+      }
     }
   };
 
-  const viewDetails = (caseItem) => {
-    setSelectedCase(caseItem);
-    setShowDetails(true);
-  };
-
-  const getPriorityColor = (priority) => {
-    if (priority === 'Urgent') return '#ef4444';
-    if (priority === 'High') return '#f59e0b';
-    if (priority === 'Medium') return '#3b82f6';
-    return '#6b7280';
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'accepted': return '#10b981';
+      case 'rejected':
+      case 'declined': return '#ef4444';
+      default: return '#f59e0b';
+    }
   };
 
   const getStatusBadge = (status) => {
-    const badges = {
-      pending: { text: 'Pending Review', color: '#f59e0b' },
-      accepted: { text: 'Accepted', color: '#10b981' },
-      declined: { text: 'Declined', color: '#ef4444' }
-    };
-    return badges[status] || badges.pending;
+    switch(status) {
+      case 'accepted': return { text: 'Accepted', color: '#10b981' };
+      case 'rejected':
+      case 'declined': return { text: 'Declined', color: '#ef4444' };
+      default: return { text: 'Pending', color: '#f59e0b' };
+    }
   };
 
   const filteredCases = cases.filter(c => {
@@ -187,14 +99,10 @@ function AssignedCases() {
 
   const sortedCases = [...filteredCases].sort((a, b) => {
     if (sortBy === 'date') {
-      return new Date(b.submittedDate) - new Date(a.submittedDate);
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     }
-    if (sortBy === 'priority') {
-      const priorityOrder = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
-      return priorityOrder[b.priority] - priorityOrder[a.priority];
-    }
-    if (sortBy === 'location') {
-      return a.location.localeCompare(b.location);
+    if (sortBy === 'score') {
+      return (b.matchScore || 0) - (a.matchScore || 0);
     }
     return 0;
   });
@@ -202,9 +110,33 @@ function AssignedCases() {
   if (loading) {
     return (
       <div className="assigned-cases-container">
-        <div className="loading-section">
+        <div className="loading-spinner">
           <div className="spinner"></div>
-          <p>Loading assigned cases...</p>
+          <p>Loading your assigned cases...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="assigned-cases-container">
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <p style={{ color: '#ef4444', marginBottom: '20px' }}>{error}</p>
+          <button 
+            onClick={fetchAssignedCases}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600'
+            }}
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -212,258 +144,160 @@ function AssignedCases() {
 
   return (
     <div className="assigned-cases-container">
-      <div className="cases-header">
-        <div>
-          <h2>📋 Assigned Cases</h2>
-          <p className="cases-subtitle">
-            {cases.length} case{cases.length !== 1 ? 's' : ''} assigned to you
-          </p>
-        </div>
-        <div className="cases-summary">
-          <div className="summary-stat">
-            <span className="stat-number pending">{cases.filter(c => c.status === 'pending').length}</span>
-            <span className="stat-label">Pending</span>
-          </div>
-          <div className="summary-stat">
-            <span className="stat-number accepted">{cases.filter(c => c.status === 'accepted').length}</span>
-            <span className="stat-label">Accepted</span>
-          </div>
-          <div className="summary-stat">
-            <span className="stat-number declined">{cases.filter(c => c.status === 'declined').length}</span>
-            <span className="stat-label">Declined</span>
-          </div>
-        </div>
+      <div className="assigned-cases-header">
+        <h2>Assigned Cases</h2>
+        <p className="subtitle">
+          {sortedCases.length} case{sortedCases.length !== 1 ? 's' : ''} assigned to you
+        </p>
       </div>
 
-      {/* Filters */}
-      <div className="cases-controls">
-        <div className="filter-group">
-          <label>Status:</label>
-          <div className="filter-buttons">
-            <button 
-              className={filterStatus === 'all' ? 'active' : ''}
-              onClick={() => setFilterStatus('all')}
-            >
-              All ({cases.length})
-            </button>
-            <button 
-              className={filterStatus === 'pending' ? 'active' : ''}
-              onClick={() => setFilterStatus('pending')}
-            >
-              Pending ({cases.filter(c => c.status === 'pending').length})
-            </button>
-            <button 
-              className={filterStatus === 'accepted' ? 'active' : ''}
-              onClick={() => setFilterStatus('accepted')}
-            >
-              Accepted ({cases.filter(c => c.status === 'accepted').length})
-            </button>
-            <button 
-              className={filterStatus === 'declined' ? 'active' : ''}
-              onClick={() => setFilterStatus('declined')}
-            >
-              Declined ({cases.filter(c => c.status === 'declined').length})
-            </button>
+      {cases.length > 0 && (
+        <div className="assigned-controls">
+          <div className="filter-group">
+            <label>Filter by status:</label>
+            <div className="filter-buttons">
+              <button 
+                className={filterStatus === 'all' ? 'active' : ''}
+                onClick={() => setFilterStatus('all')}
+              >
+                All ({cases.length})
+              </button>
+              <button 
+                className={filterStatus === 'pending' ? 'active' : ''}
+                onClick={() => setFilterStatus('pending')}
+              >
+                Pending ({cases.filter(c => c.status === 'pending').length})
+              </button>
+              <button 
+                className={filterStatus === 'accepted' ? 'active' : ''}
+                onClick={() => setFilterStatus('accepted')}
+              >
+                Accepted ({cases.filter(c => c.status === 'accepted').length})
+              </button>
+              <button 
+                className={filterStatus === 'declined' ? 'active' : ''}
+                onClick={() => setFilterStatus('declined')}
+              >
+                Declined ({cases.filter(c => c.status === 'declined').length})
+              </button>
+            </div>
+          </div>
+
+          <div className="sort-group">
+            <label>Sort by:</label>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <option value="date">Most Recent</option>
+              <option value="score">Match Score</option>
+            </select>
           </div>
         </div>
+      )}
 
-        <div className="sort-group">
-          <label>Sort by:</label>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-            <option value="date">Date</option>
-            <option value="priority">Priority</option>
-            <option value="location">Location</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Cases List */}
       <div className="cases-list">
         {sortedCases.length === 0 ? (
           <div className="no-cases">
-            <p>📂 No cases with the selected filter.</p>
+            <p>No cases {filterStatus !== 'all' ? `with status "${filterStatus}"` : 'assigned to you yet'}.</p>
           </div>
         ) : (
           sortedCases.map(caseItem => (
-            <div key={caseItem.id} className={`case-card case-${caseItem.status}`}>
-              <div className="case-header">
-                <div>
-                  <div className="case-badges">
-                    <span 
-                      className="priority-badge"
-                      style={{ backgroundColor: getPriorityColor(caseItem.priority) }}
-                    >
-                      {caseItem.priority} Priority
-                    </span>
-                    <span 
-                      className="status-badge"
-                      style={{ backgroundColor: getStatusBadge(caseItem.status).color }}
-                    >
-                      {getStatusBadge(caseItem.status).text}
-                    </span>
+            <div 
+              key={caseItem.id}
+              className={`case-card ${caseItem.status !== 'pending' ? 'case-' + caseItem.status : ''}`}
+            >
+              <div className="case-card-header">
+                <div className="case-title-section">
+                  <h3>{caseItem.caseTitle || 'Case #' + caseItem.id}</h3>
+                  <p className="case-type">{caseItem.caseType}</p>
+                </div>
+                <div className="case-badges">
+                  <span 
+                    className="status-badge"
+                    style={{ backgroundColor: getStatusBadge(caseItem.status).color }}
+                  >
+                    {getStatusBadge(caseItem.status).text}
+                  </span>
+                  <span className="match-badge">
+                    ⭐ {Math.round(caseItem.matchScore || 0)}% Match
+                  </span>
+                </div>
+              </div>
+
+              <div className="case-info">
+                {caseItem.caseLocation && (
+                  <div className="info-item">
+                    <span className="icon">📍</span>
+                    <span>{caseItem.caseLocation}</span>
                   </div>
-                  <h3>{caseItem.title}</h3>
-                </div>
-                <div className="match-score-small">
-                  <span className="score-value">{caseItem.matchScore}%</span>
-                  <span className="score-text">Match</span>
-                </div>
-              </div>
+                )}
+                
+                {caseItem.createdAt && (
+                  <div className="info-item">
+                    <span className="icon">📅</span>
+                    <span>{new Date(caseItem.createdAt).toLocaleDateString()}</span>
+                  </div>
+                )}
 
-              <p className="case-description">{caseItem.description}</p>
-
-              <div className="case-details-grid">
-                <div className="detail-item">
-                  <strong>📁 Type:</strong>
-                  <span>{caseItem.caseType}</span>
-                </div>
-                <div className="detail-item">
-                  <strong>📍 Location:</strong>
-                  <span>{caseItem.location}</span>
-                </div>
-                <div className="detail-item">
-                  <strong>📅 Submitted:</strong>
-                  <span>{new Date(caseItem.submittedDate).toLocaleDateString()}</span>
-                </div>
-                <div className="detail-item">
-                  <strong>🗣️ Language:</strong>
-                  <span>{caseItem.preferredLanguage}</span>
-                </div>
-              </div>
-
-              <div className="case-tags">
-                {caseItem.expertiseTags.map((tag, idx) => (
-                  <span key={idx} className="case-tag">{tag}</span>
-                ))}
-              </div>
-
-              {caseItem.status === 'accepted' && (
-                <div className="case-status-message accepted">
-                  ✓ Accepted on {new Date(caseItem.acceptedDate).toLocaleDateString()}
-                </div>
-              )}
-
-              {caseItem.status === 'declined' && (
-                <div className="case-status-message declined">
-                  ✗ Declined on {new Date(caseItem.declinedDate).toLocaleDateString()}
-                  {caseItem.declineReason && (
-                    <div className="decline-reason">Reason: {caseItem.declineReason}</div>
-                  )}
-                </div>
-              )}
-
-              <div className="case-actions">
-                <button 
-                  className="btn-view-details"
-                  onClick={() => viewDetails(caseItem)}
-                >
-                  👁️ View Full Details
-                </button>
-                {caseItem.status === 'pending' && (
-                  <>
-                    <button 
-                      className="btn-accept-case"
-                      onClick={() => handleAccept(caseItem.id)}
-                    >
-                      ✓ Accept Case
-                    </button>
-                    <button 
-                      className="btn-decline-case"
-                      onClick={() => handleDecline(caseItem.id)}
-                    >
-                      ✗ Decline
-                    </button>
-                  </>
+                {caseItem.matchReason && (
+                  <div className="info-item">
+                    <span className="icon">💡</span>
+                    <span>{caseItem.matchReason}</span>
+                  </div>
                 )}
               </div>
+
+              {caseItem.status === 'pending' && (
+                <div className="case-actions">
+                  <button 
+                    className="btn-view-details"
+                    onClick={() => {
+                      setSelectedCase(caseItem);
+                      setShowDetails(true);
+                    }}
+                  >
+                    View Details
+                  </button>
+                  <button 
+                    className="btn-quick-accept"
+                    onClick={() => handleAccept(caseItem.id)}
+                  >
+                    ✓ Accept
+                  </button>
+                  <button 
+                    className="btn-quick-decline"
+                    onClick={() => handleDecline(caseItem.id)}
+                  >
+                    ✗ Decline
+                  </button>
+                </div>
+              )}
             </div>
           ))
         )}
       </div>
 
-      {/* Case Details Modal */}
+      {/* Details Modal */}
       {showDetails && selectedCase && (
-        <div className="case-details-modal">
-          <div className="modal-content">
+        <div className="modal-overlay" onClick={() => setShowDetails(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Case Details</h2>
+              <h3>{selectedCase.caseTitle || 'Case #' + selectedCase.id}</h3>
               <button className="close-btn" onClick={() => setShowDetails(false)}>&times;</button>
             </div>
 
             <div className="modal-body">
               <div className="detail-section">
-                <h3>{selectedCase.title}</h3>
-                <div className="case-badges">
-                  <span 
-                    className="priority-badge"
-                    style={{ backgroundColor: getPriorityColor(selectedCase.priority) }}
-                  >
-                    {selectedCase.priority} Priority
-                  </span>
-                  <span 
-                    className="status-badge"
-                    style={{ backgroundColor: getStatusBadge(selectedCase.status).color }}
-                  >
-                    {getStatusBadge(selectedCase.status).text}
-                  </span>
-                </div>
-              </div>
-
-              <div className="detail-section">
-                <h4>Description</h4>
-                <p>{selectedCase.description}</p>
-              </div>
-
-              <div className="detail-section">
                 <h4>Case Information</h4>
                 <div className="info-grid">
                   <div><strong>Type:</strong> {selectedCase.caseType}</div>
-                  <div><strong>Priority:</strong> {selectedCase.priority}</div>
-                  <div><strong>Location:</strong> {selectedCase.location}</div>
-                  <div><strong>Language:</strong> {selectedCase.preferredLanguage}</div>
-                  <div><strong>Submitted:</strong> {new Date(selectedCase.submittedDate).toLocaleDateString()}</div>
-                  <div><strong>Timeframe:</strong> {selectedCase.estimatedTimeframe}</div>
+                  <div><strong>Location:</strong> {selectedCase.caseLocation || 'N/A'}</div>
+                  <div><strong>Match Score:</strong> {Math.round(selectedCase.matchScore || 0)}%</div>
+                  <div><strong>Status:</strong> {getStatusBadge(selectedCase.status).text}</div>
                 </div>
               </div>
 
               <div className="detail-section">
-                <h4>Citizen Information</h4>
-                <div className="info-grid">
-                  <div><strong>Name:</strong> {selectedCase.citizenName}</div>
-                  <div><strong>Email:</strong> {selectedCase.citizenEmail}</div>
-                </div>
-              </div>
-
-              <div className="detail-section">
-                <h4>Expertise Tags</h4>
-                <div className="case-tags">
-                  {selectedCase.expertiseTags.map((tag, idx) => (
-                    <span key={idx} className="case-tag">{tag}</span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="detail-section">
-                <h4>Attachments ({selectedCase.attachments.length})</h4>
-                <div className="attachments-list">
-                  {selectedCase.attachments.map((att, idx) => (
-                    <div key={idx} className="attachment-item">
-                      <span className="attachment-icon">📎</span>
-                      <span className="attachment-name">{att.name}</span>
-                      <span className="attachment-size">({att.size})</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="detail-section urgency-section">
-                <h4>⚠️ Urgency</h4>
-                <p className="urgency-text">{selectedCase.urgency}</p>
-              </div>
-
-              <div className="detail-section">
-                <h4>📊 Match Score: {selectedCase.matchScore}%</h4>
-                <p><strong>Reason:</strong> {selectedCase.matchReason}</p>
+                <h4>Match Reason</h4>
+                <p>{selectedCase.matchReason || 'N/A'}</p>
               </div>
 
               {selectedCase.status === 'pending' && (
