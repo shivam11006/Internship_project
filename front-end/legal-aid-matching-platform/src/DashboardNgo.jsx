@@ -13,7 +13,7 @@ function DashboardNgo() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('profile'); // profile, assigned-cases, secure-chat
+  const [activeTab, setActiveTab] = useState('overview'); // overview, profile, assigned-cases, secure-chat
   const [activeChat, setActiveChat] = useState(0);
   const [messageText, setMessageText] = useState('');
   const [profileData, setProfileData] = useState({
@@ -26,6 +26,28 @@ function DashboardNgo() {
     location: '',
     languages: '',
   });
+
+  // Mock New Case Requests (NGO Context)
+  const [newRequests, setNewRequests] = useState([
+    {
+      id: 201,
+      title: 'Housing Rights Violation',
+      description: 'Community members facing illegal eviction threats need legal aid and advocacy.',
+      location: 'Slum Area, Mumbai',
+      date: '2025-01-03',
+      matchScore: 92
+    },
+    {
+      id: 202,
+      title: 'Domestic Violence Support',
+      description: 'Victim requires immediate shelter and legal counseling.',
+      location: 'Pune, MH',
+      date: '2025-01-05',
+      matchScore: 89
+    }
+  ]);
+
+  const [acceptedRequests, setAcceptedRequests] = useState([]);
 
   // Mock Data for Secure Chat
   const [conversations] = useState([
@@ -148,6 +170,31 @@ function DashboardNgo() {
     setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleAcceptRequest = (id) => {
+    if (window.confirm('Do you want to accept this case?')) {
+      const request = newRequests.find(req => req.id === id);
+      if (request) {
+        const acceptedCase = {
+          ...request,
+          status: 'accepted',
+          caseTitle: request.title,
+          caseType: 'Legal Aid',
+          createdAt: new Date().toISOString()
+        };
+        setAcceptedRequests([...acceptedRequests, acceptedCase]);
+        setNewRequests(prev => prev.filter(req => req.id !== id));
+        alert('Case Accepted! It will now appear in your assigned cases.');
+      }
+    }
+  };
+
+  const handleRejectRequest = (id) => {
+    if (window.confirm('Do you want to reject this case?')) {
+      setNewRequests(prev => prev.filter(req => req.id !== id));
+      // In a real app, you would make an API call here
+    }
+  };
+
   const currentContact = conversations[activeChat];
 
   return (
@@ -169,6 +216,16 @@ function DashboardNgo() {
         </div>
 
         <nav className="dashboard-nav">
+          <button
+            className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
+            <span>Overview</span>
+          </button>
+
           <button
             className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
             onClick={() => setActiveTab('profile')}
@@ -204,6 +261,7 @@ function DashboardNgo() {
       <div className="dashboard-main">
         <div className="dashboard-header">
           <h1 className="dashboard-title">
+            {activeTab === 'overview' && 'Dashboard Overview'}
             {activeTab === 'profile' && 'NGO Dashboard'}
             {activeTab === 'secure-chat' && 'Secure Chat'}
             {activeTab === 'assigned-cases' && 'Assigned Cases'}
@@ -241,6 +299,51 @@ function DashboardNgo() {
         </div>
 
         <div className="dashboard-content">
+          {activeTab === 'overview' && (
+            <div className="overview-container">
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem', color: '#1f2937' }}>New Case Requests</h2>
+              {newRequests.length === 0 ? (
+                <p className="text-gray-500">No new case requests at the moment.</p>
+              ) : (
+                <div className="requests-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                  {newRequests.map(req => (
+                    <div key={req.id} className="request-card" style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
+                        <h3 style={{ fontWeight: '600', color: '#111827' }}>{req.title}</h3>
+                        <span style={{ backgroundColor: '#e0e7ff', color: '#4338ca', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderRadius: '9999px', fontWeight: '500' }}>
+                          {req.matchScore}% Match
+                        </span>
+                      </div>
+                      <p style={{ color: '#4b5563', fontSize: '0.875rem', marginBottom: '1rem', lineHeight: '1.5' }}>{req.description}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', color: '#6b7280', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                        <span style={{ marginRight: '1rem' }}>📍 {req.location}</span>
+                        <span>📅 {req.date}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '1rem' }}>
+                        <button
+                          onClick={() => handleAcceptRequest(req.id)}
+                          style={{ flex: 1, backgroundColor: '#10b981', color: 'white', padding: '0.5rem', borderRadius: '0.375rem', fontWeight: '500', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s' }}
+                          onMouseOver={(e) => e.target.style.backgroundColor = '#059669'}
+                          onMouseOut={(e) => e.target.style.backgroundColor = '#10b981'}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleRejectRequest(req.id)}
+                          style={{ flex: 1, backgroundColor: '#ef4444', color: 'white', padding: '0.5rem', borderRadius: '0.375rem', fontWeight: '500', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s' }}
+                          onMouseOver={(e) => e.target.style.backgroundColor = '#dc2626'}
+                          onMouseOut={(e) => e.target.style.backgroundColor = '#ef4444'}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'profile' && (
             <div className="empty-state">
               <svg width="80" height="80" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
@@ -369,7 +472,7 @@ function DashboardNgo() {
           )}
 
           {activeTab === 'assigned-cases' && (
-            <AssignedCases />
+            <AssignedCases additionalCases={acceptedRequests} />
           )}
         </div>
       </div>

@@ -17,9 +17,9 @@ function Matches({ caseId, onClose }) {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await matchService.getMatchResults(caseId);
-      
+
       // Backend returns { results: [...], totalMatches: N } with MatchResultDTO
       let matchesData = [];
       if (response.results && Array.isArray(response.results)) {
@@ -27,7 +27,7 @@ function Matches({ caseId, onClose }) {
       } else if (Array.isArray(response)) {
         matchesData = response;
       }
-      
+
       setMatches(matchesData);
     } catch (err) {
       console.error('Failed to fetch matches:', err);
@@ -45,7 +45,7 @@ function Matches({ caseId, onClose }) {
         await matchService.selectMatch(matchId);
         // Remove the accepted match from the list
         setMatches(matches.filter(match => match.matchId !== matchId));
-        alert('Match accepted! The legal provider has been notified.');
+
       } catch (err) {
         console.error('Error accepting match:', err);
         alert('Failed to accept match. Please try again.');
@@ -120,7 +120,7 @@ function Matches({ caseId, onClose }) {
           </div>
           <div style={{ padding: '40px', textAlign: 'center' }}>
             <p style={{ color: '#ef4444', marginBottom: '20px' }}>{error}</p>
-            <button 
+            <button
               onClick={fetchMatches}
               style={{
                 padding: '10px 20px',
@@ -159,19 +159,19 @@ function Matches({ caseId, onClose }) {
             <div className="filter-group">
               <label>Filter by:</label>
               <div className="filter-buttons">
-                <button 
+                <button
                   className={filterType === 'all' ? 'active' : ''}
                   onClick={() => setFilterType('all')}
                 >
                   All ({matches.length})
                 </button>
-                <button 
+                <button
                   className={filterType === 'lawyer' ? 'active' : ''}
                   onClick={() => setFilterType('lawyer')}
                 >
                   Lawyers ({matches.filter(m => m.providerType === 'LAWYER').length})
                 </button>
-                <button 
+                <button
                   className={filterType === 'ngo' ? 'active' : ''}
                   onClick={() => setFilterType('ngo')}
                 >
@@ -199,12 +199,12 @@ function Matches({ caseId, onClose }) {
             </div>
           ) : (
             sortedMatches.map(match => (
-              <div 
-                key={match.matchId} 
+              <div
+                key={match.matchId}
                 className={`match-card`}
               >
                 {/* Match Score Badge */}
-                <div 
+                <div
                   className="match-score-badge"
                   style={{ backgroundColor: getScoreColor(match.score || 0) }}
                 >
@@ -249,13 +249,13 @@ function Matches({ caseId, onClose }) {
 
                   {/* Action Buttons */}
                   <div className="match-actions">
-                    <button 
+                    <button
                       className="btn-accept"
                       onClick={() => handleAccept(match.matchId)}
                     >
                       ✓ Accept Match
                     </button>
-                    <button 
+                    <button
                       className="btn-reject"
                       onClick={() => handleReject(match.matchId)}
                     >
@@ -272,7 +272,7 @@ function Matches({ caseId, onClose }) {
         {matches.length > 0 && (
           <div className="matches-footer">
             <p className="footer-note">
-              💡 <strong>Tip:</strong> Accept multiple matches to increase your chances. 
+              💡 <strong>Tip:</strong> Accept multiple matches to increase your chances.
               You'll be notified once a provider accepts your case.
             </p>
           </div>
