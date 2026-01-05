@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
+import * as matchService from './services/matchService';
 import AssignedCases from './AssignedCases';
 import './Dashboard.css';
 import './SecureChat.css';
@@ -27,27 +28,11 @@ function DashboardNgo() {
     languages: '',
   });
 
-  // Mock New Case Requests (NGO Context)
-  const [newRequests, setNewRequests] = useState([
-    {
-      id: 201,
-      title: 'Housing Rights Violation',
-      description: 'Community members facing illegal eviction threats need legal aid and advocacy.',
-      location: 'Slum Area, Mumbai',
-      date: '2025-01-03',
-      matchScore: 92
-    },
-    {
-      id: 202,
-      title: 'Domestic Violence Support',
-      description: 'Victim requires immediate shelter and legal counseling.',
-      location: 'Pune, MH',
-      date: '2025-01-05',
-      matchScore: 89
-    }
-  ]);
-
-  const [acceptedRequests, setAcceptedRequests] = useState([]);
+  // Pending case requests from backend
+  const [newRequests, setNewRequests] = useState([]);
+  const [loadingCases, setLoadingCases] = useState(true);
+  const [casesError, setCasesError] = useState(null);
+  const [refreshAssignedCases, setRefreshAssignedCases] = useState(0);
 
   // Mock Data for Secure Chat
   const [conversations] = useState([
@@ -118,6 +103,54 @@ function DashboardNgo() {
     fetchProfile();
   }, [navigate]);
 
+  // Fetch pending assigned cases from backend
+  useEffect(() => {
+    const fetchPendingCases = async () => {
+      try {
+        setLoadingCases(true);
+        setCasesError(null);
+        
+        const response = await matchService.getAssignedCases();
+        
+        // Filter for only PENDING status cases (not yet accepted/declined)
+        let casesData = Array.isArray(response) ? response : (response.data || []);
+        const pendingCases = casesData.filter(c => 
+          c.status === 'SELECTED_BY_CITIZEN' || c.status === 'PENDING'
+        );
+        
+        // Transform backend response to match component expectations
+        const transformedCases = pendingCases.map(c => ({
+          id: c.id,
+          matchId: c.id,
+          caseId: c.caseId,
+          title: c.caseTitle || `Case #${c.caseId}`,
+          caseTitle: c.caseTitle || `Case #${c.caseId}`,
+          description: c.caseDescription || 'No description provided',
+          location: c.caseLocation || 'Not specified',
+          date: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
+          matchScore: c.matchScore || 85,
+          status: c.status === 'SELECTED_BY_CITIZEN' ? 'pending' : c.status,
+          caseType: c.caseType || 'Legal Aid',
+          matchReason: c.matchReason || '',
+          citizenName: c.citizenName || 'Citizen',
+          citizenEmail: c.citizenEmail || '',
+          citizenPhone: c.citizenPhone || '',
+          createdAt: c.createdAt
+        }));
+        
+        setNewRequests(transformedCases);
+      } catch (err) {
+        console.error('Failed to fetch pending cases:', err);
+        setCasesError('Failed to load case requests. Please try again.');
+        setNewRequests([]);
+      } finally {
+        setLoadingCases(false);
+      }
+    };
+
+    fetchPendingCases();
+  }, []);
+
   const handleLogout = () => {
     authService.logout();
     navigate('/signin');
@@ -170,28 +203,46 @@ function DashboardNgo() {
     setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAcceptRequest = (id) => {
-    if (window.confirm('Do you want to accept this case?')) {
-      const request = newRequests.find(req => req.id === id);
-      if (request) {
-        const acceptedCase = {
-          ...request,
-          status: 'accepted',
-          caseTitle: request.title,
-          caseType: 'Legal Aid',
-          createdAt: new Date().toISOString()
-        };
-        setAcceptedRequests([...acceptedRequests, acceptedCase]);
+  const handleAcceptRequest = async (id) => {
+    const caseItem = newRequests.find(req => req.id === id);
+    if (!caseItem) return;
+
+    if (window.confirm(`Accept case: "${caseItem.title}"?`)) {
+      try {
+        // Call backend to accept the case assignment
+        await matchService.acceptCaseAssignment(caseItem.matchId || caseItem.id);
+        
+        // Remove from pending list
         setNewRequests(prev => prev.filter(req => req.id !== id));
-        alert('Case Accepted! It will now appear in your assigned cases.');
+        
+        // Trigger refresh of assigned cases list
+        setRefreshAssignedCases(prev => prev + 1);
+        
+        alert(`Case "${caseItem.title}" accepted successfully! Check your assigned cases.`);
+      } catch (err) {
+        console.error('Error accepting case:', err);
+        alert('Failed to accept case. Please try again.');
       }
     }
   };
 
-  const handleRejectRequest = (id) => {
-    if (window.confirm('Do you want to reject this case?')) {
-      setNewRequests(prev => prev.filter(req => req.id !== id));
-      // In a real app, you would make an API call here
+  const handleRejectRequest = async (id) => {
+    const caseItem = newRequests.find(req => req.id === id);
+    if (!caseItem) return;
+
+    if (window.confirm(`Decline case: "${caseItem.title}"?`)) {
+      try {
+        // Call backend to decline the case assignment
+        await matchService.declineCaseAssignment(caseItem.matchId || caseItem.id);
+        
+        // Remove from pending list
+        setNewRequests(prev => prev.filter(req => req.id !== id));
+        
+        alert(`Case "${caseItem.title}" declined.`);
+      } catch (err) {
+        console.error('Error declining case:', err);
+        alert('Failed to decline case. Please try again.');
+      }
     }
   };
 
@@ -302,23 +353,68 @@ function DashboardNgo() {
           {activeTab === 'overview' && (
             <div className="overview-container">
               <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem', color: '#1f2937' }}>New Case Requests</h2>
-              {newRequests.length === 0 ? (
-                <p className="text-gray-500">No new case requests at the moment.</p>
+              
+              {loadingCases && (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <div className="loading-spinner" style={{ display: 'inline-block' }}>
+                    <div className="spinner" style={{
+                      width: '40px',
+                      height: '40px',
+                      border: '4px solid #f3f4f6',
+                      borderTop: '4px solid #667eea',
+                      borderRadius: '50%',
+                      animation: 'spin 0.6s linear infinite'
+                    }}></div>
+                  </div>
+                  <p style={{ marginTop: '1rem', color: '#6b7280' }}>Loading case requests...</p>
+                </div>
+              )}
+              
+              {casesError && (
+                <div style={{
+                  backgroundColor: '#fee2e2',
+                  color: '#991b1b',
+                  padding: '1rem',
+                  borderRadius: '0.5rem',
+                  marginBottom: '1rem'
+                }}>
+                  <p style={{ margin: 0, fontWeight: '500' }}>{casesError}</p>
+                </div>
+              )}
+              
+              {!loadingCases && newRequests.length === 0 ? (
+                <div style={{
+                  backgroundColor: '#f3f4f6',
+                  padding: '2rem',
+                  borderRadius: '0.5rem',
+                  textAlign: 'center'
+                }}>
+                  <p style={{ color: '#6b7280', fontSize: '1rem', margin: 0 }}>
+                    No new case requests at the moment. Check back later!
+                  </p>
+                </div>
               ) : (
                 <div className="requests-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                   {newRequests.map(req => (
                     <div key={req.id} className="request-card" style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
-                        <h3 style={{ fontWeight: '600', color: '#111827' }}>{req.title}</h3>
-                        <span style={{ backgroundColor: '#e0e7ff', color: '#4338ca', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderRadius: '9999px', fontWeight: '500' }}>
-                          {req.matchScore}% Match
+                        <h3 style={{ fontWeight: '600', color: '#111827', marginRight: '1rem', flex: 1 }}>{req.title}</h3>
+                        <span style={{ backgroundColor: '#e0e7ff', color: '#4338ca', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderRadius: '9999px', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                          {Math.round(req.matchScore)}% Match
                         </span>
                       </div>
-                      <p style={{ color: '#4b5563', fontSize: '0.875rem', marginBottom: '1rem', lineHeight: '1.5' }}>{req.description}</p>
-                      <div style={{ display: 'flex', alignItems: 'center', color: '#6b7280', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-                        <span style={{ marginRight: '1rem' }}>📍 {req.location}</span>
+                      <p style={{ color: '#4b5563', fontSize: '0.875rem', marginBottom: '1rem', lineHeight: '1.5', wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'break-word', maxHeight: '4.5rem', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>{req.description}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', color: '#6b7280', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                        <span>📍 {req.location}</span>
                         <span>📅 {req.date}</span>
+                        {req.caseType && <span>📋 {req.caseType}</span>}
                       </div>
+                      {req.citizenName && (
+                        <div style={{ backgroundColor: '#f9fafb', padding: '0.75rem', borderRadius: '0.375rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                          <p style={{ margin: '0.25rem 0', color: '#374151' }}><strong>Citizen:</strong> {req.citizenName}</p>
+                          {req.citizenPhone && <p style={{ margin: '0.25rem 0', color: '#6b7280' }}>{req.citizenPhone}</p>}
+                        </div>
+                      )}
                       <div style={{ display: 'flex', gap: '1rem' }}>
                         <button
                           onClick={() => handleAcceptRequest(req.id)}
@@ -326,7 +422,7 @@ function DashboardNgo() {
                           onMouseOver={(e) => e.target.style.backgroundColor = '#059669'}
                           onMouseOut={(e) => e.target.style.backgroundColor = '#10b981'}
                         >
-                          Accept
+                          ✓ Accept
                         </button>
                         <button
                           onClick={() => handleRejectRequest(req.id)}
@@ -334,7 +430,7 @@ function DashboardNgo() {
                           onMouseOver={(e) => e.target.style.backgroundColor = '#dc2626'}
                           onMouseOut={(e) => e.target.style.backgroundColor = '#ef4444'}
                         >
-                          Reject
+                          ✗ Decline
                         </button>
                       </div>
                     </div>
@@ -472,7 +568,7 @@ function DashboardNgo() {
           )}
 
           {activeTab === 'assigned-cases' && (
-            <AssignedCases additionalCases={acceptedRequests} />
+            <AssignedCases refreshTrigger={refreshAssignedCases} />
           )}
         </div>
       </div>

@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -15,6 +16,8 @@ public class MatchResponse {
     private String caseTitle;
     private String caseType;
     private String caseLocation;
+    private String caseDescription;
+    private String casePriority;
     private Long providerId;
     private String providerName;
     private String providerType; // "LAWYER" or "NGO"
@@ -27,4 +30,8 @@ public class MatchResponse {
     private LocalDateTime createdAt;
     private LocalDateTime acceptedAt;
     private LocalDateTime rejectedAt;
+    private String citizenName;
+    private String citizenEmail;
+    private String citizenPhone;
+    private List<AttachmentDTO> attachments;
 }

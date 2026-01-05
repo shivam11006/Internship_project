@@ -526,6 +526,9 @@ public class MatchService {
         response.setCaseTitle(match.getLegalCase().getTitle());
         response.setCaseType(match.getLegalCase().getCaseType());
         response.setCaseLocation(match.getLegalCase().getLocation());
+        response.setCaseDescription(match.getLegalCase().getDescription());
+        response.setCasePriority(match.getLegalCase().getPriority() != null ? 
+                                  match.getLegalCase().getPriority().toString() : null);
         response.setStatus(match.getStatus().toString());
         response.setMatchScore(match.getMatchScore());
         response.setMatchReason(match.getMatchReason());
@@ -533,6 +536,13 @@ public class MatchService {
         response.setCreatedAt(match.getCreatedAt());
         response.setAcceptedAt(match.getAcceptedAt());
         response.setRejectedAt(match.getRejectedAt());
+        
+        // Add citizen information
+        User citizen = match.getLegalCase().getCreatedBy();
+        if (citizen != null) {
+            response.setCitizenName(citizen.getUsername());
+            response.setCitizenEmail(citizen.getEmail());
+        }
 
         if (match.getLawyer() != null) {
             User lawyer = match.getLawyer();

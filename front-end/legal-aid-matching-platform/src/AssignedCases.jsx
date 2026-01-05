@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './AssignedCases.css';
 import * as matchService from './services/matchService';
 
-function AssignedCases({ additionalCases = [] }) {
+function AssignedCases({ refreshTrigger }) {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,15 +13,15 @@ function AssignedCases({ additionalCases = [] }) {
 
   useEffect(() => {
     fetchAssignedCases();
-  }, []);
+  }, [refreshTrigger]);
 
   const fetchAssignedCases = async () => {
     try {
       setLoading(true);
       setError(null);
-
+      
       const response = await matchService.getAssignedCases();
-
+      
       // Handle different response formats
       let casesData = [];
       if (Array.isArray(response)) {
@@ -29,12 +29,36 @@ function AssignedCases({ additionalCases = [] }) {
       } else if (response.data && Array.isArray(response.data)) {
         casesData = response.data;
       }
-
-      setCases(casesData);
+      
+      // Filter to only show cases that have been accepted or declined by provider
+      // SELECTED_BY_CITIZEN cases should NOT appear here (they're in Overview tab)
+      const completedCases = casesData.filter(c => 
+        c.status === 'ACCEPTED_BY_PROVIDER' || c.status === 'REJECTED_BY_PROVIDER'
+      );
+      
+      // Transform the data to match component expectations
+      const transformedCases = completedCases.map(c => ({
+        id: c.id,
+        matchId: c.id,
+        caseId: c.caseId,
+        caseTitle: c.caseTitle || `Case #${c.caseId}`,
+        caseType: c.caseType || 'Legal Aid',
+        caseLocation: c.caseLocation || 'Not specified',
+        caseDescription: c.caseDescription || 'No description provided',
+        matchScore: c.matchScore || 85,
+        matchReason: c.matchReason || '',
+        status: c.status === 'ACCEPTED_BY_PROVIDER' ? 'accepted' : 'declined',
+        createdAt: c.createdAt,
+        citizenName: c.citizenName || 'Citizen',
+        citizenEmail: c.citizenEmail || '',
+        citizenPhone: c.citizenPhone || '',
+        attachments: c.attachments || []
+      }));
+      
+      setCases(transformedCases);
     } catch (err) {
       console.error('Failed to fetch assigned cases:', err);
-      // For demo purposes, we don't want to block the UI if backend fails
-      // setError('Failed to load assigned cases. Please check your connection.');
+      setError('Failed to load assigned cases. Please check your connection.');
       setCases([]);
     } finally {
       setLoading(false);
@@ -46,7 +70,7 @@ function AssignedCases({ additionalCases = [] }) {
     if (confirmed) {
       try {
         await matchService.acceptCaseAssignment(matchId);
-        setCases(cases.map(c =>
+        setCases(cases.map(c => 
           c.id === matchId ? { ...c, status: 'accepted' } : c
         ));
         setShowDetails(false);
@@ -63,7 +87,7 @@ function AssignedCases({ additionalCases = [] }) {
     if (confirmed) {
       try {
         await matchService.declineCaseAssignment(matchId);
-        setCases(cases.map(c =>
+        setCases(cases.map(c => 
           c.id === matchId ? { ...c, status: 'declined' } : c
         ));
         setShowDetails(false);
@@ -76,7 +100,7 @@ function AssignedCases({ additionalCases = [] }) {
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
+    switch(status) {
       case 'accepted': return '#10b981';
       case 'rejected':
       case 'declined': return '#ef4444';
@@ -85,7 +109,7 @@ function AssignedCases({ additionalCases = [] }) {
   };
 
   const getStatusBadge = (status) => {
-    switch (status) {
+    switch(status) {
       case 'accepted': return { text: 'Accepted', color: '#10b981' };
       case 'rejected':
       case 'declined': return { text: 'Declined', color: '#ef4444' };
@@ -93,7 +117,7 @@ function AssignedCases({ additionalCases = [] }) {
     }
   };
 
-  const filteredCases = [...cases, ...additionalCases].filter(c => {
+  const filteredCases = cases.filter(c => {
     if (filterStatus === 'all') return true;
     return c.status === filterStatus;
   });
@@ -124,7 +148,7 @@ function AssignedCases({ additionalCases = [] }) {
       <div className="assigned-cases-container">
         <div style={{ padding: '40px', textAlign: 'center' }}>
           <p style={{ color: '#ef4444', marginBottom: '20px' }}>{error}</p>
-          <button
+          <button 
             onClick={fetchAssignedCases}
             style={{
               padding: '10px 20px',
@@ -152,34 +176,34 @@ function AssignedCases({ additionalCases = [] }) {
         </p>
       </div>
 
-      {(cases.length > 0 || additionalCases.length > 0) && (
+      {cases.length > 0 && (
         <div className="assigned-controls">
           <div className="filter-group">
             <label>Filter by status:</label>
             <div className="filter-buttons">
-              <button
+              <button 
                 className={filterStatus === 'all' ? 'active' : ''}
                 onClick={() => setFilterStatus('all')}
               >
-                All ({[...cases, ...additionalCases].length})
+                All ({cases.length})
               </button>
-              <button
+              <button 
                 className={filterStatus === 'pending' ? 'active' : ''}
                 onClick={() => setFilterStatus('pending')}
               >
-                Pending ({[...cases, ...additionalCases].filter(c => c.status === 'pending').length})
+                Pending ({cases.filter(c => c.status === 'pending').length})
               </button>
-              <button
+              <button 
                 className={filterStatus === 'accepted' ? 'active' : ''}
                 onClick={() => setFilterStatus('accepted')}
               >
-                Accepted ({[...cases, ...additionalCases].filter(c => c.status === 'accepted').length})
+                Accepted ({cases.filter(c => c.status === 'accepted').length})
               </button>
-              <button
+              <button 
                 className={filterStatus === 'declined' ? 'active' : ''}
                 onClick={() => setFilterStatus('declined')}
               >
-                Declined ({[...cases, ...additionalCases].filter(c => c.status === 'declined').length})
+                Declined ({cases.filter(c => c.status === 'declined').length})
               </button>
             </div>
           </div>
@@ -201,7 +225,7 @@ function AssignedCases({ additionalCases = [] }) {
           </div>
         ) : (
           sortedCases.map(caseItem => (
-            <div
+            <div 
               key={caseItem.id}
               className={`case-card ${caseItem.status !== 'pending' ? 'case-' + caseItem.status : ''}`}
             >
@@ -211,7 +235,7 @@ function AssignedCases({ additionalCases = [] }) {
                   <p className="case-type">{caseItem.caseType}</p>
                 </div>
                 <div className="case-badges">
-                  <span
+                  <span 
                     className="status-badge"
                     style={{ backgroundColor: getStatusBadge(caseItem.status).color }}
                   >
@@ -230,7 +254,7 @@ function AssignedCases({ additionalCases = [] }) {
                     <span>{caseItem.caseLocation}</span>
                   </div>
                 )}
-
+                
                 {caseItem.createdAt && (
                   <div className="info-item">
                     <span className="icon">📅</span>
@@ -248,7 +272,7 @@ function AssignedCases({ additionalCases = [] }) {
 
               {caseItem.status === 'pending' && (
                 <div className="case-actions">
-                  <button
+                  <button 
                     className="btn-view-details"
                     onClick={() => {
                       setSelectedCase(caseItem);
@@ -257,13 +281,13 @@ function AssignedCases({ additionalCases = [] }) {
                   >
                     View Details
                   </button>
-                  <button
+                  <button 
                     className="btn-quick-accept"
                     onClick={() => handleAccept(caseItem.id)}
                   >
                     ✓ Accept
                   </button>
-                  <button
+                  <button 
                     className="btn-quick-decline"
                     onClick={() => handleDecline(caseItem.id)}
                   >
@@ -303,13 +327,13 @@ function AssignedCases({ additionalCases = [] }) {
 
               {selectedCase.status === 'pending' && (
                 <div className="modal-actions">
-                  <button
+                  <button 
                     className="btn-accept-case"
                     onClick={() => handleAccept(selectedCase.id)}
                   >
                     ✓ Accept This Case
                   </button>
-                  <button
+                  <button 
                     className="btn-decline-case"
                     onClick={() => handleDecline(selectedCase.id)}
                   >
