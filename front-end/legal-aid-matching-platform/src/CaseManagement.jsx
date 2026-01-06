@@ -12,6 +12,9 @@ const CaseManagement = () => {
   const [showMatchesModal, setShowMatchesModal] = useState(false);
   const [selectedCaseIdForMatches, setSelectedCaseIdForMatches] = useState(null);
   const [generatingMatches, setGeneratingMatches] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedCase, setEditedCase] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchMyCases();
@@ -91,6 +94,90 @@ const CaseManagement = () => {
   const closeModal = () => {
     setShowDetailModal(false);
     setSelectedCase(null);
+    setIsEditMode(false);
+    setEditedCase(null);
+  };
+
+  const handleEditCase = () => {
+    setIsEditMode(true);
+    setEditedCase({
+      title: selectedCase.title,
+      description: selectedCase.description,
+      caseType: selectedCase.caseType,
+      priority: selectedCase.priority,
+      location: selectedCase.location || '',
+      preferredLanguage: selectedCase.preferredLanguage || '',
+      expertiseTags: selectedCase.expertiseTags || []
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditedCase(null);
+  };
+
+  const handleSaveCase = async () => {
+    try {
+      setSaving(true);
+      const updateData = {
+        title: editedCase.title,
+        description: editedCase.description,
+        caseType: editedCase.caseType,
+        priority: editedCase.priority,
+        location: editedCase.location,
+        preferredLanguage: editedCase.preferredLanguage,
+        expertiseTags: editedCase.expertiseTags
+      };
+
+      await apiClient.put(`/cases/${selectedCase.id}`, updateData);
+      
+      // Refresh the case details
+      const response = await apiClient.get(`/cases/${selectedCase.id}`);
+      setSelectedCase(response.data);
+      
+      // Refresh the cases list
+      await fetchMyCases();
+      
+      setIsEditMode(false);
+      setEditedCase(null);
+      alert('Case updated successfully!');
+    } catch (error) {
+      console.error('Error updating case:', error);
+      alert('Failed to update case. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setEditedCase(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleTagChange = (index, value) => {
+    const newTags = [...editedCase.expertiseTags];
+    newTags[index] = value;
+    setEditedCase(prev => ({
+      ...prev,
+      expertiseTags: newTags
+    }));
+  };
+
+  const addTag = () => {
+    setEditedCase(prev => ({
+      ...prev,
+      expertiseTags: [...prev.expertiseTags, '']
+    }));
+  };
+
+  const removeTag = (index) => {
+    const newTags = editedCase.expertiseTags.filter((_, i) => i !== index);
+    setEditedCase(prev => ({
+      ...prev,
+      expertiseTags: newTags
+    }));
   };
 
   const handleViewMatches = async (caseId) => {
@@ -243,7 +330,25 @@ const CaseManagement = () => {
             <div className="modal-body">
               <div className="detail-section">
                 <div className="detail-header">
-                  <h3>{selectedCase.title}</h3>
+                  {isEditMode ? (
+                    <input
+                      type="text"
+                      value={editedCase.title}
+                      onChange={(e) => handleInputChange('title', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '20px',
+                        fontWeight: '600',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '6px',
+                        marginBottom: '8px'
+                      }}
+                      placeholder="Case Title"
+                    />
+                  ) : (
+                    <h3>{selectedCase.title}</h3>
+                  )}
                   <span className={getStatusBadgeClass(selectedCase.status)}>
                     {getStatusLabel(selectedCase.status)}
                   </span>
@@ -252,19 +357,80 @@ const CaseManagement = () => {
 
               <div className="detail-section">
                 <h4>Description</h4>
-                <p className="detail-text">{selectedCase.description}</p>
+                {isEditMode ? (
+                  <textarea
+                    value={editedCase.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      fontSize: '14px',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '6px',
+                      minHeight: '120px',
+                      resize: 'vertical',
+                      fontFamily: 'inherit'
+                    }}
+                    placeholder="Case Description"
+                  />
+                ) : (
+                  <p className="detail-text">{selectedCase.description}</p>
+                )}
               </div>
 
               <div className="detail-grid">
                 <div className="detail-item">
                   <span className="detail-label">Case Type</span>
-                  <span className="detail-value">{selectedCase.caseType || 'N/A'}</span>
+                  {isEditMode ? (
+                    <select
+                      value={editedCase.caseType}
+                      onChange={(e) => handleInputChange('caseType', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <option value="">Select Type</option>
+                      <option value="Family Law">Family Law</option>
+                      <option value="Criminal Law">Criminal Law</option>
+                      <option value="Civil Rights">Civil Rights</option>
+                      <option value="Employment Law">Employment Law</option>
+                      <option value="Housing Law">Housing Law</option>
+                      <option value="Immigration Law">Immigration Law</option>
+                      <option value="Consumer Rights">Consumer Rights</option>
+                      <option value="Tax Law">Tax Law</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  ) : (
+                    <span className="detail-value">{selectedCase.caseType || 'N/A'}</span>
+                  )}
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Priority</span>
-                  <span className={getPriorityBadgeClass(selectedCase.priority)}>
-                    {selectedCase.priority || 'N/A'}
-                  </span>
+                  {isEditMode ? (
+                    <select
+                      value={editedCase.priority}
+                      onChange={(e) => handleInputChange('priority', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                    </select>
+                  ) : (
+                    <span className={getPriorityBadgeClass(selectedCase.priority)}>
+                      {selectedCase.priority || 'N/A'}
+                    </span>
+                  )}
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Case ID</span>
@@ -274,16 +440,118 @@ const CaseManagement = () => {
                   <span className="detail-label">Created By</span>
                   <span className="detail-value">User #{selectedCase.createdBy}</span>
                 </div>
-                {selectedCase.expertiseTags && selectedCase.expertiseTags.filter(tag => tag && tag.trim() !== '').length > 0 && (
-                  <div className="detail-item full-width">
-                    <span className="detail-label">Expertise Tags</span>
-                    <div className="detail-tags-container">
-                      {selectedCase.expertiseTags.filter(tag => tag && tag.trim() !== '').map((tag, index) => (
-                        <span key={index} className="detail-tag-badge">{tag}</span>
+                <div className="detail-item">
+                  <span className="detail-label">Location</span>
+                  {isEditMode ? (
+                    <input
+                      type="text"
+                      value={editedCase.location}
+                      onChange={(e) => handleInputChange('location', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
+                      placeholder="Enter location"
+                    />
+                  ) : (
+                    <span className="detail-value">{selectedCase.location || 'Not specified'}</span>
+                  )}
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Preferred Language</span>
+                  {isEditMode ? (
+                    <select
+                      value={editedCase.preferredLanguage}
+                      onChange={(e) => handleInputChange('preferredLanguage', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <option value="">Select Language</option>
+                      <option value="English">English</option>
+                      <option value="Spanish">Spanish</option>
+                      <option value="French">French</option>
+                      <option value="German">German</option>
+                      <option value="Chinese">Chinese</option>
+                      <option value="Hindi">Hindi</option>
+                      <option value="Arabic">Arabic</option>
+                      <option value="Portuguese">Portuguese</option>
+                      <option value="Russian">Russian</option>
+                      <option value="Japanese">Japanese</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  ) : (
+                    <span className="detail-value">{selectedCase.preferredLanguage || 'Not specified'}</span>
+                  )}
+                </div>
+                <div className="detail-item full-width">
+                  <span className="detail-label">Expertise Tags</span>
+                  {isEditMode ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {editedCase.expertiseTags.map((tag, index) => (
+                        <div key={index} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            value={tag}
+                            onChange={(e) => handleTagChange(index, e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: '8px',
+                              border: '2px solid #e5e7eb',
+                              borderRadius: '6px',
+                              fontSize: '14px'
+                            }}
+                            placeholder="Enter tag"
+                          />
+                          <button
+                            onClick={() => removeTag(index)}
+                            style={{
+                              padding: '8px 12px',
+                              background: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       ))}
+                      <button
+                        onClick={addTag}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '14px'
+                        }}
+                      >
+                        + Add Tag
+                      </button>
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="detail-tags-container">
+                      {selectedCase.expertiseTags && selectedCase.expertiseTags.filter(tag => tag && tag.trim() !== '').length > 0 ? (
+                        selectedCase.expertiseTags.filter(tag => tag && tag.trim() !== '').map((tag, index) => (
+                          <span key={index} className="detail-tag-badge">{tag}</span>
+                        ))
+                      ) : (
+                        <span className="detail-value">No tags</span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="detail-section">
@@ -356,17 +624,42 @@ const CaseManagement = () => {
               </div>
             </div>
             <div className="modal-footer">
-              <button
-                className={`btn-edit ${selectedCase.status?.toLowerCase() !== 'submitted' ? 'disabled' : ''}`}
-                disabled={selectedCase.status?.toLowerCase() !== 'submitted'}
-                onClick={() => alert('Edit functionality is under development.')}
-              >
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '8px' }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Edit Case
-              </button>
-              <button className="btn-secondary" onClick={closeModal}>Close</button>
+              {isEditMode ? (
+                <>
+                  <button
+                    className="btn-edit"
+                    onClick={handleSaveCase}
+                    disabled={saving}
+                    style={{
+                      background: saving ? '#ccc' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      cursor: saving ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '8px' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button className="btn-secondary" onClick={handleCancelEdit} disabled={saving}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    className={`btn-edit ${selectedCase.status?.toLowerCase() !== 'submitted' ? 'disabled' : ''}`}
+                    disabled={selectedCase.status?.toLowerCase() !== 'submitted'}
+                    onClick={handleEditCase}
+                    title={selectedCase.status?.toLowerCase() !== 'submitted' ? 'Can only edit cases with SUBMITTED status' : ''}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '8px' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit Case
+                  </button>
+                  <button className="btn-secondary" onClick={closeModal}>Close</button>
+                </>
+              )}
             </div>
           </div>
         </div >

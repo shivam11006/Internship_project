@@ -581,6 +581,18 @@
   text-transform: uppercase;
 }
 
+/* Edit Mode Styles */
+.btn-edit.disabled {
+  background: #d1d5db !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+}
+
+.btn-edit.disabled:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 @media (max-width: 768px) {
   .case-management {
     padding: 16px;
