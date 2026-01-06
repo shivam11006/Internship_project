@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import './AssignedCases.css';
 import * as matchService from './services/matchService';
 
-function AssignedCases({ refreshTrigger }) {
+function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [sortBy, setSortBy] = useState('date');
-  const [selectedCase, setSelectedCase] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all'); // all, pending, accepted, declined
+  const [sortBy, setSortBy] = useState('date'); // date, score
   const [showDetails, setShowDetails] = useState(false);
+  const [selectedCase, setSelectedCase] = useState(null);
+  const [processingId, setProcessingId] = useState(null);
 
   useEffect(() => {
     fetchAssignedCases();
@@ -41,7 +42,7 @@ function AssignedCases({ refreshTrigger }) {
         id: c.id,
         matchId: c.id,
         caseId: c.caseId,
-        caseTitle: c.caseTitle || `Case #${c.caseId}`,
+        caseTitle: c.caseTitle || `Case #${c.caseId} `,
         caseType: c.caseType || 'Legal Aid',
         caseLocation: c.caseLocation || 'Not specified',
         caseDescription: c.caseDescription || 'No description provided',
@@ -256,23 +257,23 @@ function AssignedCases({ refreshTrigger }) {
                   <h3>{caseItem.caseTitle}</h3>
                   <div className="case-meta-tags">
                     <span className="case-type-tag">{caseItem.caseType}</span>
-                    <span className="case-priority-tag" style={{ color: getPriorityColor(caseItem.priority), borderColor: getPriorityColor(caseItem.priority) }}>
+                    <span className="case-priority-tag" style={{ color: '#d97706' }}>
                       {caseItem.priority} Priority
                     </span>
                   </div>
                 </div>
-                <div className="case-badges">
+                <div className="case-badges-top">
                   <span
-                    className="status-badge"
+                    className="status-badge-inline"
                     style={{
                       backgroundColor: getStatusBadge(caseItem.status).bg,
                       color: getStatusBadge(caseItem.status).color,
-                      border: `1px solid ${getStatusBadge(caseItem.status).color}40`
+                      border: `1px solid ${getStatusBadge(caseItem.status).color}`
                     }}
                   >
                     {getStatusBadge(caseItem.status).text}
                   </span>
-                  <span className="match-badge">
+                  <span className="match-score-bubble">
                     ⭐ {Math.round(caseItem.matchScore || 0)}% Match
                   </span>
                 </div>
@@ -287,7 +288,7 @@ function AssignedCases({ refreshTrigger }) {
                   <span className="icon">📅</span>
                   <span>{new Date(caseItem.createdAt).toLocaleDateString()}</span>
                 </div>
-                <div className="info-row language-row">
+                <div className="info-row">
                   <span className="icon">🗣️</span>
                   <span>{caseItem.preferredLanguage}, Verified Provider</span>
                 </div>
@@ -303,8 +304,20 @@ function AssignedCases({ refreshTrigger }) {
                 >
                   View Details
                 </button>
+                <button
+                  className="btn-action-chat"
+                  onClick={() => onNavigateToChat && onNavigateToChat(caseItem.citizenName)}
+                >
+                  Chats
+                </button>
+                <button
+                  className="btn-action-schedule"
+                  onClick={() => onScheduleCall && onScheduleCall(caseItem.citizenName)}
+                >
+                  Schedule call
+                </button>
                 {caseItem.status === 'pending' && (
-                  <div className="quick-actions">
+                  <div className="quick-actions-mini">
                     <button
                       className="btn-quick-accept"
                       onClick={(e) => { e.stopPropagation(); handleAccept(caseItem.id); }}
@@ -407,7 +420,7 @@ function AssignedCases({ refreshTrigger }) {
                     selectedCase.evidence.map((doc, idx) => (
                       <div key={idx} className="document-item">
                         <span className="doc-icon">📄</span>
-                        <span className="doc-name">{doc.name || `Document ${idx + 1}`}</span>
+                        <span className="doc-name">{doc.name || `Document ${idx + 1} `}</span>
                         <a href={doc.url || '#'} className="doc-link" target="_blank" rel="noopener noreferrer">View</a>
                       </div>
                     ))

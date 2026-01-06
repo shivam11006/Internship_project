@@ -32,7 +32,15 @@ function DashboardCitizen() {
 
   // Notifications State
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications] = useState([
+  const [notifications, setNotifications] = useState([
+    {
+      id: 0,
+      type: 'call-request',
+      sender: 'Michael Chen (Lawyer)',
+      message: 'Michael Chen wants to schedule a call for tomorrow at 2:00 PM.',
+      time: 'Just now',
+      read: false
+    },
     {
       id: 1,
       type: 'message',
@@ -46,20 +54,28 @@ function DashboardCitizen() {
       message: 'Appointment reminder: Call with Legal Aid Foundation tomorrow at 10 AM',
       time: '1 hour ago',
       read: false
+    }
+  ]);
+
+  // Upcoming Events State
+  const [upcomingEvents, setUpcomingEvents] = useState([
+    {
+      id: 1,
+      title: 'Consultation with Anya Sharma',
+      type: 'Video Call',
+      date: 'Jan 7, 2026',
+      time: '10:00 AM',
+      contact: 'Anya Sharma',
+      status: 'confirmed'
     },
     {
-      id: 3,
-      type: 'system',
-      message: 'Your case #12345 has been successfully submitted',
-      time: '2 hours ago',
-      read: true
-    },
-    {
-      id: 4,
-      type: 'alert',
-      message: 'Please update your profile information',
-      time: '1 day ago',
-      read: true
+      id: 2,
+      title: 'Case Review - Legal Aid Corps',
+      type: 'Phone Call',
+      date: 'Jan 9, 2026',
+      time: '03:30 PM',
+      contact: 'Michael Chen',
+      status: 'pending'
     }
   ]);
 
@@ -434,16 +450,24 @@ function DashboardCitizen() {
                   <div className="notification-list">
                     {notifications.length > 0 ? (
                       notifications.map(notification => (
-                        <div key={notification.id} className={`notification-item ${!notification.read ? 'unread' : ''}`}>
+                        <div key={notification.id} className={`notification-item ${notification.type === 'call-request' ? 'call-request-item' : ''} ${!notification.read ? 'unread' : ''}`}>
                           <div className={`notification-icon ${notification.type}`}>
                             {notification.type === 'message' && '💬'}
                             {notification.type === 'schedule' && '📅'}
                             {notification.type === 'system' && '🔔'}
                             {notification.type === 'alert' && '⚠️'}
+                            {notification.type === 'call-request' && '📞'}
                           </div>
                           <div className="notification-content">
                             <p className="notification-text">{notification.message}</p>
                             <span className="notification-time">{notification.time}</span>
+
+                            {notification.type === 'call-request' && (
+                              <div className="notification-actions">
+                                <button className="btn-accept-call" onClick={() => alert('Call Accepted')}>Accept</button>
+                                <button className="btn-reject-call" onClick={() => alert('Call Rejected')}>Reject</button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))
@@ -584,6 +608,41 @@ function DashboardCitizen() {
                             </svg>
                             Profile
                           </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Upcoming Events Section */}
+                <div className="upcoming-events-section">
+                  <div className="section-header-row">
+                    <h3 className="section-title">Upcoming Events</h3>
+                    <button className="view-all-link">View Calendar</button>
+                  </div>
+                  <div className="events-grid">
+                    {upcomingEvents.map(event => (
+                      <div key={event.id} className={`event-card ${event.status}`}>
+                        <div className="event-date-box">
+                          <span className="event-month">{event.date.split(' ')[0]}</span>
+                          <span className="event-day">{event.date.split(' ')[1].replace(',', '')}</span>
+                        </div>
+                        <div className="event-details">
+                          <div className="event-title-row">
+                            <h4>{event.title}</h4>
+                            <span className={`event-status-pill ${event.status}`}>{event.status}</span>
+                          </div>
+                          <div className="event-meta">
+                            <span className="event-time">🕒 {event.time}</span>
+                            <span className="event-type">💻 {event.type}</span>
+                          </div>
+                          <div className="event-footer">
+                            <div className="event-contact">
+                              <div className="mini-avatar">👩‍💼</div>
+                              <span>{event.contact}</span>
+                            </div>
+                            <button className="btn-join-call" disabled={event.status === 'pending'}>Join Call</button>
+                          </div>
                         </div>
                       </div>
                     ))}

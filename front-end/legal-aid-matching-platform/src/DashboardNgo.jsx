@@ -38,6 +38,28 @@ function DashboardNgo() {
   const [casesError, setCasesError] = useState(null);
   const [refreshAssignedCases, setRefreshAssignedCases] = useState(0);
 
+  // Upcoming Events State
+  const [upcomingEvents] = useState([
+    {
+      id: 1,
+      title: 'Coordination Call - Amit Patel',
+      type: 'Video Call',
+      date: 'Jan 8, 2026',
+      time: '12:30 PM',
+      contact: 'Amit Patel',
+      status: 'confirmed'
+    },
+    {
+      id: 2,
+      title: 'Legal Aid Briefing',
+      type: 'Phone Call',
+      date: 'Jan 11, 2026',
+      time: '10:00 AM',
+      contact: 'Sarah Jenkins, Esq.',
+      status: 'confirmed'
+    }
+  ]);
+
   // Mock Data for Secure Chat
   const [conversations] = useState([
     {
@@ -363,6 +385,41 @@ function DashboardNgo() {
         <div className="dashboard-content">
           {activeTab === 'overview' && (
             <div className="overview-container">
+              {/* Upcoming Events Section */}
+              <div className="upcoming-events-section" style={{ marginTop: 0, marginBottom: '2rem' }}>
+                <div className="section-header-row">
+                  <h3 className="section-title">Upcoming Coordinator Sessions</h3>
+                  <button className="view-all-link">View Calendar</button>
+                </div>
+                <div className="events-grid">
+                  {upcomingEvents.map(event => (
+                    <div key={event.id} className={`event-card ${event.status}`}>
+                      <div className="event-date-box">
+                        <span className="event-month">{event.date.split(' ')[0]}</span>
+                        <span className="event-day">{event.date.split(' ')[1].replace(',', '')}</span>
+                      </div>
+                      <div className="event-details">
+                        <div className="event-title-row">
+                          <h4>{event.title}</h4>
+                          <span className={`event-status-pill ${event.status}`}>{event.status}</span>
+                        </div>
+                        <div className="event-meta">
+                          <span className="event-time">🕒 {event.time}</span>
+                          <span className="event-type">💻 {event.type}</span>
+                        </div>
+                        <div className="event-footer">
+                          <div className="event-contact">
+                            <div className="mini-avatar">🏢</div>
+                            <span>{event.contact}</span>
+                          </div>
+                          <button className="btn-join-call">Join Coordination</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem', color: '#1f2937' }}>New Case Requests</h2>
 
               {loadingCases && (
@@ -609,7 +666,19 @@ function DashboardNgo() {
           )}
 
           {activeTab === 'assigned-cases' && (
-            <AssignedCases refreshTrigger={refreshAssignedCases} />
+            <AssignedCases
+              refreshTrigger={refreshAssignedCases}
+              onNavigateToChat={(name) => {
+                const index = conversations.findIndex(c => c.name.toLowerCase().includes(name.toLowerCase()));
+                if (index !== -1) setActiveChat(index);
+                setActiveTab('secure-chat');
+              }}
+              onScheduleCall={(name) => {
+                const index = conversations.findIndex(c => c.name.toLowerCase().includes(name.toLowerCase()));
+                if (index !== -1) setActiveChat(index);
+                setShowScheduleModal(true);
+              }}
+            />
           )}
         </div>
       </div>
