@@ -23,7 +23,13 @@ export default defineConfig({
     esbuildOptions: {
       loader: {
         '.js': 'jsx'
+      },
+      define: {
+        global: 'globalThis',
       }
     }
-  }
+  },
+  define: {
+    global: 'globalThis',
+  },
 })

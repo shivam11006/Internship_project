@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -136,22 +136,51 @@ public class ChatService {
      */
     public ChatListDto getConversations() {
         User currentUser = getCurrentUser();
-        log.info("Loading conversations for user: {}", currentUser.getId());
+        log.info("Loading conversations for user: {} (role: {})", currentUser.getId(), currentUser.getRole());
 
-        // Get all matches for user where chat is enabled
-        List<Match> matches = matchRepository.findByProviderId(currentUser.getId());
+        List<Match> allMatches = new ArrayList<>();
 
-        // Also get matches where user is the citizen
-        List<Match> citizenMatches = matchRepository.findByLegalCaseId(null); // Need custom query
-        // For now, we'll filter in code
+        // Get matches where user is a provider (lawyer or NGO)
+        List<Match> providerMatches = matchRepository.findByProviderId(currentUser.getId());
+        log.debug("Found {} provider matches for user {}", providerMatches.size(), currentUser.getId());
+        allMatches.addAll(providerMatches);
+
+        // Get matches where user is the citizen (case creator)
+        List<Match> citizenMatches = matchRepository.findByCitizenId(currentUser.getId());
+        log.debug("Found {} citizen matches for user {}", citizenMatches.size(), currentUser.getId());
+        allMatches.addAll(citizenMatches);
+
+        // Remove duplicates (in case a match appears in both lists somehow)
+        Set<Long> seenMatchIds = new HashSet<>();
+        List<Match> uniqueMatches = allMatches.stream()
+                .filter(match -> {
+                    if (seenMatchIds.contains(match.getId())) {
+                        return false;
+                    }
+                    seenMatchIds.add(match.getId());
+                    return true;
+                })
+                .collect(Collectors.toList());
+
+        log.debug("Total unique matches: {}", uniqueMatches.size());
 
         // Filter to only matches where chat is enabled
-        List<ChatConversationDto> conversations = matches.stream()
+        List<ChatConversationDto> conversations = uniqueMatches.stream()
                 .filter(ChatUtils::canChat)
-                .map(match -> convertToConversationDto(match, currentUser.getId()))
+                .map(match -> {
+                    try {
+                        return convertToConversationDto(match, currentUser.getId());
+                    } catch (Exception e) {
+                        log.error("Error converting match {} to conversation DTO: {}", match.getId(), e.getMessage());
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(ChatConversationDto::getLastMessageTime,
                         Comparator.nullsLast(Comparator.reverseOrder())))
                 .collect(Collectors.toList());
+
+        log.info("Returning {} conversations for user {}", conversations.size(), currentUser.getId());
 
         // Get total unread count
         long totalUnread = chatMessageRepository.countTotalUnreadByUserId(currentUser.getId());

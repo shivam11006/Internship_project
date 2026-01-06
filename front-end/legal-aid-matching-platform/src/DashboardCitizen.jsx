@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import authService from './services/authService';
+import chatService from './services/chatService';
 import CaseSubmission from './CaseSubmission';
 import Directory from './Directory';
 import CaseManagement from './CaseManagement';
@@ -18,8 +19,12 @@ function DashboardCitizen() {
   const [isEditing, setIsEditing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [activeChat, setActiveChat] = useState(0);
+  const [activeChat, setActiveChat] = useState(null); // Will store matchId
   const [messageText, setMessageText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const typingTimeoutRef = useRef(null);
+  const hasAutoSelectedRef = useRef(false); // Track if we've already auto-selected a conversation
   const [profileData, setProfileData] = useState({
     username: '',
     email: '',
@@ -79,60 +84,12 @@ function DashboardCitizen() {
     }
   ]);
 
-  // Mock Data for Secure Chat
-  const [conversations] = useState([
-    {
-      id: 0,
-      name: 'Anya Sharma (Lawyer)',
-      role: 'Lawyer',
-      lastMsg: 'Thank you for the update. I\'ll review it.',
-      time: '10:30 AM',
-      unread: 2,
-      matchScore: '92%',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-    },
-    {
-      id: 1,
-      name: 'Legal Aid Foundation (NGO)',
-      role: 'NGO',
-      lastMsg: 'We\'ve received your documents. Our team is working on it.',
-      time: 'Yesterday',
-      unread: 0,
-      matchScore: '88%',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-    },
-    {
-      id: 2,
-      name: 'Michael Chen (Lawyer)',
-      role: 'Lawyer',
-      lastMsg: 'I\'m available next Tuesday for a call.',
-      time: '2 days ago',
-      unread: 0,
-      matchScore: '95%',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-    },
-    {
-      id: 3,
-      name: 'Community Justice Center (NGO)',
-      role: 'NGO',
-      lastMsg: 'Please provide more details on the incident.',
-      time: '3 days ago',
-      unread: 1,
-      matchScore: '85%',
-      avatar: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-    }
-  ]);
-
-  const [messages] = useState([
-    { id: 1, text: 'Hello, I need some legal advice regarding a property dispute.', sender: 'user', time: '10:00 AM' },
-    { id: 2, text: 'Sure, I can help you with that. Can you provide more details?', sender: 'contact', time: '10:05 AM' },
-    { id: 3, text: 'The dispute is with my neighbor over the boundary line.', sender: 'user', time: '10:10 AM' },
-    { id: 4, text: 'I see. Do you have the property documents?', sender: 'contact', time: '10:15 AM' },
-    { id: 5, text: 'Yes, I have them ready.', sender: 'user', time: '10:20 AM' },
-    { id: 6, text: 'Great. Please share them here or we can schedule a call.', sender: 'contact', time: '10:25 AM' },
-    { id: 6, text: 'Great. Please share them here or we can schedule a call.', sender: 'contact', time: '10:25 AM' },
-    { id: 7, text: 'Thank you for the update. I\'ll review it.', sender: 'contact', time: '10:30 AM' },
-  ]);
+  // Real Chat Data
+  const [conversations, setConversations] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [currentMatchId, setCurrentMatchId] = useState(null);
 
   // Mock Data for Dashboard
   const dashboardStats = {
@@ -264,6 +221,287 @@ function DashboardCitizen() {
     fetchProfile();
   }, []);
 
+  // Initialize WebSocket connection and load conversations
+  useEffect(() => {
+    const initializeChat = async () => {
+      try {
+        // Only connect if user is authenticated
+        if (!authService.isAuthenticated()) {
+          console.log('User not authenticated, skipping chat initialization');
+          return;
+        }
+
+        // Connect WebSocket
+        try {
+          await chatService.connect();
+          setWsConnected(true);
+        } catch (wsError) {
+          console.warn('WebSocket connection failed (this is OK if backend is not running):', wsError);
+          setWsConnected(false);
+          // Don't throw - allow app to continue without WebSocket
+        }
+
+        // Load conversations (this should work even without WebSocket)
+        // Only auto-select on initial load
+        try {
+          await loadConversations(true); // true = auto-select first conversation
+        } catch (loadError) {
+          console.warn('Failed to load conversations:', loadError);
+          // Don't throw - allow app to continue
+        }
+
+        // Set up connection status handler
+        chatService.onConnectionChange((connected) => {
+          setWsConnected(connected);
+        });
+
+        // Set up error handler
+        chatService.onError((error) => {
+          console.error('Chat error:', error);
+          // Don't show alert for every error, just log it
+        });
+      } catch (error) {
+        console.error('Failed to initialize chat:', error);
+        setWsConnected(false);
+        // Don't throw - allow app to continue
+      }
+    };
+
+    // Initialize chat only if authenticated
+    if (authService.isAuthenticated()) {
+      initializeChat();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      try {
+        chatService.disconnect();
+      } catch (error) {
+        console.warn('Error disconnecting chat:', error);
+      }
+    };
+  }, []);
+
+  // Load conversations from API
+  const loadConversations = useCallback(async (autoSelect = false) => {
+    // Prevent multiple simultaneous calls
+    if (loadingConversations) {
+      console.log('Already loading conversations, skipping...');
+      return;
+    }
+    
+    setLoadingConversations(true);
+    try {
+      console.log('Loading conversations...', { autoSelect, activeChat, hasAutoSelected: hasAutoSelectedRef.current });
+      const result = await chatService.getConversations();
+      console.log('Load conversations result:', result);
+      
+      if (result.success && result.data) {
+        const convos = result.data.conversations || [];
+        console.log(`Loaded ${convos.length} conversations:`, convos);
+        setConversations(convos);
+        
+        // Only auto-select if explicitly requested AND no active chat AND we haven't already auto-selected
+        if (autoSelect && !activeChat && !hasAutoSelectedRef.current && convos.length > 0) {
+          console.log('Auto-selecting first conversation:', convos[0].matchId);
+          hasAutoSelectedRef.current = true; // Mark that we've auto-selected
+          // Use setTimeout to avoid calling during state update and prevent loop
+          setTimeout(() => {
+            if (!activeChat) { // Double-check activeChat hasn't changed
+              handleSelectConversation(convos[0].matchId);
+            }
+          }, 100);
+        } else if (convos.length === 0) {
+          console.log('No conversations found. Make sure you have accepted matches with status SELECTED_BY_CITIZEN or ACCEPTED_BY_PROVIDER.');
+        }
+      } else {
+        console.error('Failed to load conversations:', result.error);
+        setConversations([]);
+      }
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+      setConversations([]);
+    } finally {
+      setLoadingConversations(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChat, loadingConversations]); // Removed handleSelectConversation from dependencies to break cycle
+
+  // Load messages for a match
+  const loadMessages = async (matchId) => {
+    if (!matchId) return;
+    
+    setLoadingMessages(true);
+    try {
+      const result = await chatService.getChatHistory(matchId, 0, 50);
+      if (result.success && result.data) {
+        const msgs = result.data.messages || [];
+        const currentUser = authService.getCurrentUser();
+        
+        // Convert backend messages to frontend format
+        const formattedMessages = msgs.map(msg => {
+          // Determine if message is from current user
+          // Primary check: use isOwnMessage flag from backend
+          // Fallback: compare sender ID with current user ID
+          let isOwn = msg.isOwnMessage;
+          if (isOwn === undefined || isOwn === null) {
+            isOwn = msg.senderId === currentUser?.id;
+          }
+          
+          return {
+            id: msg.id,
+            text: msg.content,
+            sender: isOwn ? 'user' : 'contact',
+            time: formatMessageTime(msg.sentAt),
+            sentAt: msg.sentAt,
+            isRead: msg.isRead,
+            senderId: msg.senderId
+          };
+        });
+        
+        setMessages(formattedMessages);
+        
+        // Mark messages as read
+        await chatService.markAsRead(matchId);
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  // Format message time
+  const formatMessageTime = (dateTime) => {
+    if (!dateTime) return '';
+    const date = new Date(dateTime);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  // Format conversation time
+  const formatConversationTime = (dateTime) => {
+    if (!dateTime) return '';
+    const date = new Date(dateTime);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  // Handle selecting a conversation
+  const handleSelectConversation = async (matchId) => {
+    setActiveChat(matchId);
+    setCurrentMatchId(matchId);
+    setMessages([]);
+    
+    // Unsubscribe from previous match
+    if (currentMatchId && currentMatchId !== matchId) {
+      chatService.unsubscribeFromMatch(currentMatchId);
+    }
+    
+    // Subscribe to new match
+    chatService.subscribeToMatch(matchId);
+    
+    // Set up message handler
+    chatService.onMessage(matchId, (message) => {
+      setMessages(prev => {
+        // Check if message already exists (avoid duplicates)
+        if (prev.some(m => m.id === message.id)) {
+          return prev;
+        }
+        
+        const currentUser = authService.getCurrentUser();
+        
+        // Determine if message is from current user
+        // Primary check: use isOwnMessage flag from backend
+        // Fallback: compare sender ID with current user ID
+        let isOwn = message.isOwnMessage;
+        if (isOwn === undefined || isOwn === null) {
+          isOwn = message.senderId === currentUser?.id;
+        }
+        
+        return [...prev, {
+          id: message.id,
+          text: message.content,
+          sender: isOwn ? 'user' : 'contact',
+          time: formatMessageTime(message.sentAt),
+          sentAt: message.sentAt,
+          isRead: message.isRead,
+          senderId: message.senderId
+        }];
+      });
+    });
+
+    // Set up typing indicator handler
+    chatService.onTyping(matchId, (indicator) => {
+      setIsTyping(indicator.isTyping);
+    });
+
+    // Load message history
+    await loadMessages(matchId);
+    
+    // Mark as read
+    await chatService.markAsRead(matchId);
+    
+    // Refresh conversations to update unread counts (avoid circular call)
+    // loadConversations will be called separately if needed
+  };
+
+  // Handle sending a message
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !currentMatchId) return;
+
+    const content = messageText.trim();
+    setMessageText('');
+
+    try {
+      await chatService.sendMessage(currentMatchId, content);
+      // Message will be added via WebSocket handler
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+      setMessageText(content); // Restore message text
+    }
+  };
+
+  // Handle typing indicator
+  const handleTyping = () => {
+    if (!currentMatchId) return;
+    
+    // Send typing indicator
+    chatService.sendTypingIndicator(currentMatchId, true);
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    // Set timeout to stop typing indicator
+    typingTimeoutRef.current = setTimeout(() => {
+      chatService.sendTypingIndicator(currentMatchId, false);
+    }, 3000);
+  };
+
   const handleLogout = () => {
     authService.logout();
     navigate('/signin');
@@ -306,10 +544,44 @@ function DashboardCitizen() {
     setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleChatClick = (match) => {
-    // In a real app, you might want to set the active chat to this specific match
-    // For now, we just navigate to the tab
+  const handleChatClick = async (match) => {
     setActiveTab('secure-chat');
+    
+    // If match has a matchId, start/select that conversation
+    if (match?.matchId) {
+      const matchId = match.matchId;
+      
+      // Check if this conversation already exists in the list
+      const existingConvo = conversations.find(c => c.matchId === matchId);
+      
+      if (existingConvo) {
+        // Conversation exists, just select it
+        await handleSelectConversation(matchId);
+      } else {
+        // Conversation doesn't exist yet, but we can still start chatting
+        // This will work if the match status is SELECTED_BY_CITIZEN or ACCEPTED_BY_PROVIDER
+        try {
+          // Try to load the match's chat history (this will validate if chat is allowed)
+          const result = await chatService.getChatHistory(matchId, 0, 50);
+          
+          if (result.success) {
+            // Chat is available, set up the conversation
+            await handleSelectConversation(matchId);
+            // Don't call loadConversations here to avoid infinite loop
+            // Conversations will be refreshed on next manual load
+          } else {
+            // Chat not available - show message
+            alert('Chat is not available for this match yet. Please accept the match first, or wait for the provider to accept your case.');
+          }
+        } catch (error) {
+          console.error('Error starting chat:', error);
+          alert('Unable to start chat. Please make sure the match has been accepted and try again.');
+        }
+      }
+    } else {
+      // No matchId provided, just navigate to chat tab
+      console.warn('No matchId provided to handleChatClick');
+    }
   };
 
   const handleProfileClick = (match) => {
@@ -322,7 +594,7 @@ function DashboardCitizen() {
     setSelectedMatchProfile(null);
   };
 
-  const currentContact = conversations[activeChat];
+  const currentContact = conversations.find(c => c.matchId === activeChat);
 
   return (
     <div className="dashboard-container">
@@ -704,29 +976,85 @@ function DashboardCitizen() {
                     </svg>
                     <input type="text" className="chat-search-input" placeholder="Search conversations..." />
                   </div>
+                  <div style={{ 
+                    marginTop: '8px', 
+                    fontSize: '12px', 
+                    color: wsConnected ? '#10b981' : '#ef4444',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: wsConnected ? '#10b981' : '#ef4444'
+                    }}></div>
+                    {wsConnected ? 'Connected' : 'Disconnected'}
+                  </div>
                 </div>
                 <div className="conversation-list">
-                  {conversations.map((convo, index) => (
-                    <div
-                      key={convo.id}
-                      className={`conversation-item ${activeChat === index ? 'active' : ''}`}
-                      onClick={() => setActiveChat(index)}
-                    >
-                      <div className="convo-avatar">
-                        <img src={convo.avatar} alt={convo.name} />
-                      </div>
-                      <div className="convo-details">
-                        <div className="convo-header">
-                          <span className="convo-name">{convo.name}</span>
-                          <span className="convo-time">{convo.time}</span>
-                        </div>
-                        <div className="convo-last-msg">
-                          <span>{convo.lastMsg}</span>
-                          {convo.unread > 0 && <span className="unread-badge">{convo.unread}</span>}
-                        </div>
-                      </div>
+                  {loadingConversations ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+                      Loading conversations...
                     </div>
-                  ))}
+                  ) : conversations.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+                      <div style={{ marginBottom: '12px' }}>
+                        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ margin: '0 auto 12px', opacity: 0.5 }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      </div>
+                      <p style={{ fontWeight: '600', marginBottom: '8px' }}>No conversations yet</p>
+                      <p style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                        To start chatting:
+                        <br />1. Go to "My Matches" and accept a match
+                        <br />2. Once accepted, click "Chat" on the match
+                        <br />3. Or wait for the provider to accept your case
+                      </p>
+                    </div>
+                  ) : (
+                    conversations.map((convo) => (
+                      <div
+                        key={convo.matchId}
+                        className={`conversation-item ${activeChat === convo.matchId ? 'active' : ''}`}
+                        onClick={() => handleSelectConversation(convo.matchId)}
+                      >
+                        <div className="convo-avatar">
+                          <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '12px',
+                            backgroundColor: '#6d28d9',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '18px'
+                          }}>
+                            {convo.otherUserName?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                        </div>
+                        <div className="convo-details">
+                          <div className="convo-header">
+                            <span className="convo-name">
+                              {convo.otherUserName} ({convo.otherUserRole})
+                            </span>
+                            <span className="convo-time">
+                              {formatConversationTime(convo.lastMessageTime)}
+                            </span>
+                          </div>
+                          <div className="convo-last-msg">
+                            <span>{convo.lastMessage || 'No messages yet'}</span>
+                            {convo.unreadCount > 0 && (
+                              <span className="unread-badge">{convo.unreadCount}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -734,11 +1062,33 @@ function DashboardCitizen() {
               <div className="chat-window">
                 <div className="chat-header">
                   <div className="chat-contact-info">
-                    <img className="chat-contact-avatar" src={currentContact.avatar} alt={currentContact.name} />
-                    <div className="chat-contact-details">
-                      <h3>{currentContact.name}</h3>
-                      <span className="match-score-pill">Match Score: {currentContact.matchScore}</span>
-                    </div>
+                    {currentContact ? (
+                      <>
+                        <div style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '12px',
+                          backgroundColor: '#6d28d9',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '16px',
+                          marginRight: '12px'
+                        }}>
+                          {currentContact.otherUserName?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                        <div className="chat-contact-details">
+                          <h3>{currentContact.otherUserName} ({currentContact.otherUserRole})</h3>
+                          <span className="match-score-pill">Case: {currentContact.caseTitle}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="chat-contact-details">
+                        <h3>Select a conversation</h3>
+                      </div>
+                    )}
                   </div>
                   <div className="chat-header-actions">
                     <button className="btn-header-action btn-view-profile">
@@ -757,33 +1107,54 @@ function DashboardCitizen() {
                 </div>
 
                 <div className="messages-container">
-                  <div className="message-date-divider">
-                    <span>Today</span>
-                  </div>
-                  {messages.map((msg) => (
-                    <div key={msg.id} className={`message ${msg.sender}`}>
-                      <div className="message-bubble">
-                        {msg.text}
-                      </div>
-                      <div className="message-info">
-                        <span>{msg.time}</span>
-                        {msg.sender === 'user' && (
-                          <svg className="msg-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7m-12 6l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
+                  {loadingMessages ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+                      Loading messages...
                     </div>
-                  ))}
+                  ) : messages.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+                      {currentContact ? 'No messages yet. Start the conversation!' : 'Select a conversation to view messages'}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="message-date-divider">
+                        <span>Messages</span>
+                      </div>
+                      {messages.map((msg) => (
+                        <div key={msg.id} className={`message ${msg.sender}`}>
+                          <div className="message-bubble">
+                            {msg.text}
+                          </div>
+                          <div className="message-info">
+                            <span>{msg.time}</span>
+                            {msg.sender === 'user' && (
+                              <svg className="msg-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7m-12 6l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {isTyping && (
+                        <div className="message contact">
+                          <div className="message-bubble">
+                            <span style={{ fontStyle: 'italic', color: '#64748b' }}>Typing...</span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
-                <div className="suggested-replies">
-                  {['Thanks!', 'Got it.', 'Okay, sounds good.', 'When are you free for a call?', 'Please elaborate.'].map((reply, i) => (
-                    <button key={i} className="suggested-reply-btn" onClick={() => setMessageText(reply)}>
-                      {reply}
-                    </button>
-                  ))}
-                </div>
+                {currentContact && (
+                  <div className="suggested-replies">
+                    {['Thanks!', 'Got it.', 'Okay, sounds good.', 'When are you free for a call?', 'Please elaborate.'].map((reply, i) => (
+                      <button key={i} className="suggested-reply-btn" onClick={() => setMessageText(reply)}>
+                        {reply}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="chat-input-container">
                   <div className="chat-input-wrapper">
@@ -794,17 +1165,32 @@ function DashboardCitizen() {
                     </button>
                     <textarea
                       className="chat-input-field"
-                      placeholder="Type your message here..."
+                      placeholder={currentContact ? "Type your message here..." : "Select a conversation to start chatting"}
                       rows="1"
                       value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
+                      onChange={(e) => {
+                        setMessageText(e.target.value);
+                        handleTyping();
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      disabled={!currentContact || !wsConnected}
                     ></textarea>
-                    <button className="btn-input-icon">
+                    <button className="btn-input-icon" disabled={!currentContact}>
                       <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </button>
-                    <button className="btn-send-msg">
+                    <button 
+                      className="btn-send-msg" 
+                      onClick={handleSendMessage}
+                      disabled={!currentContact || !messageText.trim() || !wsConnected}
+                      style={{ opacity: (!currentContact || !messageText.trim() || !wsConnected) ? 0.5 : 1 }}
+                    >
                       <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>

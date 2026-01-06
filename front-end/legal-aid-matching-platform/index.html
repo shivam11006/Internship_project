@@ -14,6 +14,12 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    <script>
+      // Polyfill for global variable (needed for sockjs-client)
+      if (typeof global === 'undefined') {
+        var global = globalThis;
+      }
+    </script>
     <script type="module" src="/src/index.jsx"></script>
   </body>
 </html>

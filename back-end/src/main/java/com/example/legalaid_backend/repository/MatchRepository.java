@@ -45,4 +45,8 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
     // Find all matches for a lawyer or NGO (any status)
     @Query("SELECT m FROM Match m WHERE (m.lawyer.id = :userId OR m.ngo.id = :userId) ORDER BY m.createdAt DESC")
     List<Match> findByProviderId(@Param("userId") Long userId);
+
+    // Find all matches where user is the citizen (case creator)
+    @Query("SELECT m FROM Match m WHERE m.legalCase.createdBy.id = :userId ORDER BY m.createdAt DESC")
+    List<Match> findByCitizenId(@Param("userId") Long userId);
 }

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
+import chatService from './services/chatService';
 import * as matchService from './services/matchService';
 import AssignedCases from './AssignedCases';
 import './Dashboard.css';
@@ -15,8 +16,12 @@ function DashboardNgo() {
   const [isEditing, setIsEditing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // overview, profile, assigned-cases, secure-chat
-  const [activeChat, setActiveChat] = useState(0);
+  const [activeChat, setActiveChat] = useState(null); // Will store matchId
   const [messageText, setMessageText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const typingTimeoutRef = useRef(null);
+  const hasAutoSelectedRef = useRef(false); // Track if we've already auto-selected a conversation
 
   // Case Details Modal state
   const [showCaseDetails, setShowCaseDetails] = useState(false);
@@ -60,47 +65,12 @@ function DashboardNgo() {
     }
   ]);
 
-  // Mock Data for Secure Chat
-  const [conversations] = useState([
-    {
-      id: 0,
-      name: 'Amit Patel (Citizen)',
-      role: 'Citizen',
-      lastMsg: 'Thank you for helping with my housing application.',
-      time: '12:30 PM',
-      unread: 0,
-      matchScore: '88%',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-    },
-    {
-      id: 1,
-      name: 'Sarah Jenkins, Esq. (Lawyer)',
-      role: 'Lawyer',
-      lastMsg: 'I\'ll be joining the coordination meeting tomorrow.',
-      time: '10:00 AM',
-      unread: 2,
-      matchScore: '94%',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-    },
-    {
-      id: 2,
-      name: 'Victor Holmes (Citizen)',
-      role: 'Citizen',
-      lastMsg: 'When is the next community legal awareness camp?',
-      time: 'Yesterday',
-      unread: 0,
-      matchScore: '91%',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-    }
-  ]);
-
-  const [messages] = useState([
-    { id: 1, text: 'Hello, we are following up on your housing assistance request.', sender: 'user', time: '12:00 PM' },
-    { id: 2, text: 'Hi, thank you for the follow-up. I have submitted the forms.', sender: 'contact', time: '12:15 PM' },
-    { id: 3, text: 'Excellent. Our team will review them and get back to you by Monday.', sender: 'user', time: '12:20 PM' },
-    { id: 4, text: 'That sounds great. Thank you!', sender: 'contact', time: '12:25 PM' },
-    { id: 5, text: 'Thank you for helping with my housing application.', sender: 'contact', time: '12:30 PM' },
-  ]);
+  // Real Chat Data
+  const [conversations, setConversations] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [currentMatchId, setCurrentMatchId] = useState(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -279,7 +249,288 @@ function DashboardNgo() {
     }
   };
 
-  const currentContact = conversations[activeChat];
+  // Initialize WebSocket connection and load conversations
+  useEffect(() => {
+    const initializeChat = async () => {
+      try {
+        // Only connect if user is authenticated
+        if (!authService.isAuthenticated()) {
+          console.log('User not authenticated, skipping chat initialization');
+          return;
+        }
+
+        // Connect WebSocket
+        try {
+          await chatService.connect();
+          setWsConnected(true);
+        } catch (wsError) {
+          console.warn('WebSocket connection failed (this is OK if backend is not running):', wsError);
+          setWsConnected(false);
+          // Don't throw - allow app to continue without WebSocket
+        }
+
+        // Load conversations (this should work even without WebSocket)
+        // Only auto-select on initial load
+        try {
+          await loadConversations(true); // true = auto-select first conversation
+        } catch (loadError) {
+          console.warn('Failed to load conversations:', loadError);
+          // Don't throw - allow app to continue
+        }
+
+        // Set up connection status handler
+        chatService.onConnectionChange((connected) => {
+          setWsConnected(connected);
+        });
+
+        // Set up error handler
+        chatService.onError((error) => {
+          console.error('Chat error:', error);
+          // Don't show alert for every error, just log it
+        });
+      } catch (error) {
+        console.error('Failed to initialize chat:', error);
+        setWsConnected(false);
+        // Don't throw - allow app to continue
+      }
+    };
+
+    // Initialize chat only if authenticated
+    if (authService.isAuthenticated()) {
+      initializeChat();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      try {
+        chatService.disconnect();
+      } catch (error) {
+        console.warn('Error disconnecting chat:', error);
+      }
+    };
+  }, []);
+
+  // Load conversations from API
+  const loadConversations = useCallback(async (autoSelect = false) => {
+    // Prevent multiple simultaneous calls
+    if (loadingConversations) {
+      console.log('Already loading conversations, skipping...');
+      return;
+    }
+    
+    setLoadingConversations(true);
+    try {
+      console.log('Loading conversations...', { autoSelect, activeChat, hasAutoSelected: hasAutoSelectedRef.current });
+      const result = await chatService.getConversations();
+      console.log('Load conversations result:', result);
+      
+      if (result.success && result.data) {
+        const convos = result.data.conversations || [];
+        console.log(`Loaded ${convos.length} conversations:`, convos);
+        setConversations(convos);
+        
+        // Only auto-select if explicitly requested AND no active chat AND we haven't already auto-selected
+        if (autoSelect && !activeChat && !hasAutoSelectedRef.current && convos.length > 0) {
+          console.log('Auto-selecting first conversation:', convos[0].matchId);
+          hasAutoSelectedRef.current = true; // Mark that we've auto-selected
+          // Use setTimeout to avoid calling during state update and prevent loop
+          setTimeout(() => {
+            if (!activeChat) { // Double-check activeChat hasn't changed
+              handleSelectConversation(convos[0].matchId);
+            }
+          }, 100);
+        } else if (convos.length === 0) {
+          console.log('No conversations found. Make sure you have accepted matches with status SELECTED_BY_CITIZEN or ACCEPTED_BY_PROVIDER.');
+        }
+      } else {
+        console.error('Failed to load conversations:', result.error);
+        setConversations([]);
+      }
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+      setConversations([]);
+    } finally {
+      setLoadingConversations(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChat, loadingConversations]); // Removed handleSelectConversation from dependencies to break cycle
+
+  // Load messages for a match
+  const loadMessages = async (matchId) => {
+    if (!matchId) return;
+    
+    setLoadingMessages(true);
+    try {
+      const result = await chatService.getChatHistory(matchId, 0, 50);
+      if (result.success && result.data) {
+        const msgs = result.data.messages || [];
+        const currentUser = authService.getCurrentUser();
+        
+        // Convert backend messages to frontend format
+        const formattedMessages = msgs.map(msg => {
+          // Determine if message is from current user
+          // Primary check: use isOwnMessage flag from backend
+          // Fallback: compare sender ID with current user ID
+          let isOwn = msg.isOwnMessage;
+          if (isOwn === undefined || isOwn === null) {
+            isOwn = msg.senderId === currentUser?.id;
+          }
+          
+          return {
+            id: msg.id,
+            text: msg.content,
+            sender: isOwn ? 'user' : 'contact',
+            time: formatMessageTime(msg.sentAt),
+            sentAt: msg.sentAt,
+            isRead: msg.isRead,
+            senderId: msg.senderId
+          };
+        });
+        
+        setMessages(formattedMessages);
+        
+        // Mark messages as read
+        await chatService.markAsRead(matchId);
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  // Format message time
+  const formatMessageTime = (dateTime) => {
+    if (!dateTime) return '';
+    const date = new Date(dateTime);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  // Format conversation time
+  const formatConversationTime = (dateTime) => {
+    if (!dateTime) return '';
+    const date = new Date(dateTime);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  // Handle selecting a conversation
+  const handleSelectConversation = async (matchId) => {
+    setActiveChat(matchId);
+    setCurrentMatchId(matchId);
+    setMessages([]);
+    
+    // Unsubscribe from previous match
+    if (currentMatchId && currentMatchId !== matchId) {
+      chatService.unsubscribeFromMatch(currentMatchId);
+    }
+    
+    // Subscribe to new match
+    chatService.subscribeToMatch(matchId);
+    
+    // Set up message handler
+    chatService.onMessage(matchId, (message) => {
+      setMessages(prev => {
+        // Check if message already exists (avoid duplicates)
+        if (prev.some(m => m.id === message.id)) {
+          return prev;
+        }
+        
+        const currentUser = authService.getCurrentUser();
+        
+        // Determine if message is from current user
+        // Primary check: use isOwnMessage flag from backend
+        // Fallback: compare sender ID with current user ID
+        let isOwn = message.isOwnMessage;
+        if (isOwn === undefined || isOwn === null) {
+          isOwn = message.senderId === currentUser?.id;
+        }
+        
+        return [...prev, {
+          id: message.id,
+          text: message.content,
+          sender: isOwn ? 'user' : 'contact',
+          time: formatMessageTime(message.sentAt),
+          sentAt: message.sentAt,
+          isRead: message.isRead,
+          senderId: message.senderId
+        }];
+      });
+    });
+
+    // Set up typing indicator handler
+    chatService.onTyping(matchId, (indicator) => {
+      setIsTyping(indicator.isTyping);
+    });
+
+    // Load message history
+    await loadMessages(matchId);
+    
+    // Mark as read
+    await chatService.markAsRead(matchId);
+    
+    // Don't call loadConversations here to avoid infinite loop
+    // Unread counts will be updated when conversations are refreshed manually
+  };
+
+  // Handle sending a message
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !currentMatchId) return;
+
+    const content = messageText.trim();
+    setMessageText('');
+
+    try {
+      await chatService.sendMessage(currentMatchId, content);
+      // Message will be added via WebSocket handler
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+      setMessageText(content); // Restore message text
+    }
+  };
+
+  // Handle typing indicator
+  const handleTyping = () => {
+    if (!currentMatchId) return;
+    
+    // Send typing indicator
+    chatService.sendTypingIndicator(currentMatchId, true);
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    // Set timeout to stop typing indicator
+    typingTimeoutRef.current = setTimeout(() => {
+      chatService.sendTypingIndicator(currentMatchId, false);
+    }, 3000);
+  };
+
+  const currentContact = conversations.find(c => c.matchId === activeChat);
 
   return (
     <div className="dashboard-container">
@@ -559,29 +810,74 @@ function DashboardNgo() {
                     </svg>
                     <input type="text" className="chat-search-input" placeholder="Search conversations..." />
                   </div>
+                  <div style={{ 
+                    marginTop: '8px', 
+                    fontSize: '12px', 
+                    color: wsConnected ? '#10b981' : '#ef4444',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: wsConnected ? '#10b981' : '#ef4444'
+                    }}></div>
+                    {wsConnected ? 'Connected' : 'Disconnected'}
+                  </div>
                 </div>
                 <div className="conversation-list">
-                  {conversations.map((convo, index) => (
-                    <div
-                      key={convo.id}
-                      className={`conversation-item ${activeChat === index ? 'active' : ''}`}
-                      onClick={() => setActiveChat(index)}
-                    >
-                      <div className="convo-avatar">
-                        <img src={convo.avatar} alt={convo.name} />
-                      </div>
-                      <div className="convo-details">
-                        <div className="convo-header">
-                          <span className="convo-name">{convo.name}</span>
-                          <span className="convo-time">{convo.time}</span>
-                        </div>
-                        <div className="convo-last-msg">
-                          <span>{convo.lastMsg}</span>
-                          {convo.unread > 0 && <span className="unread-badge">{convo.unread}</span>}
-                        </div>
-                      </div>
+                  {loadingConversations ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+                      Loading conversations...
                     </div>
-                  ))}
+                  ) : conversations.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+                      No conversations yet.
+                    </div>
+                  ) : (
+                    conversations.map((convo) => (
+                      <div
+                        key={convo.matchId}
+                        className={`conversation-item ${activeChat === convo.matchId ? 'active' : ''}`}
+                        onClick={() => handleSelectConversation(convo.matchId)}
+                      >
+                        <div className="convo-avatar">
+                          <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '12px',
+                            backgroundColor: '#6d28d9',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '18px'
+                          }}>
+                            {convo.otherUserName?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                        </div>
+                        <div className="convo-details">
+                          <div className="convo-header">
+                            <span className="convo-name">
+                              {convo.otherUserName} ({convo.otherUserRole})
+                            </span>
+                            <span className="convo-time">
+                              {formatConversationTime(convo.lastMessageTime)}
+                            </span>
+                          </div>
+                          <div className="convo-last-msg">
+                            <span>{convo.lastMessage || 'No messages yet'}</span>
+                            {convo.unreadCount > 0 && (
+                              <span className="unread-badge">{convo.unreadCount}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -589,11 +885,33 @@ function DashboardNgo() {
               <div className="chat-window">
                 <div className="chat-header">
                   <div className="chat-contact-info">
-                    <img className="chat-contact-avatar" src={currentContact.avatar} alt={currentContact.name} />
-                    <div className="chat-contact-details">
-                      <h3>{currentContact.name}</h3>
-                      <span className="match-score-pill">{currentContact.role} • Match Score: {currentContact.matchScore}</span>
-                    </div>
+                    {currentContact ? (
+                      <>
+                        <div style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '12px',
+                          backgroundColor: '#6d28d9',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '16px',
+                          marginRight: '12px'
+                        }}>
+                          {currentContact.otherUserName?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                        <div className="chat-contact-details">
+                          <h3>{currentContact.otherUserName} ({currentContact.otherUserRole})</h3>
+                          <span className="match-score-pill">Case: {currentContact.caseTitle}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="chat-contact-details">
+                        <h3>Select a conversation</h3>
+                      </div>
+                    )}
                   </div>
                   <div className="chat-header-actions">
                     <button className="btn-header-action btn-view-profile">
@@ -612,33 +930,54 @@ function DashboardNgo() {
                 </div>
 
                 <div className="messages-container">
-                  <div className="message-date-divider">
-                    <span>Today</span>
-                  </div>
-                  {messages.map((msg) => (
-                    <div key={msg.id} className={`message ${msg.sender}`}>
-                      <div className="message-bubble">
-                        {msg.text}
-                      </div>
-                      <div className="message-info">
-                        <span>{msg.time}</span>
-                        {msg.sender === 'user' && (
-                          <svg className="msg-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7m-12 6l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
+                  {loadingMessages ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+                      Loading messages...
                     </div>
-                  ))}
+                  ) : messages.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+                      {currentContact ? 'No messages yet. Start the conversation!' : 'Select a conversation to view messages'}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="message-date-divider">
+                        <span>Messages</span>
+                      </div>
+                      {messages.map((msg) => (
+                        <div key={msg.id} className={`message ${msg.sender}`}>
+                          <div className="message-bubble">
+                            {msg.text}
+                          </div>
+                          <div className="message-info">
+                            <span>{msg.time}</span>
+                            {msg.sender === 'user' && (
+                              <svg className="msg-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7m-12 6l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {isTyping && (
+                        <div className="message contact">
+                          <div className="message-bubble">
+                            <span style={{ fontStyle: 'italic', color: '#64748b' }}>Typing...</span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
-                <div className="suggested-replies">
-                  {['Understood.', 'Our team will review.', 'I am available for a coordination call.', 'Could you provide more details?', 'Let\'s schedule a field visit.'].map((reply, i) => (
-                    <button key={i} className="suggested-reply-btn" onClick={() => setMessageText(reply)}>
-                      {reply}
-                    </button>
-                  ))}
-                </div>
+                {currentContact && (
+                  <div className="suggested-replies">
+                    {['Understood.', 'Our team will review.', 'I am available for a coordination call.', 'Could you provide more details?', 'Let\'s schedule a field visit.'].map((reply, i) => (
+                      <button key={i} className="suggested-reply-btn" onClick={() => setMessageText(reply)}>
+                        {reply}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="chat-input-container">
                   <div className="chat-input-wrapper">
@@ -649,12 +988,27 @@ function DashboardNgo() {
                     </button>
                     <textarea
                       className="chat-input-field"
-                      placeholder="Type your message here..."
+                      placeholder={currentContact ? "Type your message here..." : "Select a conversation to start chatting"}
                       rows="1"
                       value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
+                      onChange={(e) => {
+                        setMessageText(e.target.value);
+                        handleTyping();
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      disabled={!currentContact || !wsConnected}
                     ></textarea>
-                    <button className="btn-send-msg">
+                    <button 
+                      className="btn-send-msg" 
+                      onClick={handleSendMessage}
+                      disabled={!currentContact || !messageText.trim() || !wsConnected}
+                      style={{ opacity: (!currentContact || !messageText.trim() || !wsConnected) ? 0.5 : 1 }}
+                    >
                       <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
@@ -669,13 +1023,17 @@ function DashboardNgo() {
             <AssignedCases
               refreshTrigger={refreshAssignedCases}
               onNavigateToChat={(name) => {
-                const index = conversations.findIndex(c => c.name.toLowerCase().includes(name.toLowerCase()));
-                if (index !== -1) setActiveChat(index);
+                const convo = conversations.find(c => c.otherUserName?.toLowerCase().includes(name.toLowerCase()));
+                if (convo) {
+                  handleSelectConversation(convo.matchId);
+                }
                 setActiveTab('secure-chat');
               }}
               onScheduleCall={(name) => {
-                const index = conversations.findIndex(c => c.name.toLowerCase().includes(name.toLowerCase()));
-                if (index !== -1) setActiveChat(index);
+                const convo = conversations.find(c => c.otherUserName?.toLowerCase().includes(name.toLowerCase()));
+                if (convo) {
+                  handleSelectConversation(convo.matchId);
+                }
                 setShowScheduleModal(true);
               }}
             />
