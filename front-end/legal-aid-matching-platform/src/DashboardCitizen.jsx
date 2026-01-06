@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import authService from './services/authService';
+import { apiClient } from './services/authService';
+import * as matchService from './services/matchService';
 import CaseSubmission from './CaseSubmission';
 import Directory from './Directory';
 import CaseManagement from './CaseManagement';
@@ -25,6 +27,12 @@ function DashboardCitizen() {
     email: '',
     location: '',
   });
+  
+  // State for My Matches functionality
+  const [myCases, setMyCases] = useState([]);
+  const [selectedCaseId, setSelectedCaseId] = useState('');
+  const [generatingMatches, setGeneratingMatches] = useState(false);
+  const [showMatchesModal, setShowMatchesModal] = useState(false);
 
   // State for Match Profile Modal
   const [showMatchProfileModal, setShowMatchProfileModal] = useState(false);
@@ -263,6 +271,46 @@ function DashboardCitizen() {
     };
     fetchProfile();
   }, []);
+
+  // Fetch cases when My Matches tab is active
+  useEffect(() => {
+    if (activeTab === 'matches') {
+      fetchMyCases();
+    }
+  }, [activeTab]);
+
+  const fetchMyCases = async () => {
+    try {
+      const response = await apiClient.get('/cases/my');
+      setMyCases(response.data);
+    } catch (error) {
+      console.error('Error fetching cases:', error);
+      setMyCases([]);
+    }
+  };
+
+  const handleGenerateMatches = async () => {
+    if (!selectedCaseId) {
+      alert('Please select a case first');
+      return;
+    }
+
+    try {
+      setGeneratingMatches(true);
+      console.log('Generating matches for case:', selectedCaseId);
+      
+      // Call the generate matches API
+      await matchService.generateMatches(selectedCaseId);
+      
+      // Show matches modal
+      setShowMatchesModal(true);
+    } catch (error) {
+      console.error('Error generating matches:', error);
+      alert('Failed to generate matches. Please try again.');
+    } finally {
+      setGeneratingMatches(false);
+    }
+  };
 
   const handleLogout = () => {
     authService.logout();
@@ -842,23 +890,133 @@ function DashboardCitizen() {
                 <div style={{ fontSize: '32px' }}>💡</div>
                 <div>
                   <h3 style={{ margin: '0 0 8px 0', fontSize: '20px' }}>About Matches</h3>
-                  <p style={{ margin: 0, opacity: 0.95 }}>View matched lawyers and NGOs for your submitted cases. Accept or reject matches to find the perfect legal assistance.</p>
+                  <p style={{ margin: 0, opacity: 0.95 }}>Select a case and generate AI-powered matches with lawyers and NGOs for your legal assistance.</p>
                 </div>
               </div>
+
+              {/* Case Selector and Generate Button */}
+              <div style={{
+                background: 'white',
+                padding: '24px',
+                borderRadius: '12px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                marginBottom: '20px'
+              }}>
+                <h3 style={{ marginBottom: '16px', fontSize: '18px', color: '#1f2937' }}>Generate Matches</h3>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: '8px', 
+                      fontSize: '14px', 
+                      fontWeight: '500',
+                      color: '#374151'
+                    }}>
+                      Select a Case
+                    </label>
+                    <select
+                      value={selectedCaseId}
+                      onChange={(e) => setSelectedCaseId(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '2px solid #e5e7eb',
+                        fontSize: '14px',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        outline: 'none',
+                        transition: 'border-color 0.2s'
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = '#667eea'}
+                      onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                    >
+                      <option value="">-- Select a Case --</option>
+                      {myCases.map((caseItem) => (
+                        <option key={caseItem.id} value={caseItem.id}>
+                          Case #{caseItem.id}: {caseItem.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={handleGenerateMatches}
+                    disabled={!selectedCaseId || generatingMatches}
+                    style={{
+                      padding: '12px 32px',
+                      background: (!selectedCaseId || generatingMatches) 
+                        ? '#d1d5db' 
+                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: (!selectedCaseId || generatingMatches) ? 'not-allowed' : 'pointer',
+                      transition: 'transform 0.2s, box-shadow 0.2s',
+                      whiteSpace: 'nowrap',
+                      boxShadow: (!selectedCaseId || generatingMatches) ? 'none' : '0 4px 12px rgba(102, 126, 234, 0.4)'
+                    }}
+                    onMouseOver={(e) => {
+                      if (!selectedCaseId || generatingMatches) return;
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.5)';
+                    }}
+                    onMouseOut={(e) => {
+                      if (!selectedCaseId || generatingMatches) return;
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                    }}
+                  >
+                    {generatingMatches ? (
+                      <>
+                        <span style={{ display: 'inline-block', marginRight: '8px' }}>⏳</span>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ display: 'inline-block', marginRight: '8px' }}>🤖</span>
+                        Generate AI Matches
+                      </>
+                    )}
+                  </button>
+                </div>
+                {myCases.length === 0 && (
+                  <p style={{ 
+                    marginTop: '12px', 
+                    fontSize: '14px', 
+                    color: '#6b7280',
+                    fontStyle: 'italic'
+                  }}>
+                    No cases found. Please submit a case first.
+                  </p>
+                )}
+              </div>
+
               <div style={{
                 padding: '16px',
-                background: '#fef3c7',
-                border: '2px solid #fbbf24',
+                background: '#eff6ff',
+                border: '2px solid #3b82f6',
                 borderRadius: '8px',
                 marginBottom: '20px'
               }}>
-                <strong>🔧 Demo Mode:</strong> Click "View Matches" button on any case in "My Cases" tab to see the matches interface.
-                <br /><small>In production, matches will be auto-generated when cases are submitted.</small>
+                <strong>ℹ️ How it works:</strong> Select one of your submitted cases from the dropdown above, then click "Generate AI Matches" to find the best lawyers and NGOs for your case using our AI matching engine.
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Matches Modal */}
+      {showMatchesModal && selectedCaseId && (
+        <Matches
+          caseId={selectedCaseId}
+          onClose={() => {
+            setShowMatchesModal(false);
+            setSelectedCaseId('');
+          }}
+        />
+      )}
 
       {/* Profile Modal */}
       {showProfileModal && (

@@ -105,6 +105,41 @@ public class CaseService {
     }
 
     // =========================
+    // UPDATE CASE (CITIZEN)
+    // =========================
+    @Transactional
+    public CaseResponse updateCase(Long id, CreateCaseRequest request) {
+
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getRole() != Role.CITIZEN) {
+            throw new RuntimeException("Only citizens can update cases");
+        }
+
+        Case legalCase = caseRepository
+                .findByIdAndCreatedBy(id, currentUser)
+                .orElseThrow(() -> new RuntimeException("Case not found"));
+
+        // Only allow editing cases with SUBMITTED status
+        if (!"SUBMITTED".equalsIgnoreCase(legalCase.getStatus())) {
+            throw new RuntimeException("Cannot edit case with status: " + legalCase.getStatus());
+        }
+
+        // Update case fields
+        legalCase.setTitle(request.getTitle());
+        legalCase.setDescription(request.getDescription());
+        legalCase.setCaseType(request.getCaseType());
+        legalCase.setPriority(request.getPriority());
+        legalCase.setLocation(request.getLocation());
+        legalCase.setPreferredLanguage(request.getPreferredLanguage());
+        legalCase.setExpertiseTags(request.getExpertiseTags());
+
+        log.info("Updated case ID {} by user {}", id, currentUser.getEmail());
+
+        return toResponse(caseRepository.save(legalCase));
+    }
+
+    // =========================
     // HELPERS
     // =========================
     private User getCurrentUser() {

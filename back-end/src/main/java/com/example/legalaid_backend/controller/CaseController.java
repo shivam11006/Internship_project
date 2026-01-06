@@ -112,4 +112,37 @@ public class CaseController {
             MDC.clear();
         }
     }
+
+    /**
+     * UPDATE CASE
+     * PUT /api/cases/{id}
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<CaseResponse> updateCase(
+            @PathVariable Long id,
+            @RequestBody CreateCaseRequest request,
+            Authentication auth) {
+
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/cases/" + id);
+
+        try {
+            log.info("Case update request received from user: {} for case ID: {}", auth.getName(), id);
+
+            CaseResponse response = caseService.updateCase(id, request);
+
+            log.info("Case updated successfully: ID {}, type: {}, status: {}",
+                    response.getId(),
+                    response.getCaseType(),
+                    response.getStatus());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to update case ID {} for user {}: {}", id, auth.getName(), e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
+    }
 }
