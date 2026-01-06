@@ -17,6 +17,11 @@ function DashboardLawyer() {
   const [activeTab, setActiveTab] = useState('overview'); // overview, profile, assigned-cases, secure-chat
   const [activeChat, setActiveChat] = useState(0);
   const [messageText, setMessageText] = useState('');
+
+  // Case Details Modal state
+  const [showCaseDetails, setShowCaseDetails] = useState(false);
+  const [selectedCase, setSelectedCase] = useState(null);
+
   const [profileData, setProfileData] = useState({
     username: '',
     email: '',
@@ -107,15 +112,15 @@ function DashboardLawyer() {
       try {
         setLoadingCases(true);
         setCasesError(null);
-        
+
         const response = await matchService.getAssignedCases();
-        
+
         // Filter for only PENDING status cases (not yet accepted/declined)
         let casesData = Array.isArray(response) ? response : (response.data || []);
-        const pendingCases = casesData.filter(c => 
+        const pendingCases = casesData.filter(c =>
           c.status === 'SELECTED_BY_CITIZEN' || c.status === 'PENDING'
         );
-        
+
         // Transform backend response to match component expectations
         const transformedCases = pendingCases.map(c => ({
           id: c.id,
@@ -133,9 +138,16 @@ function DashboardLawyer() {
           citizenName: c.citizenName || 'Citizen',
           citizenEmail: c.citizenEmail || '',
           citizenPhone: c.citizenPhone || '',
-          createdAt: c.createdAt
+          createdAt: c.createdAt,
+          // Newly added fields for details view
+          priority: c.priority || 'Medium',
+          preferredLanguage: c.preferredLanguage || 'Not specified',
+          expertiseTags: Array.isArray(c.expertiseTags) ? c.expertiseTags : (c.expertiseTags ? c.expertiseTags.split(',') : []),
+          additionalParties: c.additionalParties || 'None',
+          category: c.caseType || 'General',
+          evidence: c.attachments || [],
         }));
-        
+
         setNewRequests(transformedCases);
       } catch (err) {
         console.error('Failed to fetch pending cases:', err);
@@ -208,13 +220,13 @@ function DashboardLawyer() {
       try {
         // Call backend to accept the case assignment
         await matchService.acceptCaseAssignment(caseItem.matchId || caseItem.id);
-        
+
         // Remove from pending list
         setNewRequests(prev => prev.filter(req => req.id !== id));
-        
+
         // Trigger refresh of assigned cases list
         setRefreshAssignedCases(prev => prev + 1);
-        
+
         alert(`Case "${caseItem.title}" accepted successfully! Check your assigned cases.`);
       } catch (err) {
         console.error('Error accepting case:', err);
@@ -231,10 +243,10 @@ function DashboardLawyer() {
       try {
         // Call backend to decline the case assignment
         await matchService.declineCaseAssignment(caseItem.matchId || caseItem.id);
-        
+
         // Remove from pending list
         setNewRequests(prev => prev.filter(req => req.id !== id));
-        
+
         alert(`Case "${caseItem.title}" declined.`);
       } catch (err) {
         console.error('Error declining case:', err);
@@ -350,7 +362,7 @@ function DashboardLawyer() {
           {activeTab === 'overview' && (
             <div className="overview-container">
               <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem', color: '#1f2937' }}>New Case Requests</h2>
-              
+
               {loadingCases && (
                 <div style={{ textAlign: 'center', padding: '2rem' }}>
                   <div className="loading-spinner" style={{ display: 'inline-block' }}>
@@ -366,7 +378,7 @@ function DashboardLawyer() {
                   <p style={{ marginTop: '1rem', color: '#6b7280' }}>Loading case requests...</p>
                 </div>
               )}
-              
+
               {casesError && (
                 <div style={{
                   backgroundColor: '#fee2e2',
@@ -378,7 +390,7 @@ function DashboardLawyer() {
                   <p style={{ margin: 0, fontWeight: '500' }}>{casesError}</p>
                 </div>
               )}
-              
+
               {!loadingCases && newRequests.length === 0 ? (
                 <div style={{
                   backgroundColor: '#f3f4f6',
@@ -412,6 +424,36 @@ function DashboardLawyer() {
                           {req.citizenPhone && <p style={{ margin: '0.25rem 0', color: '#6b7280' }}>{req.citizenPhone}</p>}
                         </div>
                       )}
+                      <button
+                        onClick={() => {
+                          setSelectedCase(req);
+                          setShowCaseDetails(true);
+                        }}
+                        style={{
+                          width: '100%',
+                          backgroundColor: '#f3f4f6',
+                          color: '#374151',
+                          padding: '0.5rem',
+                          borderRadius: '0.375rem',
+                          fontWeight: '500',
+                          border: 'none',
+                          cursor: 'pointer',
+                          marginBottom: '0.75rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.5rem',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.backgroundColor = '#e5e7eb'}
+                        onMouseOut={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+                      >
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View details
+                      </button>
                       <div style={{ display: 'flex', gap: '1rem' }}>
                         <button
                           onClick={() => handleAcceptRequest(req.id)}
@@ -571,190 +613,392 @@ function DashboardLawyer() {
       </div>
 
       {/* Profile Modal */}
-      {showProfileModal && (
-        <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Profile</h2>
-              <button className="modal-close" onClick={() => setShowProfileModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="profile-section">
-                <div className="profile-avatar-large">
-                  {user?.username?.charAt(0).toUpperCase() || 'L'}
-                </div>
-                <div className="profile-role-badge">{user?.role || 'LAWYER'}</div>
+      {
+        showProfileModal && (
+          <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Profile</h2>
+                <button className="modal-close" onClick={() => setShowProfileModal(false)}>×</button>
               </div>
+              <div className="modal-body">
+                <div className="profile-section">
+                  <div className="profile-avatar-large">
+                    {user?.username?.charAt(0).toUpperCase() || 'L'}
+                  </div>
+                  <div className="profile-role-badge">{user?.role || 'LAWYER'}</div>
+                </div>
 
-              <div className="profile-form">
-                <div className="form-group">
-                  <label>Username</label>
-                  <input
-                    type="text"
-                    name="username"
-                    value={profileData.username}
-                    disabled={true}
-                    className='disabled'
-                  />
-                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                    Username cannot be changed
-                  </small>
-                </div>
-                <div className="form-group">
-                  <label>Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={profileData.email}
-                    disabled={true}
-                    className='disabled'
-                  />
-                  <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                    Email cannot be changed
-                  </small>
-                </div>
-                <div className="form-group">
-                  <label>Specialization</label>
-                  <input
-                    type="text"
-                    name="specialization"
-                    value={profileData.specialization}
-                    onChange={handleChange}
-                    placeholder="e.g., Family Law, Criminal Law"
-                    disabled={!isEditing}
-                    className={!isEditing ? 'disabled' : ''}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Bar Number</label>
-                  <input
-                    type="text"
-                    name="barNumber"
-                    value={profileData.barNumber}
-                    onChange={handleChange}
-                    placeholder="Enter your bar number"
-                    disabled={!isEditing}
-                    className={!isEditing ? 'disabled' : ''}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Address</label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={profileData.address}
-                    onChange={handleChange}
-                    placeholder="Enter your address"
-                    disabled={!isEditing}
-                    className={!isEditing ? 'disabled' : ''}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Location</label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={profileData.location}
-                    onChange={handleChange}
-                    placeholder="Enter your location"
-                    disabled={!isEditing}
-                    className={!isEditing ? 'disabled' : ''}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Languages</label>
-                  <input
-                    type="text"
-                    name="languages"
-                    value={profileData.languages}
-                    onChange={handleChange}
-                    placeholder="e.g., English, Hindi, Tamil"
-                    disabled={!isEditing}
-                    className={!isEditing ? 'disabled' : ''}
-                  />
+                <div className="profile-form">
+                  <div className="form-group">
+                    <label>Username</label>
+                    <input
+                      type="text"
+                      name="username"
+                      value={profileData.username}
+                      disabled={true}
+                      className='disabled'
+                    />
+                    <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                      Username cannot be changed
+                    </small>
+                  </div>
+                  <div className="form-group">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={profileData.email}
+                      disabled={true}
+                      className='disabled'
+                    />
+                    <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                      Email cannot be changed
+                    </small>
+                  </div>
+                  <div className="form-group">
+                    <label>Specialization</label>
+                    <input
+                      type="text"
+                      name="specialization"
+                      value={profileData.specialization}
+                      onChange={handleChange}
+                      placeholder="e.g., Family Law, Criminal Law"
+                      disabled={!isEditing}
+                      className={!isEditing ? 'disabled' : ''}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Bar Number</label>
+                    <input
+                      type="text"
+                      name="barNumber"
+                      value={profileData.barNumber}
+                      onChange={handleChange}
+                      placeholder="Enter your bar number"
+                      disabled={!isEditing}
+                      className={!isEditing ? 'disabled' : ''}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Address</label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={profileData.address}
+                      onChange={handleChange}
+                      placeholder="Enter your address"
+                      disabled={!isEditing}
+                      className={!isEditing ? 'disabled' : ''}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Location</label>
+                    <input
+                      type="text"
+                      name="location"
+                      value={profileData.location}
+                      onChange={handleChange}
+                      placeholder="Enter your location"
+                      disabled={!isEditing}
+                      className={!isEditing ? 'disabled' : ''}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Languages</label>
+                    <input
+                      type="text"
+                      name="languages"
+                      value={profileData.languages}
+                      onChange={handleChange}
+                      placeholder="e.g., English, Hindi, Tamil"
+                      disabled={!isEditing}
+                      className={!isEditing ? 'disabled' : ''}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="modal-footer">
-              {!isEditing ? (
-                <button className="btn-primary" onClick={handleEditProfile}>
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit Profile
-                </button>
-              ) : (
-                <>
-                  <button className="btn-secondary" onClick={handleCancelEdit}>Cancel</button>
-                  <button className="btn-primary" onClick={handleSaveProfile}>Save Changes</button>
-                </>
-              )}
+              <div className="modal-footer">
+                {!isEditing ? (
+                  <button className="btn-primary" onClick={handleEditProfile}>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit Profile
+                  </button>
+                ) : (
+                  <>
+                    <button className="btn-secondary" onClick={handleCancelEdit}>Cancel</button>
+                    <button className="btn-primary" onClick={handleSaveProfile}>Save Changes</button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Schedule Call Modal */}
-      {showScheduleModal && (
-        <div className="modal-overlay" onClick={() => setShowScheduleModal(false)}>
-          <div className="modal-content schedule-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="schedule-header">
-                <h2>Schedule a Call</h2>
-                <div className="schedule-subtitle">Propose a time to connect with {currentContact.name}</div>
+      {
+        showScheduleModal && (
+          <div className="modal-overlay" onClick={() => setShowScheduleModal(false)}>
+            <div className="modal-content schedule-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="schedule-header">
+                  <h2>Schedule a Call</h2>
+                  <div className="schedule-subtitle">Propose a time to connect with {currentContact.name}</div>
+                </div>
+                <button className="modal-close" onClick={() => setShowScheduleModal(false)}>×</button>
               </div>
-              <button className="modal-close" onClick={() => setShowScheduleModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="contact-preview-card">
-                <img className="contact-preview-avatar" src={currentContact.avatar} alt={currentContact.name} />
-                <div className="contact-preview-info">
-                  <h4>{currentContact.name} <span className="contact-preview-role">{currentContact.role}</span></h4>
-                  <span className="match-score-pill">Match Score: {currentContact.matchScore}</span>
-                </div>
-              </div>
-
-              <div className="profile-form">
-                <div className="form-group">
-                  <label>Date</label>
-                  <input type="date" defaultValue="2025-12-28" />
-                </div>
-
-                <div className="form-group">
-                  <label>Time Zone</label>
-                  <select className="chat-search-input" style={{ paddingLeft: '12px' }}>
-                    <option selected>India Standard Time (IST)</option>
-                    <option>Pacific Standard Time (PST)</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Proposed Time Slots</label>
-                  <div className="time-slots-grid">
-                    {['10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '4:00 PM'].map((slot, i) => (
-                      <button key={i} className={`time-slot-btn ${slot === '10:00 AM' ? 'selected' : ''}`}>
-                        {slot}
-                      </button>
-                    ))}
+              <div className="modal-body">
+                <div className="contact-preview-card">
+                  <img className="contact-preview-avatar" src={currentContact.avatar} alt={currentContact.name} />
+                  <div className="contact-preview-info">
+                    <h4>{currentContact.name} <span className="contact-preview-role">{currentContact.role}</span></h4>
+                    <span className="match-score-pill">Match Score: {currentContact.matchScore}</span>
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label>Call Duration</label>
-                  <select className="chat-search-input" style={{ paddingLeft: '12px' }}>
-                    <option selected>30 minutes</option>
-                    <option>1 hour</option>
-                  </select>
+                <div className="profile-form">
+                  <div className="form-group">
+                    <label>Date</label>
+                    <input type="date" defaultValue="2025-12-28" />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Time Zone</label>
+                    <select className="chat-search-input" style={{ paddingLeft: '12px' }}>
+                      <option selected>India Standard Time (IST)</option>
+                      <option>Pacific Standard Time (PST)</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Proposed Time Slots</label>
+                    <div className="time-slots-grid">
+                      {['10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '4:00 PM'].map((slot, i) => (
+                        <button key={i} className={`time-slot-btn ${slot === '10:00 AM' ? 'selected' : ''}`}>
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Call Duration</label>
+                    <select className="chat-search-input" style={{ paddingLeft: '12px' }}>
+                      <option selected>30 minutes</option>
+                      <option>1 hour</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
-              <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowScheduleModal(false)}>Cancel</button>
-              <button className="btn-primary btn-confirm-schedule" style={{ flex: 2 }} onClick={() => setShowScheduleModal(false)}>Confirm Call</button>
+              <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowScheduleModal(false)}>Cancel</button>
+                <button className="btn-primary btn-confirm-schedule" style={{ flex: 2 }} onClick={() => setShowScheduleModal(false)}>Confirm Call</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
+
+      {/* Case Details Modal */}
+      {
+        showCaseDetails && selectedCase && (
+          <div className="modal-overlay" onClick={() => setShowCaseDetails(false)}>
+            <div className="modal-content" style={{ maxWidth: '900px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header" style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2e5a8a 100%)', color: 'white' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h2 style={{ color: 'white', marginBottom: '4px' }}>Case Details</h2>
+                  <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>ID: #{selectedCase.caseId} • Posted on {selectedCase.date}</div>
+                </div>
+                <button className="modal-close" style={{ color: 'white' }} onClick={() => setShowCaseDetails(false)}>×</button>
+              </div>
+
+              <div className="modal-body" style={{ padding: '0' }}>
+                <div style={{ padding: '24px', borderBottom: '1px solid #e5e7eb' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827', margin: 0 }}>{selectedCase.title}</h3>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <span style={{ backgroundColor: '#e0e7ff', color: '#4338ca', padding: '4px 12px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600' }}>
+                        {Math.round(selectedCase.matchScore)}% Match
+                      </span>
+                      <span style={{
+                        backgroundColor: selectedCase.priority?.toLowerCase() === 'high' ? '#fee2e2' : '#fef3c7',
+                        color: selectedCase.priority?.toLowerCase() === 'high' ? '#991b1b' : '#92400e',
+                        padding: '4px 12px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: '600'
+                      }}>
+                        {selectedCase.priority} Priority
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', color: '#4b5563', fontSize: '0.875rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.25rem' }}>📍</span>
+                      <span>{selectedCase.location}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.25rem' }}>📋</span>
+                      <span>{selectedCase.category}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.25rem' }}>🗣️</span>
+                      <span>{selectedCase.preferredLanguage}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.25rem' }}>👤</span>
+                      <span>{selectedCase.citizenName}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '0' }}>
+                  <div style={{ padding: '24px', borderRight: '1px solid #e5e7eb' }}>
+                    <section style={{ marginBottom: '24px' }}>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#374151', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</h4>
+                      <p style={{ color: '#4b5563', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>{selectedCase.description}</p>
+                    </section>
+
+                    <section>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#374151', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expertise Tags</h4>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {selectedCase.expertiseTags.map((tag, i) => (
+                          <span key={i} style={{ backgroundColor: '#f3f4f6', color: '#4b5563', padding: '6px 12px', borderRadius: '6px', fontSize: '0.875rem' }}>{tag}</span>
+                        ))}
+                        {selectedCase.expertiseTags.length === 0 && <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No tags specified</span>}
+                      </div>
+                    </section>
+                  </div>
+
+                  <div style={{ padding: '24px', backgroundColor: '#f9fafb' }}>
+                    <section style={{ marginBottom: '24px' }}>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#374151', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Additional Parties</h4>
+                      <p style={{ color: '#4b5563', fontSize: '0.875rem' }}>{selectedCase.additionalParties}</p>
+                    </section>
+
+                    <section style={{ marginBottom: '24px' }}>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#374151', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Contact Information</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                          <span style={{ color: '#6b7280' }}>Email</span>
+                          <span style={{ color: '#111827', fontWeight: '500' }}>{selectedCase.citizenEmail || 'Not available'}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                          <span style={{ color: '#6b7280' }}>Phone</span>
+                          <span style={{ color: '#111827', fontWeight: '500' }}>{selectedCase.citizenPhone || 'Not available'}</span>
+                        </div>
+                      </div>
+                    </section>
+
+                    <div style={{
+                      marginTop: '32px',
+                      padding: '16px',
+                      backgroundColor: '#eff6ff',
+                      borderRadius: '8px',
+                      border: '1px solid #bfdbfe'
+                    }}>
+                      <h5 style={{ color: '#1e40af', fontWeight: '600', marginBottom: '8px', fontSize: '0.875rem' }}>Why it matches?</h5>
+                      <p style={{ color: '#1e40af', fontSize: '0.75rem', lineHeight: '1.5' }}>
+                        {selectedCase.matchReason || 'Based on your profile specializations and location, this case is highly relevant to your expertise.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedCase.evidence && selectedCase.evidence.length > 0 && (
+                  <div style={{ padding: '24px', backgroundColor: '#fff', borderTop: '1px solid #e5e7eb' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#374151', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Documents & Evidence</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px' }}>
+                      {selectedCase.evidence.map((doc, idx) => (
+                        <div key={idx} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column', backgroundColor: '#fff', transition: 'box-shadow 0.2s' }}>
+                          {doc.type && doc.type.startsWith('image/') ? (
+                            <div style={{ position: 'relative', height: '120px' }}>
+                              <img
+                                src={`data:${doc.type};base64,${doc.content}`}
+                                alt={doc.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            </div>
+                          ) : (
+                            <div style={{ height: '120px', backgroundColor: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <span style={{ fontSize: '2.5rem' }}>
+                                {doc.type && doc.type.includes('pdf') ? '📕' : '📄'}
+                              </span>
+                            </div>
+                          )}
+                          <div style={{ padding: '12px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <div style={{
+                              fontSize: '0.8125rem',
+                              fontWeight: '600',
+                              color: '#374151',
+                              marginBottom: '8px',
+                              wordBreak: 'break-all',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              minHeight: '2.4rem'
+                            }}>
+                              {doc.name}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+                              <span style={{ fontSize: '0.6875rem', color: '#6b7280' }}>
+                                {doc.type ? doc.type.split('/')[1].toUpperCase() : 'FILE'}
+                              </span>
+                              <a
+                                href={`data:${doc.type};base64,${doc.content}`}
+                                download={doc.name}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  color: '#2563eb',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600',
+                                  textDecoration: 'none',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Save
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer" style={{ justifyContent: 'center', gap: '16px', padding: '24px' }}>
+                <button
+                  onClick={() => {
+                    handleAcceptRequest(selectedCase.id);
+                    setShowCaseDetails(false);
+                  }}
+                  style={{ flex: 1, backgroundColor: '#10b981', color: 'white', padding: '12px', borderRadius: '8px', fontWeight: '600', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  ✓ Accept Case
+                </button>
+                <button
+                  onClick={() => {
+                    handleRejectRequest(selectedCase.id);
+                    setShowCaseDetails(false);
+                  }}
+                  style={{ flex: 1, backgroundColor: '#ef4444', color: 'white', padding: '12px', borderRadius: '8px', fontWeight: '600', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  ✗ Decline Case
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
     </div>
   );
 }

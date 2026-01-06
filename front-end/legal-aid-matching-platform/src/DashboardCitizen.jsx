@@ -30,6 +30,39 @@ function DashboardCitizen() {
   const [showMatchProfileModal, setShowMatchProfileModal] = useState(false);
   const [selectedMatchProfile, setSelectedMatchProfile] = useState(null);
 
+  // Notifications State
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications] = useState([
+    {
+      id: 1,
+      type: 'message',
+      message: 'New message from Anya Sharma (Lawyer)',
+      time: '5 min ago',
+      read: false
+    },
+    {
+      id: 2,
+      type: 'schedule',
+      message: 'Appointment reminder: Call with Legal Aid Foundation tomorrow at 10 AM',
+      time: '1 hour ago',
+      read: false
+    },
+    {
+      id: 3,
+      type: 'system',
+      message: 'Your case #12345 has been successfully submitted',
+      time: '2 hours ago',
+      read: true
+    },
+    {
+      id: 4,
+      type: 'alert',
+      message: 'Please update your profile information',
+      time: '1 day ago',
+      read: true
+    }
+  ]);
+
   // Mock Data for Secure Chat
   const [conversations] = useState([
     {
@@ -116,6 +149,12 @@ function DashboardCitizen() {
         'Featured in "Legal Aid Hero" article.',
         'Completed "Advanced Immigration Law" training.',
         'Resolved 2 pro bono cases last month.'
+      ],
+      caseHistory: 'Sarah Chen is an experienced attorney specializing in pro bono legal services, with a strong focus on family law and immigration cases for underserved communities. She has successfully represented clients in over 150 complex family disputes, including divorce, child custody, and adoption cases, ensuring fair outcomes and protecting client rights. Her immigration work spans asylum applications, visa petitions, and deportation defense, consistently achieving positive results for vulnerable individuals seeking legal residency.',
+      documents: [
+        { name: 'Firm Profile Brochure', type: 'pdf' },
+        { name: 'Licensing Information (NY Bar)', type: 'pdf' },
+        { name: 'Client Testimonials Summary', type: 'pdf' }
       ]
     },
     {
@@ -138,7 +177,9 @@ function DashboardCitizen() {
         'Organized a community legal clinic.',
         'Published annual impact report.',
         'Partnered with 5 new law firms.'
-      ]
+      ],
+      caseHistory: null,
+      documents: null
     },
     {
       id: 3,
@@ -370,12 +411,51 @@ function DashboardCitizen() {
             </h1>
           </div>
           <div className="header-right">
-            <button className="notification-btn">
-              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <span className="notification-indicator"></span>
-            </button>
+            <div className="notification-container" style={{ position: 'relative' }}>
+              <button
+                className={`notification-btn ${showNotifications ? 'active' : ''}`}
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {notifications.some(n => !n.read) && <span className="notification-indicator"></span>}
+              </button>
+
+              {showNotifications && (
+                <div className="notification-dropdown">
+                  <div className="notification-header">
+                    <h3>Notifications</h3>
+                    <button className="mark-read-btn" onClick={() => {
+                      // In a real app, this would update backend
+                      alert('Marked all as read');
+                    }}>Mark all as read</button>
+                  </div>
+                  <div className="notification-list">
+                    {notifications.length > 0 ? (
+                      notifications.map(notification => (
+                        <div key={notification.id} className={`notification-item ${!notification.read ? 'unread' : ''}`}>
+                          <div className={`notification-icon ${notification.type}`}>
+                            {notification.type === 'message' && '💬'}
+                            {notification.type === 'schedule' && '📅'}
+                            {notification.type === 'system' && '🔔'}
+                            {notification.type === 'alert' && '⚠️'}
+                          </div>
+                          <div className="notification-content">
+                            <p className="notification-text">{notification.message}</p>
+                            <span className="notification-time">{notification.time}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="notification-empty">
+                        <p>No new notifications</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="header-profile">
               <div className="profile-dropdown" onClick={() => setShowProfileMenu(!showProfileMenu)}>
                 <div className="profile-avatar">
@@ -467,7 +547,7 @@ function DashboardCitizen() {
               <div className="dashboard-grid-layout">
                 {/* Recent Matches Section */}
                 <div className="recent-matches-section">
-                  <h3 className="section-title">Recent Matches</h3>
+                  <h3 className="section-title">Recent Chats</h3>
                   <div className="recent-matches-list">
                     {recentMatches.map((match) => (
                       <div key={match.id} className="match-card-item">
@@ -876,7 +956,9 @@ function DashboardCitizen() {
 
                   <div className="profile-section-block">
                     <h3>Case History & Experience</h3>
-                    <p className="placeholder-text">Detailed case history and verified experience data would appear here.</p>
+                    <p className="case-history-text">
+                      {selectedMatchProfile.caseHistory || 'Detailed case history and verified experience data would appear here.'}
+                    </p>
                   </div>
                 </div>
 
@@ -915,9 +997,30 @@ function DashboardCitizen() {
 
                   <div className="activity-card">
                     <h3>Documents</h3>
-                    <div className="document-placeholder">
-                      No public documents available.
-                    </div>
+                    {selectedMatchProfile.documents ? (
+                      <div className="document-list">
+                        {selectedMatchProfile.documents.map((doc, idx) => (
+                          <div key={idx} className="document-row">
+                            <div className="document-icon">
+                              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
+                            <span className="document-name">{doc.name}</span>
+                            <button className="btn-download">
+                              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                              Download
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="document-placeholder">
+                        No public documents available.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
