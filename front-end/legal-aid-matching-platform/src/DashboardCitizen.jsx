@@ -94,7 +94,7 @@ function DashboardCitizen() {
   // Mock Data for Dashboard
   const dashboardStats = {
     newMatches: { value: 12, label: 'This week' },
-    activeConversations: { value: 7, label: 'With lawyers/NGOs' },
+    activeConversations: { value: conversations.length || 0, label: 'With lawyers/NGOs' },
     scheduledCalls: { value: 3, label: 'Upcoming sessions' },
     resolvedCases: { value: 25, label: 'Total cases' }
   };
@@ -206,6 +206,21 @@ function DashboardCitizen() {
     { name: 'May', matches: 15 },
     { name: 'Jun', matches: 18 }
   ];
+
+  // Utility function to format relative time
+  const formatTimeAgo = (date) => {
+    const now = new Date();
+    const diffInMs = now - date;
+    const diffInMinutes = Math.floor(diffInMs / 60000);
+    const diffInHours = Math.floor(diffInMs / 3600000);
+    const diffInDays = Math.floor(diffInMs / 86400000);
+
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -841,48 +856,92 @@ function DashboardCitizen() {
               </div>
 
               <div className="dashboard-grid-layout">
-                {/* Recent Matches Section */}
+                {/* Recent Chats Section */}
                 <div className="recent-matches-section">
                   <h3 className="section-title">Recent Chats</h3>
                   <div className="recent-matches-list">
-                    {recentMatches.map((match) => (
-                      <div key={match.id} className="match-card-item">
-                        <div className="match-card-left">
-                          <div className="match-avatar-wrapper">
-                            <img src={match.avatar} alt={match.name} className="match-avatar" />
-                            <span className={`status-dot ${match.online ? 'online' : 'offline'}`}></span>
-                          </div>
-                          <div className="match-info">
-                            <div className="match-name-row">
-                              <span className="match-name">{match.name}</span>
-                              <span className="match-role">({match.role})</span>
-                            </div>
-                            <div className="match-desc">{match.description}</div>
-                            <div className="match-time">{match.time}</div>
-                          </div>
-                        </div>
-                        <div className="match-actions">
-                          <button
-                            className="btn-match-action btn-chat"
-                            onClick={() => handleChatClick(match)}
-                          >
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                            </svg>
-                            Chat
-                          </button>
-                          <button
-                            className="btn-match-action btn-profile"
-                            onClick={() => handleProfileClick(match)}
-                          >
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            Profile
-                          </button>
-                        </div>
+                    {loadingConversations ? (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                        Loading conversations...
                       </div>
-                    ))}
+                    ) : conversations.length === 0 ? (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                        No recent chats. Start a conversation with matched lawyers or NGOs!
+                      </div>
+                    ) : (
+                      conversations.slice(0, 5).map((conversation) => {
+                        const timeAgo = conversation.lastMessageTime 
+                          ? formatTimeAgo(new Date(conversation.lastMessageTime))
+                          : 'No messages yet';
+                        
+                        return (
+                          <div key={conversation.matchId} className="match-card-item">
+                            <div className="match-card-left">
+                              <div className="match-avatar-wrapper">
+                                <div className="match-avatar" style={{
+                                  width: '40px',
+                                  height: '40px',
+                                  borderRadius: '50%',
+                                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'white',
+                                  fontWeight: 'bold',
+                                  fontSize: '16px'
+                                }}>
+                                  {conversation.otherUserName?.charAt(0)?.toUpperCase() || '?'}
+                                </div>
+                                {conversation.unreadCount > 0 && (
+                                  <span className="status-dot online"></span>
+                                )}
+                              </div>
+                              <div className="match-info">
+                                <div className="match-name-row">
+                                  <span className="match-name">{conversation.otherUserName || 'Unknown'}</span>
+                                  <span className="match-role">({conversation.otherUserRole || 'User'})</span>
+                                </div>
+                                <div className="match-desc" style={{ 
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  maxWidth: '200px'
+                                }}>
+                                  {conversation.lastMessage || 'No messages yet'}
+                                </div>
+                                <div className="match-time">
+                                  {timeAgo}
+                                  {conversation.unreadCount > 0 && (
+                                    <span style={{
+                                      marginLeft: '8px',
+                                      background: '#667eea',
+                                      color: 'white',
+                                      padding: '2px 6px',
+                                      borderRadius: '10px',
+                                      fontSize: '11px',
+                                      fontWeight: 'bold'
+                                    }}>
+                                      {conversation.unreadCount}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="match-actions">
+                              <button
+                                className="btn-match-action btn-chat"
+                                onClick={() => handleSelectConversation(conversation.matchId)}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                </svg>
+                                Chat
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 

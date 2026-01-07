@@ -336,14 +336,27 @@ function CaseSubmission({ onSuccess, onClose }) {
     setErrors({});
 
     try {
+      console.log('Starting case submission...');
+      console.log('Form data:', formData);
+      
       // Map frontend data to backend CreateCaseRequest DTO
-      const attachments = await Promise.all(
-        uploadedFiles.map(async (fileObj) => ({
-          name: fileObj.name,
-          type: fileObj.type,
-          content: await fileToBase64(fileObj.file)
-        }))
-      );
+      const attachments = uploadedFiles.length > 0 
+        ? await Promise.all(
+            uploadedFiles.map(async (fileObj) => {
+              try {
+                const base64Content = await fileToBase64(fileObj.file);
+                return {
+                  name: fileObj.name,
+                  type: fileObj.type,
+                  content: base64Content
+                };
+              } catch (fileError) {
+                console.error('Error processing file:', fileObj.name, fileError);
+                throw new Error(`Failed to process file: ${fileObj.name}`);
+              }
+            })
+          )
+        : [];
 
       const caseData = {
         title: formData.title,
@@ -356,7 +369,11 @@ function CaseSubmission({ onSuccess, onClose }) {
         attachments: attachments
       };
 
+      console.log('Submitting case data:', { ...caseData, attachments: `${attachments.length} files` });
+
       const response = await apiClient.post('/cases', caseData);
+
+      console.log('Case submission response:', response);
 
       if (response.status === 200 || response.status === 201) {
         alert('Case submitted successfully!');
@@ -366,7 +383,23 @@ function CaseSubmission({ onSuccess, onClose }) {
       }
     } catch (error) {
       console.error('Error submitting case:', error);
-      alert(error.response?.data?.message || 'Failed to submit case. Please try again.');
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      let errorMessage = 'Failed to submit case. Please try again.';
+      
+      if (error.message && error.message.includes('Failed to process file')) {
+        errorMessage = error.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message === 'Network Error' || !error.response) {
+        errorMessage = 'Cannot connect to server. Please make sure the backend is running on port 8080.';
+      }
+      
+      alert(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
