@@ -1,6 +1,7 @@
 package com.example.legalaid_backend.entity;
 
 import com.example.legalaid_backend.util.AppointmentStatus;
+import com.example.legalaid_backend.util.AppointmentType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -44,6 +45,10 @@ public class Appointment {
     @Column
     private LocalTime appointmentTime;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "appointment_type", length = 50)
+    private AppointmentType appointmentType = AppointmentType.OFFLINE;
+
     @Column(length = 500)
     private String venue;
 
@@ -57,8 +62,6 @@ public class Appointment {
     @Column(name = "duration_minutes")
     private Integer durationMinutes;
 
-    @Column(name = "meeting_type", length = 50)
-    private String meetingType;
 
     @Column(name = "meeting_link", length = 500)
     private String meetingLink;

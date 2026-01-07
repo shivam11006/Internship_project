@@ -10,6 +10,7 @@ import com.example.legalaid_backend.repository.CaseRepository;
 import com.example.legalaid_backend.repository.MatchRepository;
 import com.example.legalaid_backend.repository.UserRepository;
 import com.example.legalaid_backend.util.AppointmentStatus;
+import com.example.legalaid_backend.util.AppointmentType;
 import com.example.legalaid_backend.util.MatchStatus;
 import com.example.legalaid_backend.util.Role;
 import lombok.RequiredArgsConstructor;
@@ -64,9 +65,20 @@ public class AppointmentService {
             throw new RuntimeException("Scheduled time must be in the future");
         }
 
-        // Validate venue is provided (required for offline appointments)
-        if (request.getVenue() == null || request.getVenue().trim().isEmpty()) {
-            throw new RuntimeException("Venue is required for appointments");
+        // Set default appointment type if not provided
+        AppointmentType appointmentType = request.getAppointmentType() != null 
+            ? request.getAppointmentType() 
+            : AppointmentType.OFFLINE;
+
+        // Validate details based on appointment type
+        if (appointmentType == AppointmentType.OFFLINE) {
+            if (request.getVenue() == null || request.getVenue().trim().isEmpty()) {
+                throw new RuntimeException("Venue is required for offline appointments");
+            }
+        } else if (appointmentType == AppointmentType.CALL) {
+            if (request.getMeetingLink() == null || request.getMeetingLink().trim().isEmpty()) {
+                throw new RuntimeException("Phone number or meeting link is required for call appointments");
+            }
         }
 
         // Create appointment
@@ -77,7 +89,10 @@ public class AppointmentService {
         appointment.setProvider(provider);
         appointment.setScheduledDateTime(request.getScheduledDateTime());
         appointment.setAppointmentTime(request.getAppointmentTime());
+        appointment.setAppointmentType(appointmentType);
         appointment.setVenue(request.getVenue());
+        appointment.setMeetingLink(request.getMeetingLink());
+        appointment.setDurationMinutes(request.getDurationMinutes());
         appointment.setLocation(request.getLocation());
         appointment.setAddress(request.getAddress());
         appointment.setNotes(request.getNotes());
@@ -689,7 +704,10 @@ public class AppointmentService {
                 .providerRole(appointment.getProvider().getRole().name())
                 .scheduledDateTime(appointment.getScheduledDateTime())
                 .appointmentTime(appointment.getAppointmentTime())
+                .appointmentType(appointment.getAppointmentType())
                 .venue(appointment.getVenue())
+                .meetingLink(appointment.getMeetingLink())
+                .durationMinutes(appointment.getDurationMinutes())
                 .location(appointment.getLocation())
                 .address(appointment.getAddress())
                 .notes(appointment.getNotes())

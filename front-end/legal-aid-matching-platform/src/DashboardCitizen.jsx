@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import authService from './services/authService';
 import chatService from './services/chatService';
+import appointmentService from './services/appointmentService';
 import CaseSubmission from './CaseSubmission';
 import Directory from './Directory';
 import CaseManagement from './CaseManagement';
@@ -20,6 +21,22 @@ function DashboardCitizen() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeChat, setActiveChat] = useState(null); // Will store matchId
+  
+  // Appointment form state
+  const [appointmentForm, setAppointmentForm] = useState({
+    appointmentType: 'call', // 'call' or 'offline'
+    date: '',
+    time: '',
+    venue: '',
+    meetingLink: '',
+    durationMinutes: '',
+    location: '',
+    address: '',
+    notes: '',
+    agenda: ''
+  });
+  const [submittingAppointment, setSubmittingAppointment] = useState(false);
+  const [appointmentError, setAppointmentError] = useState(null);
   const [messageText, setMessageText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
@@ -62,27 +79,9 @@ function DashboardCitizen() {
     }
   ]);
 
-  // Upcoming Events State
-  const [upcomingEvents, setUpcomingEvents] = useState([
-    {
-      id: 1,
-      title: 'Consultation with Anya Sharma',
-      type: 'Video Call',
-      date: 'Jan 7, 2026',
-      time: '10:00 AM',
-      contact: 'Anya Sharma',
-      status: 'confirmed'
-    },
-    {
-      id: 2,
-      title: 'Case Review - Legal Aid Corps',
-      type: 'Phone Call',
-      date: 'Jan 9, 2026',
-      time: '03:30 PM',
-      contact: 'Michael Chen',
-      status: 'pending'
-    }
-  ]);
+  // Appointment State
+  const [appointments, setAppointments] = useState([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(false);
 
   // Real Chat Data
   const [conversations, setConversations] = useState([]);
@@ -235,6 +234,26 @@ function DashboardCitizen() {
     };
     fetchProfile();
   }, []);
+
+  // Load upcoming appointments
+  const loadUpcomingAppointments = useCallback(async () => {
+    try {
+      setLoadingAppointments(true);
+      const result = await appointmentService.getUpcomingAppointments();
+      // API returns array directly, not wrapped in {success, data}
+      setAppointments(Array.isArray(result) ? result : []);
+    } catch (error) {
+      console.error('Error loading appointments:', error);
+      setAppointments([]);
+    } finally {
+      setLoadingAppointments(false);
+    }
+  }, []);
+
+  // Load appointments on mount
+  useEffect(() => {
+    loadUpcomingAppointments();
+  }, [loadUpcomingAppointments]);
 
   // Initialize WebSocket connection and load conversations
   useEffect(() => {
@@ -609,6 +628,112 @@ function DashboardCitizen() {
     setSelectedMatchProfile(null);
   };
 
+  const handleOpenScheduleModal = () => {
+    // Reset form when opening modal
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const defaultDate = tomorrow.toISOString().split('T')[0];
+    
+    setAppointmentForm({
+      appointmentType: 'call',
+      date: defaultDate,
+      time: '10:30',
+      venue: '',
+      meetingLink: '',
+      durationMinutes: '',
+      location: '',
+      address: '',
+      notes: '',
+      agenda: ''
+    });
+    setAppointmentError(null);
+    setShowScheduleModal(true);
+  };
+
+  const handleCloseScheduleModal = () => {
+    setShowScheduleModal(false);
+    setAppointmentError(null);
+  };
+
+  const handleAppointmentFormChange = (field, value) => {
+    setAppointmentForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    setAppointmentError(null);
+  };
+
+  const handleTimeSlotSelect = (time) => {
+    handleAppointmentFormChange('time', time);
+  };
+
+  const handleSubmitAppointment = async () => {
+    if (!currentContact) {
+      setAppointmentError('No contact selected');
+      return;
+    }
+
+    // Validate form
+    if (!appointmentForm.date || !appointmentForm.time) {
+      setAppointmentError('Please select date and time');
+      return;
+    }
+
+    // Validate duration
+    if (!appointmentForm.durationMinutes || isNaN(Number(appointmentForm.durationMinutes)) || Number(appointmentForm.durationMinutes) <= 0) {
+      setAppointmentError('Please enter a valid duration in minutes');
+      return;
+    }
+
+    // Validate based on appointment type
+    if (appointmentForm.appointmentType === 'offline') {
+      if (!appointmentForm.venue || !appointmentForm.venue.trim()) {
+        setAppointmentError('Please provide a venue for offline meeting');
+        return;
+      }
+    } else if (appointmentForm.appointmentType === 'call') {
+      if (!appointmentForm.meetingLink || !appointmentForm.meetingLink.trim()) {
+        setAppointmentError('Please provide a phone number or meeting link for call appointments');
+        return;
+      }
+    }
+
+    setSubmittingAppointment(true);
+    setAppointmentError(null);
+
+    try {
+      // Combine date and time into ISO datetime format
+      const scheduledDateTime = `${appointmentForm.date}T${appointmentForm.time}:00`;
+      
+      const appointmentData = {
+        matchId: currentContact.matchId,
+        scheduledDateTime: scheduledDateTime,
+        appointmentTime: `${appointmentForm.time}:00`,
+        appointmentType: appointmentForm.appointmentType.toUpperCase(),
+        venue: appointmentForm.appointmentType === 'offline' ? appointmentForm.venue : null,
+        meetingLink: appointmentForm.appointmentType === 'call' ? appointmentForm.meetingLink : null,
+        durationMinutes: Number(appointmentForm.durationMinutes),
+        location: appointmentForm.location || null,
+        address: appointmentForm.address || null,
+        notes: appointmentForm.notes || null,
+        agenda: appointmentForm.agenda || null
+      };
+
+      const response = await appointmentService.createAppointment(appointmentData);
+      console.log('Appointment created successfully:', response);
+      alert(`Appointment scheduled successfully! Status: ${response.statusDescription || response.status}`);
+      handleCloseScheduleModal();
+      // Optionally refresh appointments list
+      // await loadUpcomingAppointments();
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      setAppointmentError(error.message || 'Failed to create appointment');
+    } finally {
+      setSubmittingAppointment(false);
+    }
+  };
+
   const currentContact = conversations.find(c => c.matchId === activeChat);
 
   return (
@@ -945,39 +1070,93 @@ function DashboardCitizen() {
                   </div>
                 </div>
 
-                {/* Upcoming Events Section */}
+                {/* Upcoming Schedule Section */}
                 <div className="upcoming-events-section">
                   <div className="section-header-row">
-                    <h3 className="section-title">Upcoming Events</h3>
-                    <button className="view-all-link">View Calendar</button>
+                    <h3 className="section-title">Upcoming Schedule</h3>
+                    <button className="view-all-link" onClick={() => setActiveTab('schedule')}>View All</button>
                   </div>
-                  <div className="events-grid">
-                    {upcomingEvents.map(event => (
-                      <div key={event.id} className={`event-card ${event.status}`}>
-                        <div className="event-date-box">
-                          <span className="event-month">{event.date.split(' ')[0]}</span>
-                          <span className="event-day">{event.date.split(' ')[1].replace(',', '')}</span>
-                        </div>
-                        <div className="event-details">
-                          <div className="event-title-row">
-                            <h4>{event.title}</h4>
-                            <span className={`event-status-pill ${event.status}`}>{event.status}</span>
-                          </div>
-                          <div className="event-meta">
-                            <span className="event-time">🕒 {event.time}</span>
-                            <span className="event-type">💻 {event.type}</span>
-                          </div>
-                          <div className="event-footer">
-                            <div className="event-contact">
-                              <div className="mini-avatar">👩‍💼</div>
-                              <span>{event.contact}</span>
-                            </div>
-                            <button className="btn-join-call" disabled={event.status === 'pending'}>Join Call</button>
-                          </div>
-                        </div>
+                  
+                  {loadingAppointments ? (
+                    <div style={{ textAlign: 'center', padding: '2rem' }}>
+                      <div className="loading-spinner" style={{ display: 'inline-block' }}>
+                        <div className="spinner" style={{
+                          width: '40px',
+                          height: '40px',
+                          border: '4px solid #f3f4f6',
+                          borderTop: '4px solid #667eea',
+                          borderRadius: '50%',
+                          animation: 'spin 0.6s linear infinite'
+                        }}></div>
                       </div>
-                    ))}
-                  </div>
+                      <p style={{ marginTop: '1rem', color: '#6b7280' }}>Loading appointments...</p>
+                    </div>
+                  ) : appointments.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
+                      No upcoming appointments
+                    </div>
+                  ) : (
+                    <div className="events-grid">
+                      {appointments.map(appointment => {
+                        const appointmentDate = new Date(appointment.scheduledDateTime);
+                        const dateStr = appointmentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        const timeStr = appointmentDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        
+                        // Determine status color based on appointment status
+                        let statusClass = 'pending';
+                        if (appointment.status === 'CONFIRMED') statusClass = 'confirmed';
+                        else if (appointment.status === 'CANCELLED') statusClass = 'cancelled';
+                        else if (appointment.status === 'COMPLETED') statusClass = 'completed';
+                        else if (appointment.status === 'NO_SHOW') statusClass = 'no-show';
+                        
+                        return (
+                          <div key={appointment.id} className={`event-card ${statusClass}`}>
+                            <div className="event-date-box">
+                              <span className="event-month">{dateStr.split(' ')[0]}</span>
+                              <span className="event-day">{dateStr.split(' ')[1]}</span>
+                            </div>
+                            <div className="event-details">
+                              <div className="event-title-row">
+                                <h4>{appointment.caseTitle || 'Appointment'}</h4>
+                                <span className={`event-status-pill ${statusClass}`}>{appointment.status}</span>
+                              </div>
+                              <div className="event-meta">
+                                <span className="event-time">🕒 {timeStr}</span>
+                                <span className="event-type">
+                                  {appointment.appointmentType === 'CALL' ? '📞 Call' : '🏢 Offline'}
+                                </span>
+                                {appointment.durationMinutes && (
+                                  <span className="event-duration">⏱️ {appointment.durationMinutes} min</span>
+                                )}
+                              </div>
+                              {appointment.appointmentType === 'CALL' && appointment.meetingLink && (
+                                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                                  📱 {appointment.meetingLink}
+                                </div>
+                              )}
+                              {appointment.appointmentType === 'OFFLINE' && appointment.venue && (
+                                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                                  📍 {appointment.venue}
+                                </div>
+                              )}
+                              <div className="event-footer">
+                                <div className="event-contact">
+                                  <div className="mini-avatar">👩‍💼</div>
+                                  <span>{appointment.providerName || 'Provider'}</span>
+                                </div>
+                                {appointment.status === 'CONFIRMED' && (
+                                  <button className="btn-join-call">View Details</button>
+                                )}
+                                {appointment.status === 'PENDING' && appointment.citizenConfirmRequired && (
+                                  <button className="btn-join-call" style={{ backgroundColor: '#10b981' }}>Accept</button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Chart Section */}
@@ -1156,7 +1335,7 @@ function DashboardCitizen() {
                       </svg>
                       <span>View Profile</span>
                     </button>
-                    <button className="btn-header-action btn-schedule" onClick={() => setShowScheduleModal(true)}>
+                    <button className="btn-header-action btn-schedule" onClick={handleOpenScheduleModal}>
                       <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
@@ -1533,79 +1712,212 @@ function DashboardCitizen() {
         </div>
       )}
 
-      {/* Schedule Call Modal */}
-      {showScheduleModal && (
-        <div className="modal-overlay" onClick={() => setShowScheduleModal(false)}>
+      {/* Schedule Appointment Modal */}
+      {showScheduleModal && currentContact && (
+        <div className="modal-overlay" onClick={handleCloseScheduleModal}>
           <div className="modal-content schedule-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="schedule-header">
-                <h2>Schedule a Call</h2>
-                <div className="schedule-subtitle">Propose a time to connect with {currentContact.name}</div>
+                <h2>Schedule an Appointment</h2>
+                <div className="schedule-subtitle">Propose a time to connect with {currentContact.otherUserName}</div>
               </div>
-              <button className="modal-close" onClick={() => setShowScheduleModal(false)}>×</button>
+              <button className="modal-close" onClick={handleCloseScheduleModal}>×</button>
             </div>
             <div className="modal-body">
               <div className="contact-preview-card">
-                <img className="contact-preview-avatar" src={currentContact.avatar} alt={currentContact.name} />
+                <div className="contact-preview-avatar" style={{ 
+                  width: '48px', 
+                  height: '48px', 
+                  borderRadius: '50%', 
+                  backgroundColor: '#8b5cf6',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px',
+                  fontWeight: 'bold'
+                }}>
+                  {currentContact.otherUserName?.charAt(0)?.toUpperCase() || '?'}
+                </div>
                 <div className="contact-preview-info">
-                  <h4>{currentContact.name} <span className="contact-preview-role">{currentContact.role}</span></h4>
-                  <span className="match-score-pill">Match Score: {currentContact.matchScore}</span>
+                  <h4>{currentContact.otherUserName} <span className="contact-preview-role">{currentContact.otherUserRole}</span></h4>
+                  <span className="match-score-pill">Case: {currentContact.caseTitle}</span>
                 </div>
               </div>
 
+              {appointmentError && (
+                <div style={{ 
+                  padding: '12px', 
+                  backgroundColor: '#fee2e2', 
+                  color: '#dc2626', 
+                  borderRadius: '8px', 
+                  marginBottom: '16px',
+                  fontSize: '14px'
+                }}>
+                  {appointmentError}
+                </div>
+              )}
+
               <div className="profile-form">
+                {/* Appointment Type Selection */}
+                <div className="form-group">
+                  <label>Appointment Type</label>
+                  <div className="appointment-type-selector" style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                    <button
+                      type="button"
+                      className={`time-slot-btn ${appointmentForm.appointmentType === 'call' ? 'selected' : ''}`}
+                      style={{ flex: 1 }}
+                      onClick={() => handleAppointmentFormChange('appointmentType', 'call')}
+                    >
+                      📞 Call
+                    </button>
+                    <button
+                      type="button"
+                      className={`time-slot-btn ${appointmentForm.appointmentType === 'offline' ? 'selected' : ''}`}
+                      style={{ flex: 1 }}
+                      onClick={() => handleAppointmentFormChange('appointmentType', 'offline')}
+                    >
+                      🏢 Offline Meeting
+                    </button>
+                  </div>
+                </div>
+
                 <div className="form-group">
                   <label>Date</label>
-                  <input type="date" defaultValue="2025-12-28" />
+                  <input 
+                    type="date" 
+                    value={appointmentForm.date}
+                    onChange={(e) => handleAppointmentFormChange('date', e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
                 </div>
 
                 <div className="form-group">
-                  <label>Time Zone</label>
-                  <select className="chat-search-input" style={{ paddingLeft: '12px' }}>
-                    <option>Select a time zone</option>
-                    <option selected>India Standard Time (IST)</option>
-                    <option>Pacific Standard Time (PST)</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Proposed Time Slots</label>
+                  <label>Time</label>
                   <div className="time-slots-grid">
-                    {['9:00 AM', '10:30 AM', '2:00 PM', '3:30 PM', '5:00 PM'].map((slot, i) => (
-                      <button key={i} className={`time-slot-btn ${slot === '10:30 AM' ? 'selected' : ''}`}>
+                    {['09:00', '10:30', '14:00', '15:30', '17:00'].map((slot, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className={`time-slot-btn ${appointmentForm.time === slot ? 'selected' : ''}`}
+                        onClick={() => handleTimeSlotSelect(slot)}
+                      >
                         {slot}
                       </button>
                     ))}
                   </div>
+                  <input
+                    type="time"
+                    value={appointmentForm.time}
+                    onChange={(e) => handleAppointmentFormChange('time', e.target.value)}
+                    style={{ marginTop: '12px', width: '100%' }}
+                  />
                 </div>
 
-                <div className="form-group">
-                  <label>Call Duration</label>
-                  <select className="chat-search-input" style={{ paddingLeft: '12px' }}>
-                    <option>Select duration</option>
-                    <option selected>30 minutes</option>
-                    <option>1 hour</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Reminders</label>
-                  <div className="reminder-options">
-                    <label className="checkbox-group">
-                      <input type="checkbox" defaultChecked />
-                      15 minutes before the call
-                    </label>
-                    <label className="checkbox-group">
-                      <input type="checkbox" />
-                      1 hour before the call
-                    </label>
+                {/* Venue - Required for offline, optional for call */}
+                {/* Venue for offline, Meeting Link for call */}
+                {appointmentForm.appointmentType === 'offline' ? (
+                  <div className="form-group">
+                    <label>Venue *</label>
+                    <input
+                      type="text"
+                      className="chat-search-input"
+                      placeholder="e.g., City Legal Aid Center"
+                      value={appointmentForm.venue}
+                      onChange={(e) => handleAppointmentFormChange('venue', e.target.value)}
+                    />
                   </div>
+                ) : (
+                  <div className="form-group">
+                    <label>Phone Number or Meeting Link *</label>
+                    <input
+                      type="text"
+                      className="chat-search-input"
+                      placeholder="e.g., +1-234-567-8900 or https://zoom.us/j/1234567890"
+                      value={appointmentForm.meetingLink}
+                      onChange={(e) => handleAppointmentFormChange('meetingLink', e.target.value)}
+                    />
+                  </div>
+                )}
+                <div className="form-group">
+                  <label>Duration (minutes) *</label>
+                  <input
+                    type="number"
+                    className="chat-search-input"
+                    min="1"
+                    placeholder="e.g., 30"
+                    value={appointmentForm.durationMinutes}
+                    onChange={(e) => handleAppointmentFormChange('durationMinutes', e.target.value)}
+                  />
+                </div>
+
+                {/* Location - Show only for offline */}
+                {appointmentForm.appointmentType === 'offline' && (
+                  <>
+                    <div className="form-group">
+                      <label>Location (Optional)</label>
+                      <input
+                        type="text"
+                        className="chat-search-input"
+                        placeholder="e.g., Downtown, City Center"
+                        value={appointmentForm.location}
+                        onChange={(e) => handleAppointmentFormChange('location', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Address (Optional)</label>
+                      <input
+                        type="text"
+                        className="chat-search-input"
+                        placeholder="e.g., 123 Main Street, Suite 400"
+                        value={appointmentForm.address}
+                        onChange={(e) => handleAppointmentFormChange('address', e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="form-group">
+                  <label>Notes (Optional)</label>
+                  <textarea
+                    className="chat-search-input"
+                    style={{ minHeight: '80px', paddingTop: '12px', resize: 'vertical' }}
+                    placeholder="Add any additional notes or requirements..."
+                    value={appointmentForm.notes}
+                    onChange={(e) => handleAppointmentFormChange('notes', e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Agenda (Optional)</label>
+                  <textarea
+                    className="chat-search-input"
+                    style={{ minHeight: '80px', paddingTop: '12px', resize: 'vertical' }}
+                    placeholder="Meeting agenda items..."
+                    value={appointmentForm.agenda}
+                    onChange={(e) => handleAppointmentFormChange('agenda', e.target.value)}
+                  />
                 </div>
               </div>
             </div>
             <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
-              <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowScheduleModal(false)}>Cancel</button>
-              <button className="btn-primary btn-confirm-schedule" style={{ flex: 2 }} onClick={() => setShowScheduleModal(false)}>Confirm Call</button>
+              <button 
+                className="btn-secondary" 
+                style={{ flex: 1 }} 
+                onClick={handleCloseScheduleModal}
+                disabled={submittingAppointment}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn-primary btn-confirm-schedule" 
+                style={{ flex: 2 }} 
+                onClick={handleSubmitAppointment}
+                disabled={submittingAppointment}
+              >
+                {submittingAppointment ? 'Scheduling...' : 'Confirm Appointment'}
+              </button>
             </div>
           </div>
         </div>

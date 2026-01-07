@@ -99,9 +99,12 @@ Creates a new offline appointment request.
 **Access:** All authenticated users (Citizen, Lawyer, NGO)
 
 **Request Body:**
+
+**For OFFLINE appointments:**
 ```json
 {
   "matchId": 1,
+  "appointmentType": "OFFLINE",
   "scheduledDateTime": "2026-01-15T10:00:00",
   "appointmentTime": "10:00:00",
   "venue": "City Legal Aid Center",
@@ -112,15 +115,29 @@ Creates a new offline appointment request.
 }
 ```
 
+**For CALL appointments:**
+```json
+{
+  "matchId": 2,
+  "appointmentType": "CALL",
+  "scheduledDateTime": "2026-01-15T14:00:00",
+  "appointmentTime": "14:00:00",
+  "venue": "Phone: +1-234-567-8900 or Meeting Link: https://zoom.us/j/1234567890",
+  "notes": "Video consultation",
+  "agenda": "Initial case discussion"
+}
+```
+
 **Request Fields:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `matchId` | Long | Yes | ID of the accepted match |
+| `appointmentType` | String | No | "CALL" or "OFFLINE" (default: "OFFLINE") |
 | `scheduledDateTime` | DateTime | Yes | Date and time of appointment |
 | `appointmentTime` | Time | No | Specific time (HH:mm:ss format) |
-| `venue` | String | Yes | Name of the meeting venue |
-| `location` | String | No | General location/area |
-| `address` | String | No | Full address of the venue |
+| `venue` | String | Yes | For OFFLINE: venue name. For CALL: phone number or meeting link |
+| `location` | String | No | General location/area (for OFFLINE) |
+| `address` | String | No | Full address of the venue (for OFFLINE) |
 | `notes` | String | No | Additional notes |
 | `agenda` | String | No | Meeting agenda items |
 

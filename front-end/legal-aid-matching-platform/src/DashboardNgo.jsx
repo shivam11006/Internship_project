@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
 import chatService from './services/chatService';
 import * as matchService from './services/matchService';
+import appointmentService from './services/appointmentService';
 import AssignedCases from './AssignedCases';
 import './Dashboard.css';
 import './SecureChat.css';
@@ -42,6 +43,12 @@ function DashboardNgo() {
   const [loadingCases, setLoadingCases] = useState(true);
   const [casesError, setCasesError] = useState(null);
   const [refreshAssignedCases, setRefreshAssignedCases] = useState(0);
+
+  // Appointments State
+  const [appointments, setAppointments] = useState([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(true);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
 
   // Upcoming Events State
   const [upcomingEvents] = useState([
@@ -245,6 +252,101 @@ function DashboardNgo() {
       } catch (err) {
         console.error('Error declining case:', err);
         alert('Failed to decline case. Please try again.');
+      }
+    }
+  };
+
+  // Load upcoming appointments
+  const loadUpcomingAppointments = useCallback(async () => {
+    try {
+      setLoadingAppointments(true);
+      const result = await appointmentService.getUpcomingAppointments();
+      // API returns array directly, not wrapped in {success, data}
+      setAppointments(Array.isArray(result) ? result : []);
+    } catch (error) {
+      console.error('Error loading appointments:', error);
+      setAppointments([]);
+    } finally {
+      setLoadingAppointments(false);
+    }
+  }, []);
+
+  // Load appointments on mount
+  useEffect(() => {
+    loadUpcomingAppointments();
+  }, [loadUpcomingAppointments]);
+
+  // Accept appointment
+  const handleAcceptAppointment = async (id) => {
+    if (window.confirm('Accept this appointment?')) {
+      try {
+        const result = await appointmentService.acceptAppointment(id);
+        if (result.success) {
+          alert('Appointment accepted successfully!');
+          loadUpcomingAppointments(); // Reload appointments
+        } else {
+          alert('Failed to accept appointment: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error accepting appointment:', error);
+        alert('Failed to accept appointment');
+      }
+    }
+  };
+
+  // Cancel appointment
+  const handleCancelAppointment = async (id) => {
+    const reason = prompt('Please provide a reason for cancellation:');
+    if (reason && reason.trim()) {
+      try {
+        const result = await appointmentService.cancelAppointment(id, reason);
+        if (result.success) {
+          alert('Appointment cancelled successfully');
+          loadUpcomingAppointments(); // Reload appointments
+        } else {
+          alert('Failed to cancel appointment: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error cancelling appointment:', error);
+        alert('Failed to cancel appointment');
+      }
+    }
+  };
+
+  // Request reschedule
+  const handleRequestReschedule = async (id) => {
+    const reason = prompt('Please provide a reason for rescheduling:');
+    if (reason && reason.trim()) {
+      try {
+        const result = await appointmentService.requestReschedule(id, reason);
+        if (result.success) {
+          alert('Reschedule request sent successfully');
+          loadUpcomingAppointments(); // Reload appointments
+        } else {
+          alert('Failed to request reschedule: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error requesting reschedule:', error);
+        alert('Failed to request reschedule');
+      }
+    }
+  };
+
+  // Complete appointment
+  const handleCompleteAppointment = async (id) => {
+    const notes = prompt('Add completion notes (optional):');
+    if (notes !== null) { // User didn't click Cancel
+      try {
+        const result = await appointmentService.completeAppointment(id, notes || '');
+        if (result.success) {
+          alert('Appointment marked as complete!');
+          loadUpcomingAppointments(); // Reload appointments
+        } else {
+          alert('Failed to complete appointment: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error completing appointment:', error);
+        alert('Failed to complete appointment');
       }
     }
   };
@@ -636,39 +738,119 @@ function DashboardNgo() {
         <div className="dashboard-content">
           {activeTab === 'overview' && (
             <div className="overview-container">
-              {/* Upcoming Events Section */}
+              {/* Upcoming Appointments Section */}
               <div className="upcoming-events-section" style={{ marginTop: 0, marginBottom: '2rem' }}>
                 <div className="section-header-row">
-                  <h3 className="section-title">Upcoming Coordinator Sessions</h3>
-                  <button className="view-all-link">View Calendar</button>
+                  <h3 className="section-title">Upcoming Schedule</h3>
+                  <button className="view-all-link">View All</button>
                 </div>
-                <div className="events-grid">
-                  {upcomingEvents.map(event => (
-                    <div key={event.id} className={`event-card ${event.status}`}>
-                      <div className="event-date-box">
-                        <span className="event-month">{event.date.split(' ')[0]}</span>
-                        <span className="event-day">{event.date.split(' ')[1].replace(',', '')}</span>
-                      </div>
-                      <div className="event-details">
-                        <div className="event-title-row">
-                          <h4>{event.title}</h4>
-                          <span className={`event-status-pill ${event.status}`}>{event.status}</span>
-                        </div>
-                        <div className="event-meta">
-                          <span className="event-time">🕒 {event.time}</span>
-                          <span className="event-type">💻 {event.type}</span>
-                        </div>
-                        <div className="event-footer">
-                          <div className="event-contact">
-                            <div className="mini-avatar">🏢</div>
-                            <span>{event.contact}</span>
-                          </div>
-                          <button className="btn-join-call">Join Coordination</button>
-                        </div>
-                      </div>
+                
+                {loadingAppointments ? (
+                  <div style={{ textAlign: 'center', padding: '2rem' }}>
+                    <div className="loading-spinner" style={{ display: 'inline-block' }}>
+                      <div className="spinner" style={{
+                        width: '40px',
+                        height: '40px',
+                        border: '4px solid #f3f4f6',
+                        borderTop: '4px solid #667eea',
+                        borderRadius: '50%',
+                        animation: 'spin 0.6s linear infinite'
+                      }}></div>
                     </div>
-                  ))}
-                </div>
+                    <p style={{ marginTop: '1rem', color: '#6b7280' }}>Loading appointments...</p>
+                  </div>
+                ) : appointments.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
+                    No upcoming appointments
+                  </div>
+                ) : (
+                  <div className="events-grid">
+                    {appointments.map(appointment => {
+                      const appointmentDate = new Date(appointment.scheduledDateTime);
+                      const dateStr = appointmentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      const timeStr = appointmentDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                      
+                      // Determine status color based on appointment status
+                      let statusClass = 'pending';
+                      if (appointment.status === 'CONFIRMED') statusClass = 'confirmed';
+                      else if (appointment.status === 'CANCELLED') statusClass = 'cancelled';
+                      else if (appointment.status === 'COMPLETED') statusClass = 'completed';
+                      else if (appointment.status === 'NO_SHOW') statusClass = 'no-show';
+                      
+                      return (
+                        <div key={appointment.id} className={`event-card ${statusClass}`}>
+                          <div className="event-date-box">
+                            <span className="event-month">{dateStr.split(' ')[0]}</span>
+                            <span className="event-day">{dateStr.split(' ')[1]}</span>
+                          </div>
+                          <div className="event-details">
+                            <div className="event-title-row">
+                              <h4>{appointment.caseTitle || 'Appointment'}</h4>
+                              <span className={`event-status-pill ${statusClass}`}>{appointment.status}</span>
+                            </div>
+                            <div className="event-meta">
+                              <span className="event-time">🕒 {timeStr}</span>
+                              <span className="event-type">
+                                {appointment.appointmentType === 'CALL' ? '📞 Call' : '🏢 Offline'}
+                              </span>
+                              {appointment.durationMinutes && (
+                                <span className="event-duration">⏱️ {appointment.durationMinutes} min</span>
+                              )}
+                            </div>
+                            {appointment.appointmentType === 'CALL' && appointment.meetingLink && (
+                              <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                                📱 {appointment.meetingLink}
+                              </div>
+                            )}
+                            {appointment.appointmentType === 'OFFLINE' && appointment.venue && (
+                              <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                                📍 {appointment.venue}
+                              </div>
+                            )}
+                            <div className="event-footer" style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              {appointment.status === 'PENDING' && appointment.providerAcceptRequired && (
+                                <button 
+                                  className="btn-join-call" 
+                                  style={{ backgroundColor: '#10b981', flex: '1', minWidth: '80px' }}
+                                  onClick={() => handleAcceptAppointment(appointment.id)}
+                                >
+                                  Accept
+                                </button>
+                              )}
+                              {(appointment.status === 'PENDING' || appointment.status === 'CONFIRMED') && (
+                                <>
+                                  <button 
+                                    className="btn-join-call"
+                                    style={{ backgroundColor: '#f59e0b', flex: '1', minWidth: '80px' }}
+                                    onClick={() => handleRequestReschedule(appointment.id)}
+                                  >
+                                    Reschedule
+                                  </button>
+                                  <button 
+                                    className="btn-join-call"
+                                    style={{ backgroundColor: '#ef4444', flex: '1', minWidth: '80px' }}
+                                    onClick={() => handleCancelAppointment(appointment.id)}
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              )}
+                              {appointment.status === 'CONFIRMED' && new Date(appointment.scheduledDateTime) < new Date() && (
+                                <button 
+                                  className="btn-join-call"
+                                  style={{ backgroundColor: '#8b5cf6', flex: '1', minWidth: '80px' }}
+                                  onClick={() => handleCompleteAppointment(appointment.id)}
+                                >
+                                  Complete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem', color: '#1f2937' }}>New Case Requests</h2>
