@@ -288,7 +288,8 @@ public class MatchService {
             throw new RuntimeException("Only lawyers and NGOs can accept case assignments");
         }
 
-        Match match = matchRepository.findById(matchId)
+        // Use pessimistic lock to prevent race conditions
+        Match match = matchRepository.findByIdWithLock(matchId)
                 .orElseThrow(() -> new RuntimeException("Match not found"));
 
         // Verify the user is the matched provider
@@ -299,14 +300,43 @@ public class MatchService {
             throw new RuntimeException("Access denied: You are not assigned to this case");
         }
 
+        // Check current status - must be SELECTED_BY_CITIZEN to accept
+        if (match.getStatus() == MatchStatus.EXPIRED) {
+            throw new RuntimeException("This case has already been accepted by another provider. You can no longer accept it.");
+        }
+        
         if (match.getStatus() != MatchStatus.SELECTED_BY_CITIZEN) {
-            throw new RuntimeException("Only cases selected by citizens can be accepted");
+            throw new RuntimeException("Only cases selected by citizens can be accepted. Current status: " + match.getStatus());
         }
 
+        // Double-check if another provider has already accepted this case
+        Long caseId = match.getLegalCase().getId();
+        long acceptedCount = matchRepository.countAcceptedMatchesForCase(caseId);
+        if (acceptedCount > 0) {
+            // Mark this match as expired since another provider already accepted
+            match.setStatus(MatchStatus.EXPIRED);
+            match.setRejectionReason("Another provider has accepted this case");
+            matchRepository.save(match);
+            throw new RuntimeException("This case has already been accepted by another provider. You can no longer accept it.");
+        }
+
+        // Accept the case
         match.setStatus(MatchStatus.ACCEPTED_BY_PROVIDER);
         match.setAcceptedAt(LocalDateTime.now());
 
         Match updatedMatch = matchRepository.save(match);
+
+        // Expire all other SELECTED_BY_CITIZEN matches for this case
+        List<Match> otherSelectedMatches = matchRepository.findByCaseIdAndStatus(caseId, MatchStatus.SELECTED_BY_CITIZEN);
+        for (Match otherMatch : otherSelectedMatches) {
+            if (!otherMatch.getId().equals(matchId)) {
+                otherMatch.setStatus(MatchStatus.EXPIRED);
+                otherMatch.setRejectionReason("Another provider has accepted this case");
+                matchRepository.save(otherMatch);
+                log.info("Match {} expired because provider {} accepted case {}", 
+                        otherMatch.getId(), currentUser.getEmail(), caseId);
+            }
+        }
 
         log.info("Case assignment {} accepted by provider {}", matchId, currentUser.getEmail());
 

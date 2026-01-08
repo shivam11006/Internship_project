@@ -35,7 +35,8 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
       const completedCases = casesData.filter(c =>
         c.status === 'ACCEPTED_BY_PROVIDER' || c.status === 'REJECTED_BY_PROVIDER'
         || c.status === 'PENDING_PROVIDER_ACTION' || c.status === 'PENDING'
-      ); // Also including pending cases so they appear in the list for action
+        || c.status === 'SELECTED_BY_CITIZEN' || c.status === 'EXPIRED'
+      ); // Also including pending/selected cases so they appear in the list for action
 
       // Transform the data to match component expectations
       const transformedCases = completedCases.map(c => ({
@@ -49,7 +50,8 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
         matchScore: c.matchScore || 85,
         matchReason: c.matchReason || '',
         status: c.status === 'ACCEPTED_BY_PROVIDER' ? 'accepted' :
-          c.status === 'REJECTED_BY_PROVIDER' ? 'declined' : 'pending',
+          c.status === 'REJECTED_BY_PROVIDER' ? 'declined' : 
+          c.status === 'EXPIRED' ? 'expired' : 'pending',
         createdAt: c.createdAt,
         citizenName: c.citizenName || 'Citizen',
         citizenEmail: c.citizenEmail || '',
@@ -59,7 +61,8 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
         preferredLanguage: c.preferredLanguage || 'English',
         expertiseTags: c.expertiseTags || [],
         additionalParties: c.additionalParties || 'None',
-        evidence: c.attachments || []
+        evidence: c.attachments || [],
+        rejectionReason: c.rejectionReason || ''
       }));
 
       setCases(transformedCases);
@@ -99,20 +102,26 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
     const confirmed = window.confirm('Accept this case assignment?');
     if (confirmed) {
       try {
+        setProcessingId(matchId);
         await matchService.acceptCaseAssignment(matchId);
         setCases(cases.map(c =>
           c.id === matchId ? { ...c, status: 'accepted' } : c
         ));
         setShowDetails(false);
         alert('Case assignment accepted!');
+        // Refresh to get updated statuses for other matches
+        fetchAssignedCases();
       } catch (err) {
         console.error('Error accepting case:', err);
-        // Optimistic update for demo purposes if API fails
-        setCases(cases.map(c =>
-          c.id === matchId ? { ...c, status: 'accepted' } : c
-        ));
-        setShowDetails(false);
-        alert('Case assignment accepted (Simulation).');
+        const errorMessage = err.response?.data?.message || err.message || 'Failed to accept case';
+        if (errorMessage.includes('already been accepted')) {
+          alert('This case has already been accepted by another provider. Refreshing list...');
+          fetchAssignedCases();
+        } else {
+          alert(errorMessage);
+        }
+      } finally {
+        setProcessingId(null);
       }
     }
   };
@@ -144,6 +153,7 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
       case 'accepted': return '#10b981';
       case 'rejected':
       case 'declined': return '#ef4444';
+      case 'expired': return '#9ca3af';
       default: return '#f59e0b';
     }
   };
@@ -153,6 +163,7 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
       case 'accepted': return { text: 'Accepted', color: '#10b981', bg: '#dcfce7' };
       case 'rejected':
       case 'declined': return { text: 'Declined', color: '#ef4444', bg: '#fee2e2' };
+      case 'expired': return { text: 'Expired - Taken by Another', color: '#6b7280', bg: '#f3f4f6' };
       default: return { text: 'Action Required', color: '#f59e0b', bg: '#fef3c7' };
     }
   };
@@ -228,6 +239,13 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
               onClick={() => setFilterStatus('declined')}
             >
               Declined ({cases.filter(c => c.status === 'declined').length})
+            </button>
+            <button
+              className={filterStatus === 'expired' ? 'active' : ''}
+              onClick={() => setFilterStatus('expired')}
+              style={{ backgroundColor: filterStatus === 'expired' ? '#9ca3af' : undefined }}
+            >
+              Expired ({cases.filter(c => c.status === 'expired').length})
             </button>
           </div>
         </div>
@@ -322,16 +340,30 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
                       className="btn-quick-accept"
                       onClick={(e) => { e.stopPropagation(); handleAccept(caseItem.id); }}
                       title="Accept Case"
+                      disabled={processingId === caseItem.id}
                     >
-                      ✓
+                      {processingId === caseItem.id ? '...' : '✓'}
                     </button>
                     <button
                       className="btn-quick-decline"
                       onClick={(e) => { e.stopPropagation(); handleDecline(caseItem.id); }}
                       title="Decline Case"
+                      disabled={processingId === caseItem.id}
                     >
                       ✗
                     </button>
+                  </div>
+                )}
+                {caseItem.status === 'expired' && (
+                  <div className="expired-notice" style={{ 
+                    color: '#6b7280', 
+                    fontSize: '12px', 
+                    fontStyle: 'italic',
+                    padding: '4px 8px',
+                    backgroundColor: '#f3f4f6',
+                    borderRadius: '4px'
+                  }}>
+                    ⚠️ Case taken by another provider
                   </div>
                 )}
               </div>

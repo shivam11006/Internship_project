@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -210,14 +211,16 @@ public class AppointmentService {
     public List<AppointmentResponse> getPendingAppointments() {
         User currentUser = getCurrentUser();
 
-        List<Appointment> appointments;
+        List<Appointment> appointments = new ArrayList<>();
         
         if (currentUser.getRole() == Role.CITIZEN) {
             // Get appointments pending citizen approval
-            appointments = appointmentRepository.findPendingCitizenApproval(currentUser);
+            appointments = appointmentRepository.findByCitizenAndStatusOrderByScheduledDateTimeAsc(
+                    currentUser, AppointmentStatus.PENDING_CITIZEN_APPROVAL);
         } else if (currentUser.getRole() == Role.LAWYER || currentUser.getRole() == Role.NGO) {
             // Get appointments pending provider approval
-            appointments = appointmentRepository.findPendingProviderApproval(currentUser);
+            appointments = appointmentRepository.findByProviderAndStatusOrderByScheduledDateTimeAsc(
+                    currentUser, AppointmentStatus.PENDING_PROVIDER_APPROVAL);
         } else {
             // Admins see all pending appointments
             appointments = appointmentRepository.findAll().stream()
@@ -228,7 +231,8 @@ public class AppointmentService {
         }
 
         // Also add reschedule requests where user needs to respond
-        List<Appointment> rescheduleRequests = appointmentRepository.findRescheduleRequests(currentUser);
+        List<Appointment> rescheduleRequests = appointmentRepository.findByUserAndStatus(
+                currentUser, AppointmentStatus.RESCHEDULE_REQUESTED);
         rescheduleRequests.stream()
                 .filter(a -> {
                     if (currentUser.getId().equals(a.getCitizen().getId()) && !Boolean.TRUE.equals(a.getCitizenConfirmed())) {

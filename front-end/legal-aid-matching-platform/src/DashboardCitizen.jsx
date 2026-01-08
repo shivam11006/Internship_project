@@ -9,6 +9,7 @@ import CaseSubmission from './CaseSubmission';
 import Directory from './Directory';
 import CaseManagement from './CaseManagement';
 import Matches from './Matches';
+import MyAppointments from './MyAppointments';
 import './Dashboard.css';
 import './SecureChat.css';
 
@@ -924,11 +925,25 @@ function DashboardCitizen() {
         setAppointmentError('Please provide a venue for offline meeting');
         return;
       }
+      if (!appointmentForm.location || !appointmentForm.location.trim()) {
+        setAppointmentError('Please provide a location for offline meeting');
+        return;
+      }
+      if (!appointmentForm.address || !appointmentForm.address.trim()) {
+        setAppointmentError('Please provide an address for offline meeting');
+        return;
+      }
     } else if (appointmentForm.appointmentType === 'call') {
       if (!appointmentForm.meetingLink || !appointmentForm.meetingLink.trim()) {
         setAppointmentError('Please provide a phone number or meeting link for call appointments');
         return;
       }
+    }
+
+    // Validate notes field (required for all appointment types)
+    if (!appointmentForm.notes || !appointmentForm.notes.trim()) {
+      setAppointmentError('Please provide notes for the appointment');
+      return;
     }
 
     setSubmittingAppointment(true);
@@ -1042,6 +1057,23 @@ function DashboardCitizen() {
             </svg>
             <span>My Matches</span>
           </button>
+
+          <button
+            className={`nav-item ${activeTab === 'my-appointments' ? 'active' : ''}`}
+            onClick={() => setActiveTab('my-appointments')}
+          >
+            <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span>My Appointments</span>
+          </button>
+
+          <button className="nav-item">
+            <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span>Impact Dashboard</span>
+          </button>
         </nav>
       </div>
 
@@ -1061,6 +1093,7 @@ function DashboardCitizen() {
               {activeTab === 'my-cases' && 'My Cases'}
               {activeTab === 'directory' && 'Filterable Directory'}
               {activeTab === 'matches' && 'My Matches'}
+              {activeTab === 'my-appointments' && 'My Appointments'}
             </h1>
           </div>
           <div className="header-right">
@@ -1370,9 +1403,6 @@ function DashboardCitizen() {
                                   <div className="mini-avatar">👩‍💼</div>
                                   <span>{appointment.providerName || 'Provider'}</span>
                                 </div>
-                                {appointment.status === 'CONFIRMED' && (
-                                  <button className="btn-join-call">View Details</button>
-                                )}
                                 {appointment.status === 'PENDING' && appointment.citizenConfirmRequired && (
                                   <button className="btn-join-call" style={{ backgroundColor: '#10b981' }}>Accept</button>
                                 )}
@@ -1661,6 +1691,10 @@ function DashboardCitizen() {
 
           {activeTab === 'matches' && (
             <MyMatchesView />
+          )}
+
+          {activeTab === 'my-appointments' && (
+            <MyAppointments />
           )}
         </div>
       </div>
@@ -2023,7 +2057,7 @@ function DashboardCitizen() {
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Time</label>
+                  <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Time (24-hour format)</label>
                   <div className="time-slots-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginBottom: '12px' }}>
                     {['09:00', '10:30', '14:00', '15:30', '17:00'].map((slot, i) => (
                       <button
@@ -2109,7 +2143,7 @@ function DashboardCitizen() {
                 {appointmentForm.appointmentType === 'offline' && (
                   <>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Location (Optional)</label>
+                      <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Location *</label>
                       <input
                         type="text"
                         placeholder="e.g., Downtown, City Center"
@@ -2127,7 +2161,7 @@ function DashboardCitizen() {
                       />
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Address (Optional)</label>
+                      <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Address *</label>
                       <input
                         type="text"
                         placeholder="e.g., 123 Main Street, Suite 400"
@@ -2148,7 +2182,7 @@ function DashboardCitizen() {
                 )}
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Notes (Optional)</label>
+                  <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Notes *</label>
                   <textarea
                     placeholder="Add any additional notes or requirements..."
                     value={appointmentForm.notes}

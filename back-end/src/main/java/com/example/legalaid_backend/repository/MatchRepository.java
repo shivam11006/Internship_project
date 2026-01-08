@@ -4,10 +4,12 @@ import com.example.legalaid_backend.entity.Match;
 import com.example.legalaid_backend.entity.User;
 import com.example.legalaid_backend.util.MatchStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,4 +51,17 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
     // Find all matches where user is the citizen (case creator)
     @Query("SELECT m FROM Match m WHERE m.legalCase.createdBy.id = :userId ORDER BY m.createdAt DESC")
     List<Match> findByCitizenId(@Param("userId") Long userId);
+
+    // Check if any provider has already accepted a case
+    @Query("SELECT m FROM Match m WHERE m.legalCase.id = :caseId AND m.status = :status")
+    List<Match> findByCaseIdAndStatus(@Param("caseId") Long caseId, @Param("status") MatchStatus status);
+
+    // Count accepted matches for a case (to check if case is already taken)
+    @Query("SELECT COUNT(m) FROM Match m WHERE m.legalCase.id = :caseId AND m.status = 'ACCEPTED_BY_PROVIDER'")
+    long countAcceptedMatchesForCase(@Param("caseId") Long caseId);
+
+    // Find match by ID with pessimistic lock to prevent race conditions
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT m FROM Match m WHERE m.id = :matchId")
+    Optional<Match> findByIdWithLock(@Param("matchId") Long matchId);
 }

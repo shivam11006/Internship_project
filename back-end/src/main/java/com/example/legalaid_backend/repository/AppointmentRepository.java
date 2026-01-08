@@ -27,23 +27,16 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     // Find appointments by status
     List<Appointment> findByStatusOrderByScheduledDateTimeDesc(AppointmentStatus status);
 
-    // Find appointments pending citizen approval for a specific citizen
-    @Query("SELECT a FROM Appointment a WHERE a.citizen = :citizen " +
-           "AND a.status = 'PENDING_CITIZEN_APPROVAL' " +
-           "ORDER BY a.scheduledDateTime ASC")
-    List<Appointment> findPendingCitizenApproval(@Param("citizen") User citizen);
+    // Find appointments pending citizen approval for a specific citizen (using derived query)
+    List<Appointment> findByCitizenAndStatusOrderByScheduledDateTimeAsc(User citizen, AppointmentStatus status);
 
-    // Find appointments pending provider approval for a specific provider
-    @Query("SELECT a FROM Appointment a WHERE a.provider = :provider " +
-           "AND a.status = 'PENDING_PROVIDER_APPROVAL' " +
-           "ORDER BY a.scheduledDateTime ASC")
-    List<Appointment> findPendingProviderApproval(@Param("provider") User provider);
+    // Find appointments pending provider approval for a specific provider (using derived query)
+    List<Appointment> findByProviderAndStatusOrderByScheduledDateTimeAsc(User provider, AppointmentStatus status);
 
     // Find appointments with reschedule requests for a user
     @Query("SELECT a FROM Appointment a WHERE (a.citizen = :user OR a.provider = :user) " +
-           "AND a.status = 'RESCHEDULE_REQUESTED' " +
-           "ORDER BY a.scheduledDateTime ASC")
-    List<Appointment> findRescheduleRequests(@Param("user") User user);
+           "AND a.status = :status ORDER BY a.scheduledDateTime ASC")
+    List<Appointment> findByUserAndStatus(@Param("user") User user, @Param("status") AppointmentStatus status);
 
     // Find upcoming appointments for a user (citizen or provider)
     @Query("SELECT a FROM Appointment a WHERE (a.citizen = :user OR a.provider = :user) " +
@@ -74,13 +67,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     // An overlap occurs when: existing start < new end AND new start < existing end + duration
     // Since JPQL doesn't support date arithmetic, we use a simpler approach
     @Query("SELECT a FROM Appointment a WHERE a.provider = :provider " +
-           "AND a.status IN ('SCHEDULED', 'CONFIRMED') " +
+           "AND a.status IN :statuses " +
            "AND a.scheduledDateTime < :endTime " +
            "AND a.scheduledDateTime >= :checkStartTime")
     List<Appointment> findConflictingAppointments(
             @Param("provider") User provider,
             @Param("checkStartTime") LocalDateTime checkStartTime,
-            @Param("endTime") LocalDateTime endTime);
+            @Param("endTime") LocalDateTime endTime,
+            @Param("statuses") List<AppointmentStatus> statuses);
 
     // Count appointments by status for a user
     @Query("SELECT COUNT(a) FROM Appointment a WHERE (a.citizen = :user OR a.provider = :user) " +
