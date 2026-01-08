@@ -95,7 +95,7 @@ function DashboardCitizen() {
   const dashboardStats = {
     newMatches: { value: 12, label: 'This week' },
     activeConversations: { value: conversations.length || 0, label: 'With lawyers/NGOs' },
-    scheduledCalls: { value: 3, label: 'Upcoming sessions' },
+    scheduledCalls: { value: appointments.length, label: 'Upcoming sessions' },
     resolvedCases: { value: 25, label: 'Total cases' }
   };
 
@@ -1086,9 +1086,10 @@ function DashboardCitizen() {
                         // Determine status color based on appointment status
                         let statusClass = 'pending';
                         if (appointment.status === 'CONFIRMED') statusClass = 'confirmed';
-                        else if (appointment.status === 'CANCELLED') statusClass = 'cancelled';
+                        else if (appointment.status === 'CANCELLED' || appointment.status === 'REJECTED') statusClass = 'cancelled';
                         else if (appointment.status === 'COMPLETED') statusClass = 'completed';
                         else if (appointment.status === 'NO_SHOW') statusClass = 'no-show';
+                        else if (appointment.status === 'PENDING_PROVIDER_APPROVAL') statusClass = 'pending';
 
                         return (
                           <div key={appointment.id} className={`event-card ${statusClass}`}>
@@ -1677,207 +1678,315 @@ function DashboardCitizen() {
 
       {/* Schedule Appointment Modal */}
       {showScheduleModal && currentContact && (
-        <div className="modal-overlay" onClick={handleCloseScheduleModal}>
-          <div className="modal-content schedule-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+        <div className="modal-overlay" onClick={handleCloseScheduleModal} style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(2px)' }}>
+          <div className="modal-content schedule-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%', borderRadius: '12px', border: 'none', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ backgroundColor: '#f1f5f9', padding: '24px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
               <div className="schedule-header">
-                <h2>Schedule an Appointment</h2>
-                <div className="schedule-subtitle">Propose a time to connect with {currentContact.otherUserName}</div>
+                <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#1e293b' }}>Schedule an Appointment</h2>
+                <div className="schedule-subtitle" style={{ color: '#64748b', marginTop: '4px', fontSize: '14px' }}>Propose a time to connect with {currentContact.otherUserName}</div>
               </div>
-              <button className="modal-close" onClick={handleCloseScheduleModal}>×</button>
+              <button className="modal-close" onClick={handleCloseScheduleModal} style={{ fontSize: '24px', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: '0', marginTop: '-4px', lineHeight: 1 }}>×</button>
             </div>
-            <div className="modal-body">
-              <div className="contact-preview-card">
+
+            <div className="modal-body" style={{ padding: '24px 20px', maxHeight: '70vh', overflowY: 'auto' }}>
+              <div className="contact-preview-card" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px', background: 'none', padding: 0 }}>
                 <div className="contact-preview-avatar" style={{
-                  width: '48px',
-                  height: '48px',
+                  width: '56px',
+                  height: '56px',
                   borderRadius: '50%',
                   backgroundColor: '#8b5cf6',
                   color: 'white',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '20px',
-                  fontWeight: 'bold'
+                  fontSize: '22px',
+                  fontWeight: 'bold',
+                  flexShrink: 0
                 }}>
                   {currentContact.otherUserName?.charAt(0)?.toUpperCase() || '?'}
                 </div>
                 <div className="contact-preview-info">
-                  <h4>{currentContact.otherUserName} <span className="contact-preview-role">{currentContact.otherUserRole}</span></h4>
-                  <span className="match-score-pill">Case: {currentContact.caseTitle}</span>
+                  <h4 style={{ margin: 0, fontSize: '18px', color: '#0f172a', fontWeight: '600' }}>
+                    {currentContact.otherUserName} <span className="contact-preview-role" style={{ fontSize: '14px', fontWeight: '500', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{currentContact.otherUserRole}</span>
+                  </h4>
+                  <div style={{ marginTop: '4px', color: '#64748b', fontSize: '14px' }}>
+                    Case: {currentContact.caseTitle}
+                  </div>
                 </div>
               </div>
 
               {appointmentError && (
                 <div style={{
-                  padding: '12px',
+                  padding: '12px 16px',
                   backgroundColor: '#fee2e2',
                   color: '#dc2626',
                   borderRadius: '8px',
-                  marginBottom: '16px',
-                  fontSize: '14px'
+                  marginBottom: '20px',
+                  fontSize: '14px',
+                  border: '1px solid #fecaca'
                 }}>
                   {appointmentError}
                 </div>
               )}
 
-              <div className="profile-form">
+              <div className="profile-form" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {/* Appointment Type Selection */}
-                <div className="form-group">
-                  <label>Appointment Type</label>
-                  <div className="appointment-type-selector" style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Appointment Type</label>
+                  <div className="appointment-type-selector" style={{ display: 'flex', gap: '12px' }}>
                     <button
                       type="button"
-                      className={`time-slot-btn ${appointmentForm.appointmentType === 'call' ? 'selected' : ''}`}
-                      style={{ flex: 1 }}
+                      className={`type-btn ${appointmentForm.appointmentType === 'call' ? 'selected' : ''}`}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid',
+                        borderColor: appointmentForm.appointmentType === 'call' ? '#1e40af' : '#e2e8f0',
+                        backgroundColor: appointmentForm.appointmentType === 'call' ? '#eff6ff' : '#f8fafc',
+                        color: appointmentForm.appointmentType === 'call' ? '#1e40af' : '#64748b',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s'
+                      }}
                       onClick={() => handleAppointmentFormChange('appointmentType', 'call')}
                     >
-                      📞 Call
+                      <span>📞</span> Call
                     </button>
                     <button
                       type="button"
-                      className={`time-slot-btn ${appointmentForm.appointmentType === 'offline' ? 'selected' : ''}`}
-                      style={{ flex: 1 }}
+                      className={`type-btn ${appointmentForm.appointmentType === 'offline' ? 'selected' : ''}`}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid',
+                        borderColor: appointmentForm.appointmentType === 'offline' ? '#1e40af' : '#e2e8f0',
+                        backgroundColor: appointmentForm.appointmentType === 'offline' ? '#eff6ff' : '#f8fafc',
+                        color: appointmentForm.appointmentType === 'offline' ? '#1e40af' : '#64748b',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s'
+                      }}
                       onClick={() => handleAppointmentFormChange('appointmentType', 'offline')}
                     >
-                      🏢 Offline Meeting
+                      <span>🏢</span> Offline Meeting
                     </button>
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label>Date</label>
-                  <input
-                    type="date"
-                    value={appointmentForm.date}
-                    onChange={(e) => handleAppointmentFormChange('date', e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                  />
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Date</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="date"
+                      value={appointmentForm.date}
+                      onChange={(e) => handleAppointmentFormChange('date', e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '15px',
+                        outline: 'none',
+                        color: '#1e293b',
+                        backgroundColor: '#fff'
+                      }}
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label>Time</label>
-                  <div className="time-slots-grid">
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Time</label>
+                  <div className="time-slots-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginBottom: '12px' }}>
                     {['09:00', '10:30', '14:00', '15:30', '17:00'].map((slot, i) => (
                       <button
                         key={i}
                         type="button"
-                        className={`time-slot-btn ${appointmentForm.time === slot ? 'selected' : ''}`}
+                        style={{
+                          padding: '8px 4px',
+                          borderRadius: '6px',
+                          border: '1px solid',
+                          borderColor: appointmentForm.time === slot ? '#1e40af' : '#e2e8f0',
+                          backgroundColor: appointmentForm.time === slot ? '#eff6ff' : '#fff',
+                          color: appointmentForm.time === slot ? '#1e40af' : '#64748b',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
                         onClick={() => handleTimeSlotSelect(slot)}
                       >
                         {slot}
                       </button>
                     ))}
                   </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="time"
+                      value={appointmentForm.time}
+                      onChange={(e) => handleAppointmentFormChange('time', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '15px',
+                        outline: 'none',
+                        color: '#1e293b'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>
+                    {appointmentForm.appointmentType === 'offline' ? 'Venue *' : 'Phone Number or Meeting Link *'}
+                  </label>
                   <input
-                    type="time"
-                    value={appointmentForm.time}
-                    onChange={(e) => handleAppointmentFormChange('time', e.target.value)}
-                    style={{ marginTop: '12px', width: '100%' }}
+                    type="text"
+                    placeholder={appointmentForm.appointmentType === 'offline' ? "e.g., City Legal Aid Center" : "e.g., +1-234-567-8900"}
+                    value={appointmentForm.appointmentType === 'offline' ? appointmentForm.venue : appointmentForm.meetingLink}
+                    onChange={(e) => handleAppointmentFormChange(appointmentForm.appointmentType === 'offline' ? 'venue' : 'meetingLink', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '15px',
+                      outline: 'none',
+                      color: '#1e293b'
+                    }}
                   />
                 </div>
 
-                {/* Venue - Required for offline, optional for call */}
-                {/* Venue for offline, Meeting Link for call */}
-                {appointmentForm.appointmentType === 'offline' ? (
-                  <div className="form-group">
-                    <label>Venue *</label>
-                    <input
-                      type="text"
-                      className="chat-search-input"
-                      placeholder="e.g., City Legal Aid Center"
-                      value={appointmentForm.venue}
-                      onChange={(e) => handleAppointmentFormChange('venue', e.target.value)}
-                    />
-                  </div>
-                ) : (
-                  <div className="form-group">
-                    <label>Phone Number or Meeting Link *</label>
-                    <input
-                      type="text"
-                      className="chat-search-input"
-                      placeholder="e.g., +1-234-567-8900 or https://zoom.us/j/1234567890"
-                      value={appointmentForm.meetingLink}
-                      onChange={(e) => handleAppointmentFormChange('meetingLink', e.target.value)}
-                    />
-                  </div>
-                )}
-                <div className="form-group">
-                  <label>Duration (minutes) *</label>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Duration (minutes) *</label>
                   <input
                     type="number"
-                    className="chat-search-input"
                     min="1"
                     placeholder="e.g., 30"
                     value={appointmentForm.durationMinutes}
                     onChange={(e) => handleAppointmentFormChange('durationMinutes', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '15px',
+                      outline: 'none',
+                      color: '#1e293b'
+                    }}
                   />
                 </div>
 
-                {/* Location - Show only for offline */}
                 {appointmentForm.appointmentType === 'offline' && (
                   <>
-                    <div className="form-group">
-                      <label>Location (Optional)</label>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Location (Optional)</label>
                       <input
                         type="text"
-                        className="chat-search-input"
                         placeholder="e.g., Downtown, City Center"
                         value={appointmentForm.location}
                         onChange={(e) => handleAppointmentFormChange('location', e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          fontSize: '15px',
+                          outline: 'none',
+                          color: '#1e293b'
+                        }}
                       />
                     </div>
-
-                    <div className="form-group">
-                      <label>Address (Optional)</label>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Address (Optional)</label>
                       <input
                         type="text"
-                        className="chat-search-input"
                         placeholder="e.g., 123 Main Street, Suite 400"
                         value={appointmentForm.address}
                         onChange={(e) => handleAppointmentFormChange('address', e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          fontSize: '15px',
+                          outline: 'none',
+                          color: '#1e293b'
+                        }}
                       />
                     </div>
                   </>
                 )}
 
-                <div className="form-group">
-                  <label>Notes (Optional)</label>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '10px', display: 'block' }}>Notes (Optional)</label>
                   <textarea
-                    className="chat-search-input"
-                    style={{ minHeight: '80px', paddingTop: '12px', resize: 'vertical' }}
                     placeholder="Add any additional notes or requirements..."
                     value={appointmentForm.notes}
                     onChange={(e) => handleAppointmentFormChange('notes', e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Agenda (Optional)</label>
-                  <textarea
-                    className="chat-search-input"
-                    style={{ minHeight: '80px', paddingTop: '12px', resize: 'vertical' }}
-                    placeholder="Meeting agenda items..."
-                    value={appointmentForm.agenda}
-                    onChange={(e) => handleAppointmentFormChange('agenda', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '15px',
+                      outline: 'none',
+                      color: '#1e293b',
+                      minHeight: '80px',
+                      resize: 'vertical'
+                    }}
                   />
                 </div>
               </div>
             </div>
-            <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
+
+            <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', padding: '16px 20px', display: 'flex', gap: '12px', background: 'white' }}>
               <button
                 className="btn-secondary"
-                style={{ flex: 1 }}
                 onClick={handleCloseScheduleModal}
                 disabled={submittingAppointment}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: '#f8fafc',
+                  color: '#64748b',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
               >
                 Cancel
               </button>
               <button
-                className="btn-primary btn-confirm-schedule"
-                style={{ flex: 2 }}
+                className="btn-primary"
                 onClick={handleSubmitAppointment}
                 disabled={submittingAppointment}
+                style={{
+                  flex: 2,
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: '#1e40af',
+                  color: 'white',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: submittingAppointment ? 'not-allowed' : 'pointer',
+                  opacity: submittingAppointment ? 0.7 : 1
+                }}
               >
                 {submittingAppointment ? 'Scheduling...' : 'Confirm Appointment'}
               </button>

@@ -49,6 +49,7 @@ function DashboardNgo() {
   const [loadingAppointments, setLoadingAppointments] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
   // Upcoming Events State
   const [upcomingEvents] = useState([
@@ -773,9 +774,10 @@ function DashboardNgo() {
                       // Determine status color based on appointment status
                       let statusClass = 'pending';
                       if (appointment.status === 'CONFIRMED') statusClass = 'confirmed';
-                      else if (appointment.status === 'CANCELLED') statusClass = 'cancelled';
+                      else if (appointment.status === 'CANCELLED' || appointment.status === 'REJECTED') statusClass = 'cancelled';
                       else if (appointment.status === 'COMPLETED') statusClass = 'completed';
                       else if (appointment.status === 'NO_SHOW') statusClass = 'no-show';
+                      else if (appointment.status === 'PENDING_PROVIDER_APPROVAL') statusClass = 'pending';
 
                       return (
                         <div key={appointment.id} className={`event-card ${statusClass}`}>
@@ -784,9 +786,71 @@ function DashboardNgo() {
                             <span className="event-day">{dateStr.split(' ')[1]}</span>
                           </div>
                           <div className="event-details">
-                            <div className="event-title-row">
-                              <h4 style={{ fontWeight: '600', color: '#111827', margin: 0, overflowWrap: 'break-word', wordBreak: 'break-word' }}>{appointment.caseTitle || 'Appointment'}</h4>
-                              <span className={`event-status-pill ${statusClass}`}>{appointment.status}</span>
+                            <div className="event-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem', flexWrap: 'wrap', marginBottom: '8px', position: 'relative' }}>
+                              <h4 style={{ fontWeight: '600', color: '#111827', margin: 0, overflowWrap: 'break-word', wordBreak: 'break-word', flex: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{appointment.caseTitle || 'Appointment'}</h4>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span className={`event-status-pill ${statusClass}`} style={{ whiteSpace: 'nowrap' }}>{appointment.status}</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenuId(activeMenuId === appointment.id ? null : appointment.id);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: '4px',
+                                    color: '#6b7280',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    borderRadius: '4px'
+                                  }}
+                                  className="three-dot-btn"
+                                >
+                                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" />
+                                  </svg>
+                                </button>
+
+                                {activeMenuId === appointment.id && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    right: 0,
+                                    backgroundColor: 'white',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '6px',
+                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                                    zIndex: 10,
+                                    minWidth: '160px',
+                                    marginTop: '4px'
+                                  }}>
+                                    <button
+                                      onClick={() => {
+                                        handleCompleteAppointment(appointment.id);
+                                        setActiveMenuId(null);
+                                      }}
+                                      style={{
+                                        width: '100%',
+                                        textAlign: 'left',
+                                        padding: '10px 16px',
+                                        fontSize: '14px',
+                                        color: '#374151',
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                      }}
+                                      onMouseOver={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+                                      onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                                    >
+                                      <span>✅ Mark as Complete</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             <div className="event-meta">
                               <span className="event-time">🕒 {timeStr}</span>
@@ -807,32 +871,53 @@ function DashboardNgo() {
                                 📍 {appointment.venue}
                               </div>
                             )}
-                            <div className="event-footer" style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                              {appointment.status === 'PENDING' && appointment.providerAcceptRequired && (
-                                <button
-                                  className="btn-join-call"
-                                  style={{ backgroundColor: '#10b981', flex: '1', minWidth: '80px' }}
-                                  onClick={() => handleAcceptAppointment(appointment.id)}
-                                >
-                                  Accept
-                                </button>
-                              )}
-                              {(appointment.status === 'PENDING' || appointment.status === 'CONFIRMED') && (
+                            <div className="event-footer" style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
+                              {appointment.status === 'PENDING_PROVIDER_APPROVAL' ? (
                                 <>
                                   <button
                                     className="btn-join-call"
-                                    style={{ backgroundColor: '#f59e0b', flex: '1', minWidth: '80px' }}
-                                    onClick={() => handleRequestReschedule(appointment.id)}
+                                    style={{ backgroundColor: '#10b981', flex: '1', minWidth: '80px', color: 'white', fontWeight: '600' }}
+                                    onClick={() => handleAcceptAppointment(appointment.id)}
                                   >
-                                    Reschedule
+                                    Accept
                                   </button>
                                   <button
                                     className="btn-join-call"
-                                    style={{ backgroundColor: '#ef4444', flex: '1', minWidth: '80px' }}
+                                    style={{ backgroundColor: '#ef4444', flex: '1', minWidth: '80px', color: 'white', fontWeight: '600' }}
                                     onClick={() => handleCancelAppointment(appointment.id)}
                                   >
-                                    Cancel
+                                    Reject
                                   </button>
+                                </>
+                              ) : (
+                                <>
+                                  {(appointment.status === 'PENDING' && appointment.providerAcceptRequired) && (
+                                    <button
+                                      className="btn-join-call"
+                                      style={{ backgroundColor: '#10b981', flex: '1', minWidth: '80px', color: 'white', fontWeight: '600' }}
+                                      onClick={() => handleAcceptAppointment(appointment.id)}
+                                    >
+                                      Accept
+                                    </button>
+                                  )}
+                                  {(appointment.status === 'PENDING' || appointment.status === 'CONFIRMED') && (
+                                    <>
+                                      <button
+                                        className="btn-join-call"
+                                        style={{ backgroundColor: '#f59e0b', flex: '1', minWidth: '80px', color: 'white', fontWeight: '600' }}
+                                        onClick={() => handleRequestReschedule(appointment.id)}
+                                      >
+                                        Reschedule
+                                      </button>
+                                      <button
+                                        className="btn-join-call"
+                                        style={{ backgroundColor: '#ef4444', flex: '1', minWidth: '80px', color: 'white', fontWeight: '600' }}
+                                        onClick={() => handleCancelAppointment(appointment.id)}
+                                      >
+                                        Cancel
+                                      </button>
+                                    </>
+                                  )}
                                 </>
                               )}
                               {appointment.status === 'CONFIRMED' && new Date(appointment.scheduledDateTime) < new Date() && (
