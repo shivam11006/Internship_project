@@ -38,32 +38,6 @@ function MyMatchesView() {
     }
   };
 
-  const handleAcceptMatch = async (matchId) => {
-    if (window.confirm('Accept this match? The lawyer/NGO will be notified.')) {
-      try {
-        await matchService.selectMatch(matchId);
-        await fetchMyMatches(); // Refresh list
-        alert('Match accepted successfully!');
-      } catch (err) {
-        console.error('Error accepting match:', err);
-        alert('Failed to accept match. Please try again.');
-      }
-    }
-  };
-
-  const handleRejectMatch = async (matchId) => {
-    if (window.confirm('Reject this match? This action cannot be undone.')) {
-      try {
-        await matchService.rejectMatch(matchId);
-        await fetchMyMatches(); // Refresh list
-        alert('Match rejected.');
-      } catch (err) {
-        console.error('Error rejecting match:', err);
-        alert('Failed to reject match. Please try again.');
-      }
-    }
-  };
-
   const getStatusBadge = (status) => {
     const statusConfig = {
       PENDING: { color: '#f59e0b', label: 'Pending', bg: '#fef3c7' },
@@ -88,6 +62,10 @@ function MyMatchesView() {
   };
 
   const filteredMatches = matches.filter(match => {
+    // Only show selected, accepted, or rejected matches (not pending)
+    const validStatuses = ['SELECTED_BY_CITIZEN', 'ACCEPTED_BY_PROVIDER', 'REJECTED_BY_CITIZEN'];
+    if (!validStatuses.includes(match.status)) return false;
+    
     if (filterStatus === 'all') return true;
     return match.status === filterStatus;
   });
@@ -144,13 +122,13 @@ function MyMatchesView() {
       }}>
         <h2 style={{ margin: '0 0 8px 0', fontSize: '24px' }}>My Matches</h2>
         <p style={{ margin: 0, opacity: 0.9 }}>
-          View and manage all matches for your cases ({matches.length} total)
+          History of all matches - accepted and rejected cases ({matches.length} total)
         </p>
       </div>
 
       {/* Filters */}
       <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        {['all', 'PENDING', 'SELECTED_BY_CITIZEN', 'ACCEPTED_BY_PROVIDER', 'REJECTED_BY_CITIZEN'].map(status => (
+        {['all', 'SELECTED_BY_CITIZEN', 'ACCEPTED_BY_PROVIDER', 'REJECTED_BY_CITIZEN'].map(status => (
           <button
             key={status}
             onClick={() => setFilterStatus(status)}
@@ -270,40 +248,9 @@ function MyMatchesView() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
                     {getStatusBadge(match.status)}
-                    {match.status === 'PENDING' && (
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                        <button
-                          onClick={() => handleAcceptMatch(match.id)}
-                          style={{
-                            padding: '6px 12px',
-                            background: '#10b981',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleRejectMatch(match.id)}
-                          style={{
-                            padding: '6px 12px',
-                            background: '#ef4444',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
+                    <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                      {new Date(match.createdAt).toLocaleDateString()}
+                    </div>
                   </div>
                 </div>
               ))}
