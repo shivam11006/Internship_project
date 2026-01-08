@@ -90,8 +90,22 @@ export const rejectMatch = async (matchId, reason = null) => {
   }
 };
 
-/**
- * Get assigned cases for a lawyer/NGO
+/** * Get all matches for current citizen
+ * @returns {Promise} - Response containing all matches
+ */
+export const getMyMatches = async () => {
+  try {
+    const response = await apiClient.get(
+      `${MATCHES_API_BASE}/my`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching my matches:', error);
+    throw error;
+  }
+};
+
+/** * Get assigned cases for a lawyer/NGO
  * @returns {Promise} - Response containing assigned cases
  */
 export const getAssignedCases = async () => {

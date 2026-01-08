@@ -185,6 +185,37 @@ public class MatchController {
     }
 
     /**
+     * GET MY MATCHES (Citizen) - View all matches for all my cases
+     * GET /api/matches/my
+     */
+    @GetMapping("/my")
+    public ResponseEntity<Map<String, Object>> getMyMatches(Authentication auth) {
+
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/matches/my");
+
+        try {
+            log.info("Citizen {} requesting all their matches", auth.getName());
+
+            List<MatchResponse> matches = matchService.getMyMatches();
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("matches", matches);
+            response.put("totalMatches", matches.size());
+
+            log.info("Returning {} matches for citizen {}", matches.size(), auth.getName());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Failed to get matches for citizen {}: {}", auth.getName(), e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
+    }
+
+    /**
      * GET ASSIGNED CASES (Lawyer/NGO) - View cases that citizens have selected you
      * for
      * GET /api/matches/assigned-cases

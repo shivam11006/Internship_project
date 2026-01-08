@@ -4,12 +4,316 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import authService from './services/authService';
 import chatService from './services/chatService';
 import appointmentService from './services/appointmentService';
+import * as matchService from './services/matchService';
 import CaseSubmission from './CaseSubmission';
 import Directory from './Directory';
 import CaseManagement from './CaseManagement';
 import Matches from './Matches';
 import './Dashboard.css';
 import './SecureChat.css';
+
+// My Matches View Component
+function MyMatchesView() {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  useEffect(() => {
+    fetchMyMatches();
+  }, []);
+
+  const fetchMyMatches = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await matchService.getMyMatches();
+      setMatches(response.matches || []);
+    } catch (err) {
+      console.error('Failed to fetch matches:', err);
+      setError('Failed to load matches. Please try again.');
+      setMatches([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAcceptMatch = async (matchId) => {
+    if (window.confirm('Accept this match? The lawyer/NGO will be notified.')) {
+      try {
+        await matchService.selectMatch(matchId);
+        await fetchMyMatches(); // Refresh list
+        alert('Match accepted successfully!');
+      } catch (err) {
+        console.error('Error accepting match:', err);
+        alert('Failed to accept match. Please try again.');
+      }
+    }
+  };
+
+  const handleRejectMatch = async (matchId) => {
+    if (window.confirm('Reject this match? This action cannot be undone.')) {
+      try {
+        await matchService.rejectMatch(matchId);
+        await fetchMyMatches(); // Refresh list
+        alert('Match rejected.');
+      } catch (err) {
+        console.error('Error rejecting match:', err);
+        alert('Failed to reject match. Please try again.');
+      }
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      PENDING: { color: '#f59e0b', label: 'Pending', bg: '#fef3c7' },
+      SELECTED_BY_CITIZEN: { color: '#3b82f6', label: 'Selected', bg: '#dbeafe' },
+      ACCEPTED_BY_PROVIDER: { color: '#10b981', label: 'Accepted', bg: '#d1fae5' },
+      REJECTED_BY_CITIZEN: { color: '#ef4444', label: 'Rejected', bg: '#fee2e2' },
+      REJECTED_BY_PROVIDER: { color: '#ef4444', label: 'Declined', bg: '#fee2e2' }
+    };
+    const config = statusConfig[status] || { color: '#6b7280', label: status, bg: '#f3f4f6' };
+    return (
+      <span style={{
+        padding: '4px 12px',
+        borderRadius: '12px',
+        fontSize: '12px',
+        fontWeight: '600',
+        color: config.color,
+        background: config.bg
+      }}>
+        {config.label}
+      </span>
+    );
+  };
+
+  const filteredMatches = matches.filter(match => {
+    if (filterStatus === 'all') return true;
+    return match.status === filterStatus;
+  });
+
+  // Group matches by case
+  const matchesByCase = {};
+  filteredMatches.forEach(match => {
+    if (!matchesByCase[match.caseId]) {
+      matchesByCase[match.caseId] = {
+        caseTitle: match.caseTitle,
+        caseType: match.caseType,
+        matches: []
+      };
+    }
+    matchesByCase[match.caseId].matches.push(match);
+  });
+
+  if (loading) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <div className="spinner" style={{ margin: '0 auto 20px' }}></div>
+        <p>Loading your matches...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <p style={{ color: '#ef4444', marginBottom: '20px' }}>{error}</p>
+        <button onClick={fetchMyMatches} style={{
+          padding: '10px 20px',
+          background: '#667eea',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontWeight: '600'
+        }}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <div style={{
+        marginBottom: '24px',
+        padding: '20px',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        borderRadius: '12px'
+      }}>
+        <h2 style={{ margin: '0 0 8px 0', fontSize: '24px' }}>My Matches</h2>
+        <p style={{ margin: 0, opacity: 0.9 }}>
+          View and manage all matches for your cases ({matches.length} total)
+        </p>
+      </div>
+
+      {/* Filters */}
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        {['all', 'PENDING', 'SELECTED_BY_CITIZEN', 'ACCEPTED_BY_PROVIDER', 'REJECTED_BY_CITIZEN'].map(status => (
+          <button
+            key={status}
+            onClick={() => setFilterStatus(status)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: filterStatus === status ? '2px solid #667eea' : '2px solid #e5e7eb',
+              background: filterStatus === status ? '#ede9fe' : 'white',
+              color: filterStatus === status ? '#667eea' : '#6b7280',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            {status === 'all' ? 'All' : status.replace(/_/g, ' ')}
+          </button>
+        ))}
+      </div>
+
+      {/* Matches grouped by case */}
+      {Object.keys(matchesByCase).length === 0 ? (
+        <div style={{
+          padding: '60px 20px',
+          textAlign: 'center',
+          background: '#f9fafb',
+          borderRadius: '12px',
+          border: '2px dashed #e5e7eb'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+          <h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>No matches found</h3>
+          <p style={{ margin: 0, color: '#6b7280' }}>
+            {filterStatus === 'all'
+              ? 'Submit cases to get matched with lawyers and NGOs'
+              : `No matches with status: ${filterStatus.replace(/_/g, ' ')}`
+            }
+          </p>
+        </div>
+      ) : (
+        Object.entries(matchesByCase).map(([caseId, caseData]) => (
+          <div key={caseId} style={{
+            marginBottom: '24px',
+            padding: '20px',
+            background: 'white',
+            borderRadius: '12px',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #f3f4f6' }}>
+              <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#111827' }}>
+                {caseData.caseTitle}
+              </h3>
+              <span style={{
+                fontSize: '13px',
+                color: '#6b7280',
+                background: '#f3f4f6',
+                padding: '2px 8px',
+                borderRadius: '4px'
+              }}>
+                {caseData.caseType}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gap: '12px' }}>
+              {caseData.matches.map(match => (
+                <div key={match.id} style={{
+                  padding: '16px',
+                  background: '#f9fafb',
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '16px'
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '16px'
+                      }}>
+                        {match.providerName?.charAt(0)?.toUpperCase() || '?'}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '600', color: '#111827', marginBottom: '2px' }}>
+                          {match.providerName || 'Unknown Provider'}
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                          {match.providerType} • {match.providerLocation || 'Location not specified'}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>
+                      Match Score: <span style={{ fontWeight: '600', color: '#667eea' }}>
+                        {Math.round(match.matchScore || 0)}%
+                      </span>
+                    </div>
+                    {match.matchReason && (
+                      <div style={{
+                        fontSize: '12px',
+                        color: '#6b7280',
+                        padding: '8px',
+                        background: 'white',
+                        borderRadius: '4px',
+                        marginTop: '8px'
+                      }}>
+                        {match.matchReason}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                    {getStatusBadge(match.status)}
+                    {match.status === 'PENDING' && (
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                        <button
+                          onClick={() => handleAcceptMatch(match.id)}
+                          style={{
+                            padding: '6px 12px',
+                            background: '#10b981',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleRejectMatch(match.id)}
+                          style={{
+                            padding: '6px 12px',
+                            background: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
 
 function DashboardCitizen() {
   const navigate = useNavigate();
@@ -791,13 +1095,6 @@ function DashboardCitizen() {
             </svg>
             <span>My Matches</span>
           </button>
-
-          <button className="nav-item">
-            <svg className="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span>Impact Dashboard</span>
-          </button>
         </nav>
       </div>
 
@@ -1416,34 +1713,7 @@ function DashboardCitizen() {
           )}
 
           {activeTab === 'matches' && (
-            <div className="matches-view">
-              <div className="matches-info-banner" style={{
-                padding: '24px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                borderRadius: '12px',
-                marginBottom: '20px',
-                display: 'flex',
-                gap: '16px',
-                alignItems: 'center'
-              }}>
-                <div style={{ fontSize: '32px' }}>💡</div>
-                <div>
-                  <h3 style={{ margin: '0 0 8px 0', fontSize: '20px' }}>About Matches</h3>
-                  <p style={{ margin: 0, opacity: 0.95 }}>View matched lawyers and NGOs for your submitted cases. Accept or reject matches to find the perfect legal assistance.</p>
-                </div>
-              </div>
-              <div style={{
-                padding: '16px',
-                background: '#fef3c7',
-                border: '2px solid #fbbf24',
-                borderRadius: '8px',
-                marginBottom: '20px'
-              }}>
-                <strong>🔧 Demo Mode:</strong> Click "View Matches" button on any case in "My Cases" tab to see the matches interface.
-                <br /><small>In production, matches will be auto-generated when cases are submitted.</small>
-              </div>
-            </div>
+            <MyMatchesView />
           )}
         </div>
       </div>

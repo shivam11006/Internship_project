@@ -223,8 +223,37 @@ public class MatchService {
         return toMatchResponse(updatedMatch);
     }
 
+    // =========================    // GET MY MATCHES (For Citizens)
     // =========================
-    // GET ASSIGNED CASES (Lawyer/NGO)
+    public List<MatchResponse> getMyMatches() {
+        User currentUser = getCurrentUser();
+        
+        if (currentUser.getRole() != Role.CITIZEN) {
+            throw new RuntimeException("Only citizens can view their matches");
+        }
+        
+        log.info("Fetching all matches for citizen: {}", currentUser.getId());
+        
+        // Get all cases created by this citizen
+        List<Case> myCases = caseRepository.findByCreatedBy(currentUser);
+        
+        // Get all matches for these cases
+        List<Match> allMatches = new ArrayList<>();
+        for (Case legalCase : myCases) {
+            List<Match> caseMatches = matchRepository.findByLegalCaseId(legalCase.getId());
+            allMatches.addAll(caseMatches);
+        }
+        
+        log.info("Found {} total matches across {} cases", allMatches.size(), myCases.size());
+        
+        // Convert to response DTOs
+        return allMatches.stream()
+                .map(this::toMatchResponse)
+                .sorted(Comparator.comparing(MatchResponse::getCreatedAt).reversed())
+                .collect(Collectors.toList());
+    }
+
+    // =========================    // GET ASSIGNED CASES (Lawyer/NGO)
     // =========================
     public List<MatchResponse> getAssignedCases() {
 
