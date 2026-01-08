@@ -344,105 +344,111 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
       {showDetails && selectedCase && (
         <div className="modal-overlay" onClick={() => setShowDetails(false)}>
           <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title-group">
-                <h3>{selectedCase.caseTitle}</h3>
-                <span className="modal-case-id">ID: #{selectedCase.caseId}</span>
+            {/* Dark Header */}
+            <div className="modal-header-new">
+              <div className="header-title-section">
+                <h3 className="header-main-title">Case Details</h3>
+                <p className="header-subtitle">
+                  ID: #{selectedCase.caseId} • Posted on {new Date(selectedCase.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                </p>
               </div>
-              <button className="close-btn" onClick={() => setShowDetails(false)}>&times;</button>
+              <button className="close-btn-new" onClick={() => setShowDetails(false)}>&times;</button>
             </div>
 
-            <div className="modal-body">
-              <div className="modal-top-section">
-                <div className="status-banner" style={{
-                  backgroundColor: getStatusBadge(selectedCase.status).bg,
-                  color: getStatusBadge(selectedCase.status).color
-                }}>
-                  <strong>Status: {getStatusBadge(selectedCase.status).text}</strong>
-                  <span>Match Quality: {Math.round(selectedCase.matchScore)}%</span>
-                </div>
-
-                <div className="detail-section summary-section">
-                  <h4>Case Summary</h4>
-                  <p>{selectedCase.caseDescription}</p>
+            <div className="modal-body-new">
+              {/* Title and Badges */}
+              <div className="title-badges-section">
+                <h2 className="case-title-large">{selectedCase.caseTitle}</h2>
+                <div className="badges-row">
+                  <span className="badge-match">{Math.round(selectedCase.matchScore)}% Match</span>
+                  <span className="badge-priority" style={{
+                    backgroundColor: getPriorityColor(selectedCase.priority) + '33',
+                    color: getPriorityColor(selectedCase.priority),
+                    borderColor: getPriorityColor(selectedCase.priority)
+                  }}>
+                    {selectedCase.priority} Priority
+                  </span>
                 </div>
               </div>
 
-              <div className="modal-grid-layout">
-                <div className="grid-column">
-                  <div className="detail-item">
-                    <label>Case Type</label>
-                    <p>{selectedCase.caseType}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>Preferred Language</label>
-                    <p>{selectedCase.preferredLanguage}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>Location</label>
-                    <p>{selectedCase.caseLocation}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>Priority</label>
-                    <span className="priority-badge" style={{
-                      backgroundColor: getPriorityColor(selectedCase.priority) + '20',
-                      color: getPriorityColor(selectedCase.priority)
-                    }}>
-                      {selectedCase.priority}
-                    </span>
-                  </div>
+              {/* Meta Info Row */}
+              <div className="meta-info-row">
+                <div className="meta-item">
+                  <span className="meta-icon">📍</span>
+                  <span className="meta-text">{selectedCase.caseLocation}</span>
                 </div>
+                <div className="meta-item">
+                  <span className="meta-icon">📄</span>
+                  <span className="meta-text">{selectedCase.caseType}</span>
+                </div>
+                <div className="meta-item">
+                  <span className="meta-icon">👤</span>
+                  <span className="meta-text">{selectedCase.citizenName || 'user'}</span>
+                </div>
+              </div>
 
-                <div className="grid-column">
-                  <div className="detail-item">
-                    <label>Expertise Tags</label>
-                    <div className="tags-container">
+              {/* Two Column Layout */}
+              <div className="two-column-layout">
+                {/* Left Column */}
+                <div className="left-column">
+                  <div className="section-block">
+                    <h4 className="section-label">DESCRIPTION</h4>
+                    <p className="description-text">{selectedCase.caseDescription}</p>
+                  </div>
+
+                  <div className="section-block">
+                    <h4 className="section-label">EXPERTISE TAGS</h4>
+                    <div className="expertise-tags-list">
                       {selectedCase.expertiseTags && selectedCase.expertiseTags.length > 0 ? (
                         selectedCase.expertiseTags.map((tag, i) => (
-                          <span key={i} className="expertise-tag">{tag}</span>
+                          <span key={i} className="expertise-tag-pill">{tag}</span>
                         ))
                       ) : (
-                        <span className="no-data">No specific tags</span>
+                        <span className="no-data-text">No specific tags</span>
                       )}
                     </div>
                   </div>
-                  <div className="detail-item">
-                    <label>Additional Parties</label>
-                    <p>{selectedCase.additionalParties || 'None specified'}</p>
+                </div>
+
+                {/* Right Column */}
+                <div className="right-column">
+                  <div className="section-block">
+                    <h4 className="section-label">ADDITIONAL PARTIES</h4>
+                    <p className="parties-text">{selectedCase.additionalParties || 'None'}</p>
+                  </div>
+
+                  <div className="section-block">
+                    <h4 className="section-label">CONTACT INFORMATION</h4>
+                    <div className="contact-info-grid">
+                      <div className="contact-row">
+                        <span className="contact-label">Email</span>
+                        <span className="contact-value">{selectedCase.citizenEmail || 'user1@gmail.com'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="section-block">
+                    <div className="match-explanation-box">
+                      <h4 className="match-box-title">Why it matches?</h4>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="detail-section evidence-section">
-                <h4>Evidence & Documents</h4>
-                <div className="documents-list">
-                  {selectedCase.evidence && selectedCase.evidence.length > 0 ? (
-                    selectedCase.evidence.map((doc, idx) => (
-                      <div key={idx} className="document-item">
-                        <span className="doc-icon">📄</span>
-                        <span className="doc-name">{doc.name || `Document ${idx + 1} `}</span>
-                        <a href={doc.url || '#'} className="doc-link" target="_blank" rel="noopener noreferrer">View</a>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="no-docs">No documents attached.</p>
-                  )}
-                </div>
-              </div>
-
+              {/* Action Buttons */}
               {selectedCase.status === 'pending' && (
-                <div className="modal-actions-footer">
+                <div className="modal-actions-new">
                   <button
-                    className="btn-decline-case"
+                    className="btn-decline-new"
                     onClick={() => handleDecline(selectedCase.id)}
                   >
-                    Decline Case
+                    ✗ Decline Case
                   </button>
                   <button
-                    className="btn-accept-case"
+                    className="btn-accept-new"
                     onClick={() => handleAccept(selectedCase.id)}
                   >
-                    Accept Case & Start Chat
+                    ✓ Accept Case
                   </button>
                 </div>
               )}

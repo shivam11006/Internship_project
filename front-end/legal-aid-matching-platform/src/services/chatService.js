@@ -47,7 +47,7 @@ class ChatService {
         // The backend WebSocketAuthInterceptor checks both Authorization header and token query param
         const wsUrl = `${WS_BASE_URL}/ws/sockjs?token=${encodeURIComponent(token)}`;
         const socket = new SockJS(wsUrl);
-        
+
         // Create STOMP client
         this.stompClient = new Client({
           webSocketFactory: () => socket,
@@ -407,7 +407,7 @@ class ChatService {
       console.log('Fetching conversations from API...');
       const response = await apiClient.get('/chats');
       console.log('Conversations API response:', response.data);
-      
+
       // Ensure we have a valid response structure
       if (response.data) {
         const data = response.data;
@@ -419,7 +419,7 @@ class ChatService {
         console.log(`Found ${data.conversations.length} conversations`);
         return { success: true, data: data };
       }
-      
+
       return { success: true, data: { conversations: [], totalConversations: 0, totalUnreadMessages: 0 } };
     } catch (error) {
       console.error('Error fetching conversations:', error);

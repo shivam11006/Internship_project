@@ -130,14 +130,14 @@ const CaseManagement = () => {
       };
 
       await apiClient.put(`/cases/${selectedCase.id}`, updateData);
-      
+
       // Refresh the case details
       const response = await apiClient.get(`/cases/${selectedCase.id}`);
       setSelectedCase(response.data);
-      
+
       // Refresh the cases list
       await fetchMyCases();
-      
+
       setIsEditMode(false);
       setEditedCase(null);
       alert('Case updated successfully!');
@@ -184,11 +184,11 @@ const CaseManagement = () => {
     try {
       setGeneratingMatches(true);
       console.log('Generating matches for case:', caseId);
-      
+
       // Call the generate matches API
       const generateResponse = await matchService.generateMatches(caseId);
       console.log('Matches generated:', generateResponse);
-      
+
       // Now open the matches modal
       setSelectedCaseIdForMatches(caseId);
       setShowMatchesModal(true);
@@ -283,8 +283,8 @@ const CaseManagement = () => {
                     width: '100%',
                     marginTop: '12px',
                     padding: '10px',
-                    background: generatingMatches 
-                      ? '#ccc' 
+                    background: generatingMatches
+                      ? '#ccc'
                       : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     color: 'white',
                     border: 'none',
@@ -296,7 +296,7 @@ const CaseManagement = () => {
                   onMouseOver={(e) => !generatingMatches && (e.target.style.transform = 'translateY(-2px)')}
                   onMouseOut={(e) => !generatingMatches && (e.target.style.transform = 'translateY(0)')}
                 >
-                  {generatingMatches ? '⏳ Generating Matches...' : '💘 View Matches'}
+                  {generatingMatches ? '⏳ Generating Matches...' : 'View Matches Lawyer / NGO'}
                 </button>
               </div>
             </div>

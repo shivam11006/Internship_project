@@ -419,18 +419,18 @@ function DashboardNgo() {
       console.log('Already loading conversations, skipping...');
       return;
     }
-    
+
     setLoadingConversations(true);
     try {
       console.log('Loading conversations...', { autoSelect, activeChat, hasAutoSelected: hasAutoSelectedRef.current });
       const result = await chatService.getConversations();
       console.log('Load conversations result:', result);
-      
+
       if (result.success && result.data) {
         const convos = result.data.conversations || [];
         console.log(`Loaded ${convos.length} conversations:`, convos);
         setConversations(convos);
-        
+
         // Only auto-select if explicitly requested AND no active chat AND we haven't already auto-selected
         if (autoSelect && !activeChat && !hasAutoSelectedRef.current && convos.length > 0) {
           console.log('Auto-selecting first conversation:', convos[0].matchId);
@@ -460,14 +460,14 @@ function DashboardNgo() {
   // Load messages for a match
   const loadMessages = async (matchId) => {
     if (!matchId) return;
-    
+
     setLoadingMessages(true);
     try {
       const result = await chatService.getChatHistory(matchId, 0, 50);
       if (result.success && result.data) {
         const msgs = result.data.messages || [];
         const currentUser = authService.getCurrentUser();
-        
+
         // Convert backend messages to frontend format
         const formattedMessages = msgs.map(msg => {
           // Determine if message is from current user
@@ -477,7 +477,7 @@ function DashboardNgo() {
           if (isOwn === undefined || isOwn === null) {
             isOwn = msg.senderId === currentUser?.id;
           }
-          
+
           return {
             id: msg.id,
             text: msg.content,
@@ -488,9 +488,9 @@ function DashboardNgo() {
             senderId: msg.senderId
           };
         });
-        
+
         setMessages(formattedMessages);
-        
+
         // Mark messages as read
         await chatService.markAsRead(matchId);
       }
@@ -515,7 +515,7 @@ function DashboardNgo() {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -534,7 +534,7 @@ function DashboardNgo() {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -543,15 +543,15 @@ function DashboardNgo() {
     setActiveChat(matchId);
     setCurrentMatchId(matchId);
     setMessages([]);
-    
+
     // Unsubscribe from previous match
     if (currentMatchId && currentMatchId !== matchId) {
       chatService.unsubscribeFromMatch(currentMatchId);
     }
-    
+
     // Subscribe to new match
     chatService.subscribeToMatch(matchId);
-    
+
     // Set up message handler
     chatService.onMessage(matchId, (message) => {
       setMessages(prev => {
@@ -559,9 +559,9 @@ function DashboardNgo() {
         if (prev.some(m => m.id === message.id)) {
           return prev;
         }
-        
+
         const currentUser = authService.getCurrentUser();
-        
+
         // Determine if message is from current user
         // Primary check: use isOwnMessage flag from backend
         // Fallback: compare sender ID with current user ID
@@ -569,7 +569,7 @@ function DashboardNgo() {
         if (isOwn === undefined || isOwn === null) {
           isOwn = message.senderId === currentUser?.id;
         }
-        
+
         return [...prev, {
           id: message.id,
           text: message.content,
@@ -589,10 +589,10 @@ function DashboardNgo() {
 
     // Load message history
     await loadMessages(matchId);
-    
+
     // Mark as read
     await chatService.markAsRead(matchId);
-    
+
     // Don't call loadConversations here to avoid infinite loop
     // Unread counts will be updated when conversations are refreshed manually
   };
@@ -617,15 +617,15 @@ function DashboardNgo() {
   // Handle typing indicator
   const handleTyping = () => {
     if (!currentMatchId) return;
-    
+
     // Send typing indicator
     chatService.sendTypingIndicator(currentMatchId, true);
-    
+
     // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
+
     // Set timeout to stop typing indicator
     typingTimeoutRef.current = setTimeout(() => {
       chatService.sendTypingIndicator(currentMatchId, false);
@@ -744,7 +744,7 @@ function DashboardNgo() {
                   <h3 className="section-title">Upcoming Schedule</h3>
                   <button className="view-all-link">View All</button>
                 </div>
-                
+
                 {loadingAppointments ? (
                   <div style={{ textAlign: 'center', padding: '2rem' }}>
                     <div className="loading-spinner" style={{ display: 'inline-block' }}>
@@ -769,14 +769,14 @@ function DashboardNgo() {
                       const appointmentDate = new Date(appointment.scheduledDateTime);
                       const dateStr = appointmentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                       const timeStr = appointmentDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                      
+
                       // Determine status color based on appointment status
                       let statusClass = 'pending';
                       if (appointment.status === 'CONFIRMED') statusClass = 'confirmed';
                       else if (appointment.status === 'CANCELLED') statusClass = 'cancelled';
                       else if (appointment.status === 'COMPLETED') statusClass = 'completed';
                       else if (appointment.status === 'NO_SHOW') statusClass = 'no-show';
-                      
+
                       return (
                         <div key={appointment.id} className={`event-card ${statusClass}`}>
                           <div className="event-date-box">
@@ -785,7 +785,7 @@ function DashboardNgo() {
                           </div>
                           <div className="event-details">
                             <div className="event-title-row">
-                              <h4>{appointment.caseTitle || 'Appointment'}</h4>
+                              <h4 style={{ fontWeight: '600', color: '#111827', margin: 0, overflowWrap: 'break-word', wordBreak: 'break-word' }}>{appointment.caseTitle || 'Appointment'}</h4>
                               <span className={`event-status-pill ${statusClass}`}>{appointment.status}</span>
                             </div>
                             <div className="event-meta">
@@ -809,8 +809,8 @@ function DashboardNgo() {
                             )}
                             <div className="event-footer" style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                               {appointment.status === 'PENDING' && appointment.providerAcceptRequired && (
-                                <button 
-                                  className="btn-join-call" 
+                                <button
+                                  className="btn-join-call"
                                   style={{ backgroundColor: '#10b981', flex: '1', minWidth: '80px' }}
                                   onClick={() => handleAcceptAppointment(appointment.id)}
                                 >
@@ -819,14 +819,14 @@ function DashboardNgo() {
                               )}
                               {(appointment.status === 'PENDING' || appointment.status === 'CONFIRMED') && (
                                 <>
-                                  <button 
+                                  <button
                                     className="btn-join-call"
                                     style={{ backgroundColor: '#f59e0b', flex: '1', minWidth: '80px' }}
                                     onClick={() => handleRequestReschedule(appointment.id)}
                                   >
                                     Reschedule
                                   </button>
-                                  <button 
+                                  <button
                                     className="btn-join-call"
                                     style={{ backgroundColor: '#ef4444', flex: '1', minWidth: '80px' }}
                                     onClick={() => handleCancelAppointment(appointment.id)}
@@ -836,7 +836,7 @@ function DashboardNgo() {
                                 </>
                               )}
                               {appointment.status === 'CONFIRMED' && new Date(appointment.scheduledDateTime) < new Date() && (
-                                <button 
+                                <button
                                   className="btn-join-call"
                                   style={{ backgroundColor: '#8b5cf6', flex: '1', minWidth: '80px' }}
                                   onClick={() => handleCompleteAppointment(appointment.id)}
@@ -895,11 +895,11 @@ function DashboardNgo() {
                   </p>
                 </div>
               ) : (
-                <div className="requests-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                <div className="requests-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '1.5rem' }}>
                   {newRequests.map(req => (
                     <div key={req.id} className="request-card" style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
-                        <h3 style={{ fontWeight: '600', color: '#111827', marginRight: '1rem', flex: 1 }}>{req.title}</h3>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <h3 style={{ fontWeight: '600', color: '#111827', marginRight: '1rem', flex: 1, overflowWrap: 'break-word', wordBreak: 'break-word' }}>{req.title}</h3>
                         <span style={{ backgroundColor: '#e0e7ff', color: '#4338ca', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderRadius: '9999px', fontWeight: '500', whiteSpace: 'nowrap' }}>
                           {Math.round(req.matchScore)}% Match
                         </span>
@@ -946,7 +946,7 @@ function DashboardNgo() {
                         </svg>
                         View details
                       </button>
-                      <div style={{ display: 'flex', gap: '1rem' }}>
+                      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                         <button
                           onClick={() => handleAcceptRequest(req.id)}
                           style={{ flex: 1, backgroundColor: '#10b981', color: 'white', padding: '0.5rem', borderRadius: '0.375rem', fontWeight: '500', border: 'none', cursor: 'pointer', transition: 'background-color 0.2s' }}
@@ -982,7 +982,7 @@ function DashboardNgo() {
           )}
 
           {activeTab === 'secure-chat' && (
-            <div className="secure-chat-container">
+            <div className={`secure-chat-container ${activeChat ? 'chat-active' : 'list-active'}`}>
               {/* Chat Sidebar */}
               <div className="chat-sidebar">
                 <div className="chat-sidebar-header">
@@ -992,9 +992,9 @@ function DashboardNgo() {
                     </svg>
                     <input type="text" className="chat-search-input" placeholder="Search conversations..." />
                   </div>
-                  <div style={{ 
-                    marginTop: '8px', 
-                    fontSize: '12px', 
+                  <div style={{
+                    marginTop: '8px',
+                    fontSize: '12px',
                     color: wsConnected ? '#10b981' : '#ef4444',
                     display: 'flex',
                     alignItems: 'center',
@@ -1026,18 +1026,7 @@ function DashboardNgo() {
                         onClick={() => handleSelectConversation(convo.matchId)}
                       >
                         <div className="convo-avatar">
-                          <div style={{
-                            width: '48px',
-                            height: '48px',
-                            borderRadius: '12px',
-                            backgroundColor: '#6d28d9',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            fontSize: '18px'
-                          }}>
+                          <div className="convo-avatar-inner">
                             {convo.otherUserName?.charAt(0)?.toUpperCase() || '?'}
                           </div>
                         </div>
@@ -1066,22 +1055,15 @@ function DashboardNgo() {
               {/* Main Chat Window */}
               <div className="chat-window">
                 <div className="chat-header">
+                  <button className="btn-back-mobile" onClick={() => handleSelectConversation(null)}>
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                  </button>
                   <div className="chat-contact-info">
                     {currentContact ? (
                       <>
-                        <div style={{
-                          width: '44px',
-                          height: '44px',
-                          borderRadius: '12px',
-                          backgroundColor: '#6d28d9',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          fontSize: '16px',
-                          marginRight: '12px'
-                        }}>
+                        <div className="chat-contact-avatar-inner">
                           {currentContact.otherUserName?.charAt(0)?.toUpperCase() || '?'}
                         </div>
                         <div className="chat-contact-details">
@@ -1129,14 +1111,14 @@ function DashboardNgo() {
                         <div key={msg.id} className={`message ${msg.sender}`}>
                           <div className="message-bubble">
                             {msg.text}
-                          </div>
-                          <div className="message-info">
-                            <span>{msg.time}</span>
-                            {msg.sender === 'user' && (
-                              <svg className="msg-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7m-12 6l4 4L19 7" />
-                              </svg>
-                            )}
+                            <div className="message-info">
+                              <span>{msg.time}</span>
+                              {msg.sender === 'user' && (
+                                <svg className="msg-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7m-12 6l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1185,8 +1167,8 @@ function DashboardNgo() {
                       }}
                       disabled={!currentContact || !wsConnected}
                     ></textarea>
-                    <button 
-                      className="btn-send-msg" 
+                    <button
+                      className="btn-send-msg"
                       onClick={handleSendMessage}
                       disabled={!currentContact || !messageText.trim() || !wsConnected}
                       style={{ opacity: (!currentContact || !messageText.trim() || !wsConnected) ? 0.5 : 1 }}

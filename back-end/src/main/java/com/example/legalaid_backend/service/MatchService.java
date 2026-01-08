@@ -39,13 +39,13 @@ public class MatchService {
     // =========================
     @Transactional
     public GenerateMatchesResponse generateMatches(Long caseId) {
-        
+
         User currentUser = getCurrentUser();
-        
+
         // Verify case ownership
         Case legalCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new RuntimeException("Case not found"));
-        
+
         if (!legalCase.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Access denied: You can only generate matches for your own cases");
         }
@@ -62,8 +62,9 @@ public class MatchService {
 
         // Match with lawyers
         for (User lawyer : lawyers) {
-            if (lawyer.getLawyerProfile() == null) continue;
-            
+            if (lawyer.getLawyerProfile() == null)
+                continue;
+
             // Check if match already exists
             if (matchRepository.findByLegalCaseIdAndLawyerId(caseId, lawyer.getId()).isPresent()) {
                 log.debug("Match already exists for case {} and lawyer {}", caseId, lawyer.getId());
@@ -71,7 +72,7 @@ public class MatchService {
             }
 
             double score = calculateMatchScore(legalCase, lawyer, Role.LAWYER);
-            
+
             if (score > 30) { // Only create matches with positive scores
                 Match match = new Match();
                 match.setLegalCase(legalCase);
@@ -85,8 +86,9 @@ public class MatchService {
 
         // Match with NGOs
         for (User ngo : ngos) {
-            if (ngo.getNgoProfile() == null) continue;
-            
+            if (ngo.getNgoProfile() == null)
+                continue;
+
             // Check if match already exists
             if (matchRepository.findByLegalCaseIdAndNgoId(caseId, ngo.getId()).isPresent()) {
                 log.debug("Match already exists for case {} and NGO {}", caseId, ngo.getId());
@@ -94,7 +96,7 @@ public class MatchService {
             }
 
             double score = calculateMatchScore(legalCase, ngo, Role.NGO);
-            
+
             if (score > 30) { // Only create matches with positive scores
                 Match match = new Match();
                 match.setLegalCase(legalCase);
@@ -108,12 +110,12 @@ public class MatchService {
 
         // Save all new matches
         List<Match> savedMatches = matchRepository.saveAll(newMatches);
-        
+
         log.info("Created {} new matches for case {}", savedMatches.size(), caseId);
 
         // Get all matches for this case (including existing ones)
         List<Match> allMatches = matchRepository.findByLegalCaseId(caseId);
-        
+
         List<MatchResponse> matchResponses = allMatches.stream()
                 .map(this::toMatchResponse)
                 .sorted(Comparator.comparing(MatchResponse::getMatchScore).reversed())
@@ -131,20 +133,21 @@ public class MatchService {
     // GET MATCHES FOR A CASE (Public format for directory-style listing)
     // =========================
     public List<MatchResultDTO> getMatchesForCase(Long caseId) {
-        
+
         User currentUser = getCurrentUser();
-        
+
         // Verify case ownership
         Case legalCase = caseRepository.findById(caseId)
                 .orElseThrow(() -> new RuntimeException("Case not found"));
-        
+
         if (!legalCase.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Access denied: You can only view matches for your own cases");
         }
 
-        // Only return PENDING matches - accepted/rejected ones should not appear in this view
+        // Only return PENDING matches - accepted/rejected ones should not appear in
+        // this view
         List<Match> matches = matchRepository.findByLegalCaseId(caseId);
-        
+
         return matches.stream()
                 .filter(match -> match.getStatus() == MatchStatus.PENDING)
                 .map(this::toMatchResultDTO)
@@ -157,13 +160,13 @@ public class MatchService {
     // =========================
     @Transactional
     public MatchResponse selectMatch(Long matchId) {
-        
+
         User currentUser = getCurrentUser();
-        
+
         if (currentUser.getRole() != Role.CITIZEN) {
             throw new RuntimeException("Only citizens can select matches");
         }
-        
+
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new RuntimeException("Match not found"));
 
@@ -177,11 +180,11 @@ public class MatchService {
         }
 
         match.setStatus(MatchStatus.SELECTED_BY_CITIZEN);
-        
+
         Match updatedMatch = matchRepository.save(match);
-        
+
         log.info("Match {} selected by citizen {}", matchId, currentUser.getEmail());
-        
+
         return toMatchResponse(updatedMatch);
     }
 
@@ -190,13 +193,13 @@ public class MatchService {
     // =========================
     @Transactional
     public MatchResponse rejectMatchByCitizen(Long matchId, String reason) {
-        
+
         User currentUser = getCurrentUser();
-        
+
         if (currentUser.getRole() != Role.CITIZEN) {
             throw new RuntimeException("Only citizens can reject matches");
         }
-        
+
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new RuntimeException("Match not found"));
 
@@ -212,11 +215,11 @@ public class MatchService {
         match.setStatus(MatchStatus.REJECTED_BY_CITIZEN);
         match.setRejectedAt(LocalDateTime.now());
         match.setRejectionReason(reason != null ? reason : "Not interested");
-        
+
         Match updatedMatch = matchRepository.save(match);
-        
+
         log.info("Match {} rejected by citizen {}", matchId, currentUser.getEmail());
-        
+
         return toMatchResponse(updatedMatch);
     }
 
@@ -224,20 +227,21 @@ public class MatchService {
     // GET ASSIGNED CASES (Lawyer/NGO)
     // =========================
     public List<MatchResponse> getAssignedCases() {
-        
+
         User currentUser = getCurrentUser();
-        
+
         if (currentUser.getRole() != Role.LAWYER && currentUser.getRole() != Role.NGO) {
             throw new RuntimeException("Only lawyers and NGOs can view assigned cases");
         }
 
         // Get matches where citizen has selected this provider
         List<Match> matches = matchRepository.findByProviderId(currentUser.getId());
-        
-        // Filter to only show matches that are SELECTED_BY_CITIZEN or ACCEPTED_BY_PROVIDER
+
+        // Filter to only show matches that are SELECTED_BY_CITIZEN or
+        // ACCEPTED_BY_PROVIDER
         return matches.stream()
-                .filter(m -> m.getStatus() == MatchStatus.SELECTED_BY_CITIZEN || 
-                            m.getStatus() == MatchStatus.ACCEPTED_BY_PROVIDER)
+                .filter(m -> m.getStatus() == MatchStatus.SELECTED_BY_CITIZEN ||
+                        m.getStatus() == MatchStatus.ACCEPTED_BY_PROVIDER)
                 .map(this::toMatchResponse)
                 .sorted(Comparator.comparing(MatchResponse::getCreatedAt).reversed())
                 .collect(Collectors.toList());
@@ -248,13 +252,13 @@ public class MatchService {
     // =========================
     @Transactional
     public MatchResponse acceptCaseAssignment(Long matchId) {
-        
+
         User currentUser = getCurrentUser();
-        
+
         if (currentUser.getRole() != Role.LAWYER && currentUser.getRole() != Role.NGO) {
             throw new RuntimeException("Only lawyers and NGOs can accept case assignments");
         }
-        
+
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new RuntimeException("Match not found"));
 
@@ -272,11 +276,11 @@ public class MatchService {
 
         match.setStatus(MatchStatus.ACCEPTED_BY_PROVIDER);
         match.setAcceptedAt(LocalDateTime.now());
-        
+
         Match updatedMatch = matchRepository.save(match);
-        
+
         log.info("Case assignment {} accepted by provider {}", matchId, currentUser.getEmail());
-        
+
         return toMatchResponse(updatedMatch);
     }
 
@@ -285,13 +289,13 @@ public class MatchService {
     // =========================
     @Transactional
     public MatchResponse declineCaseAssignment(Long matchId, String reason) {
-        
+
         User currentUser = getCurrentUser();
-        
+
         if (currentUser.getRole() != Role.LAWYER && currentUser.getRole() != Role.NGO) {
             throw new RuntimeException("Only lawyers and NGOs can decline case assignments");
         }
-        
+
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new RuntimeException("Match not found"));
 
@@ -310,11 +314,11 @@ public class MatchService {
         match.setStatus(MatchStatus.REJECTED_BY_PROVIDER);
         match.setRejectedAt(LocalDateTime.now());
         match.setRejectionReason(reason != null ? reason : "Unable to take this case");
-        
+
         Match updatedMatch = matchRepository.save(match);
-        
+
         log.info("Case assignment {} declined by provider {}", matchId, currentUser.getEmail());
-        
+
         return toMatchResponse(updatedMatch);
     }
 
@@ -322,7 +326,7 @@ public class MatchService {
     // SCORING ALGORITHM
     // =========================
     private double calculateMatchScore(Case legalCase, User provider, Role providerRole) {
-        
+
         double score = 0.0;
         int factors = 0;
 
@@ -347,20 +351,20 @@ public class MatchService {
         }
         factors++;
 
-        log.debug("Match score for {} ({}): Expertise={}, Location={}, Language={}, Total={}", 
+        log.debug("Match score for {} ({}): Expertise={}, Location={}, Language={}, Total={}",
                 provider.getUsername(), providerRole, expertiseScore, locationScore, languageScore, score);
 
         return Math.min(100.0, score); // Cap at 100
     }
 
     private double calculateExpertiseScore(Case legalCase, User provider, Role providerRole) {
-        
+
         if (legalCase.getExpertiseTags() == null || legalCase.getExpertiseTags().isEmpty()) {
             return 20.0; // Base score if no expertise specified
         }
 
         String providerExpertise = "";
-        
+
         if (providerRole == Role.LAWYER && provider.getLawyerProfile() != null) {
             providerExpertise = provider.getLawyerProfile().getSpecialization();
         } else if (providerRole == Role.NGO && provider.getNgoProfile() != null) {
@@ -397,7 +401,7 @@ public class MatchService {
     }
 
     private double calculateLocationScore(Case legalCase, User provider) {
-        
+
         if (legalCase.getLocation() == null || legalCase.getLocation().isEmpty()) {
             return 15.0; // Neutral score if no location specified
         }
@@ -430,7 +434,7 @@ public class MatchService {
     }
 
     private double calculateLanguageScore(Case legalCase, User provider, Role providerRole) {
-        
+
         if (legalCase.getPreferredLanguage() == null || legalCase.getPreferredLanguage().isEmpty()) {
             return 10.0; // Neutral score if no language preference
         }
@@ -458,7 +462,7 @@ public class MatchService {
     }
 
     private String generateMatchReason(Case legalCase, User provider, Role providerRole) {
-        
+
         List<String> reasons = new ArrayList<>();
 
         // Expertise match
@@ -470,8 +474,8 @@ public class MatchService {
         }
 
         if (providerExpertise != null && !providerExpertise.isEmpty()) {
-            if (legalCase.getCaseType() != null && 
-                providerExpertise.toLowerCase().contains(legalCase.getCaseType().toLowerCase())) {
+            if (legalCase.getCaseType() != null &&
+                    providerExpertise.toLowerCase().contains(legalCase.getCaseType().toLowerCase())) {
                 reasons.add("Expertise matches case type");
             } else if (legalCase.getExpertiseTags() != null) {
                 for (String tag : legalCase.getExpertiseTags()) {
@@ -488,7 +492,7 @@ public class MatchService {
             if (legalCase.getLocation().equalsIgnoreCase(provider.getLocation())) {
                 reasons.add("Same location");
             } else if (legalCase.getLocation().toLowerCase().contains(provider.getLocation().toLowerCase()) ||
-                       provider.getLocation().toLowerCase().contains(legalCase.getLocation().toLowerCase())) {
+                    provider.getLocation().toLowerCase().contains(legalCase.getLocation().toLowerCase())) {
                 reasons.add("Nearby location");
             }
         }
@@ -519,7 +523,7 @@ public class MatchService {
     // CONVERSION METHODS
     // =========================
     private MatchResponse toMatchResponse(Match match) {
-        
+
         MatchResponse response = new MatchResponse();
         response.setId(match.getId());
         response.setCaseId(match.getLegalCase().getId());
@@ -527,8 +531,8 @@ public class MatchService {
         response.setCaseType(match.getLegalCase().getCaseType());
         response.setCaseLocation(match.getLegalCase().getLocation());
         response.setCaseDescription(match.getLegalCase().getDescription());
-        response.setCasePriority(match.getLegalCase().getPriority() != null ? 
-                                  match.getLegalCase().getPriority().toString() : null);
+        response.setCasePriority(
+                match.getLegalCase().getPriority() != null ? match.getLegalCase().getPriority().toString() : null);
         response.setStatus(match.getStatus().toString());
         response.setMatchScore(match.getMatchScore());
         response.setMatchReason(match.getMatchReason());
@@ -536,7 +540,7 @@ public class MatchService {
         response.setCreatedAt(match.getCreatedAt());
         response.setAcceptedAt(match.getAcceptedAt());
         response.setRejectedAt(match.getRejectedAt());
-        
+
         // Add citizen information
         User citizen = match.getLegalCase().getCreatedBy();
         if (citizen != null) {
@@ -568,7 +572,7 @@ public class MatchService {
     }
 
     private MatchResultDTO toMatchResultDTO(Match match) {
-        
+
         MatchResultDTO dto = new MatchResultDTO();
         dto.setSource("REGISTERED");
         dto.setMatchId(match.getId());

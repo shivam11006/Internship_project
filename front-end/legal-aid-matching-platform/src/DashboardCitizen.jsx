@@ -21,7 +21,7 @@ function DashboardCitizen() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeChat, setActiveChat] = useState(null); // Will store matchId
-  
+
   // Appointment form state
   const [appointmentForm, setAppointmentForm] = useState({
     appointmentType: 'call', // 'call' or 'offline'
@@ -37,11 +37,12 @@ function DashboardCitizen() {
   });
   const [submittingAppointment, setSubmittingAppointment] = useState(false);
   const [appointmentError, setAppointmentError] = useState(null);
+
   const [messageText, setMessageText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const typingTimeoutRef = useRef(null);
-  const hasAutoSelectedRef = useRef(false); // Track if we've already auto-selected a conversation
+  const hasAutoSelectedRef = useRef(false);
   const [profileData, setProfileData] = useState({
     username: '',
     email: '',
@@ -174,27 +175,7 @@ function DashboardCitizen() {
         'launched a new legal helpline.'
       ]
     },
-    {
-      id: 4,
-      name: 'Advocate Sharma',
-      role: 'Lawyer',
-      description: 'Viewed your profile',
-      time: '3 days ago',
-      avatar: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-      online: false,
-      rating: 4.5,
-      location: 'Mumbai, MH',
-      email: 'sharma.advocate@law.in',
-      phone: '+91 98765 43210',
-      website: 'www.sharmalaw.in',
-      practiceAreas: ['Property Law', 'Criminal Defense', 'Tax Law'],
-      availability: 'Consultation by appointment',
-      matchPercentage: 80,
-      recentActivity: [
-        'Won a high-profile property case.',
-        'Joined the Bar Association panel.'
-      ]
-    }
+
   ];
 
   const matchesOverTimeData = [
@@ -323,18 +304,18 @@ function DashboardCitizen() {
       console.log('Already loading conversations, skipping...');
       return;
     }
-    
+
     setLoadingConversations(true);
     try {
       console.log('Loading conversations...', { autoSelect, activeChat, hasAutoSelected: hasAutoSelectedRef.current });
       const result = await chatService.getConversations();
       console.log('Load conversations result:', result);
-      
+
       if (result.success && result.data) {
         const convos = result.data.conversations || [];
         console.log(`Loaded ${convos.length} conversations:`, convos);
         setConversations(convos);
-        
+
         // Only auto-select if explicitly requested AND no active chat AND we haven't already auto-selected
         if (autoSelect && !activeChat && !hasAutoSelectedRef.current && convos.length > 0) {
           console.log('Auto-selecting first conversation:', convos[0].matchId);
@@ -364,14 +345,14 @@ function DashboardCitizen() {
   // Load messages for a match
   const loadMessages = async (matchId) => {
     if (!matchId) return;
-    
+
     setLoadingMessages(true);
     try {
       const result = await chatService.getChatHistory(matchId, 0, 50);
       if (result.success && result.data) {
         const msgs = result.data.messages || [];
         const currentUser = authService.getCurrentUser();
-        
+
         // Convert backend messages to frontend format
         const formattedMessages = msgs.map(msg => {
           // Determine if message is from current user
@@ -381,7 +362,7 @@ function DashboardCitizen() {
           if (isOwn === undefined || isOwn === null) {
             isOwn = msg.senderId === currentUser?.id;
           }
-          
+
           return {
             id: msg.id,
             text: msg.content,
@@ -392,9 +373,9 @@ function DashboardCitizen() {
             senderId: msg.senderId
           };
         });
-        
+
         setMessages(formattedMessages);
-        
+
         // Mark messages as read
         await chatService.markAsRead(matchId);
       }
@@ -419,7 +400,7 @@ function DashboardCitizen() {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -438,7 +419,7 @@ function DashboardCitizen() {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -447,15 +428,15 @@ function DashboardCitizen() {
     setActiveChat(matchId);
     setCurrentMatchId(matchId);
     setMessages([]);
-    
+
     // Unsubscribe from previous match
     if (currentMatchId && currentMatchId !== matchId) {
       chatService.unsubscribeFromMatch(currentMatchId);
     }
-    
+
     // Subscribe to new match
     chatService.subscribeToMatch(matchId);
-    
+
     // Set up message handler
     chatService.onMessage(matchId, (message) => {
       setMessages(prev => {
@@ -463,9 +444,9 @@ function DashboardCitizen() {
         if (prev.some(m => m.id === message.id)) {
           return prev;
         }
-        
+
         const currentUser = authService.getCurrentUser();
-        
+
         // Determine if message is from current user
         // Primary check: use isOwnMessage flag from backend
         // Fallback: compare sender ID with current user ID
@@ -473,7 +454,7 @@ function DashboardCitizen() {
         if (isOwn === undefined || isOwn === null) {
           isOwn = message.senderId === currentUser?.id;
         }
-        
+
         return [...prev, {
           id: message.id,
           text: message.content,
@@ -493,10 +474,10 @@ function DashboardCitizen() {
 
     // Load message history
     await loadMessages(matchId);
-    
+
     // Mark as read
     await chatService.markAsRead(matchId);
-    
+
     // Refresh conversations to update unread counts (avoid circular call)
     // loadConversations will be called separately if needed
   };
@@ -521,15 +502,15 @@ function DashboardCitizen() {
   // Handle typing indicator
   const handleTyping = () => {
     if (!currentMatchId) return;
-    
+
     // Send typing indicator
     chatService.sendTypingIndicator(currentMatchId, true);
-    
+
     // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
+
     // Set timeout to stop typing indicator
     typingTimeoutRef.current = setTimeout(() => {
       chatService.sendTypingIndicator(currentMatchId, false);
@@ -580,14 +561,14 @@ function DashboardCitizen() {
 
   const handleChatClick = async (match) => {
     setActiveTab('secure-chat');
-    
+
     // If match has a matchId, start/select that conversation
     if (match?.matchId) {
       const matchId = match.matchId;
-      
+
       // Check if this conversation already exists in the list
       const existingConvo = conversations.find(c => c.matchId === matchId);
-      
+
       if (existingConvo) {
         // Conversation exists, just select it
         await handleSelectConversation(matchId);
@@ -597,7 +578,7 @@ function DashboardCitizen() {
         try {
           // Try to load the match's chat history (this will validate if chat is allowed)
           const result = await chatService.getChatHistory(matchId, 0, 50);
-          
+
           if (result.success) {
             // Chat is available, set up the conversation
             await handleSelectConversation(matchId);
@@ -634,7 +615,7 @@ function DashboardCitizen() {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const defaultDate = tomorrow.toISOString().split('T')[0];
-    
+
     setAppointmentForm({
       appointmentType: 'call',
       date: defaultDate,
@@ -705,7 +686,7 @@ function DashboardCitizen() {
     try {
       // Combine date and time into ISO datetime format
       const scheduledDateTime = `${appointmentForm.date}T${appointmentForm.time}:00`;
-      
+
       const appointmentData = {
         matchId: currentContact.matchId,
         scheduledDateTime: scheduledDateTime,
@@ -995,10 +976,10 @@ function DashboardCitizen() {
                       </div>
                     ) : (
                       conversations.slice(0, 5).map((conversation) => {
-                        const timeAgo = conversation.lastMessageTime 
+                        const timeAgo = conversation.lastMessageTime
                           ? formatTimeAgo(new Date(conversation.lastMessageTime))
                           : 'No messages yet';
-                        
+
                         return (
                           <div key={conversation.matchId} className="match-card-item">
                             <div className="match-card-left">
@@ -1026,7 +1007,7 @@ function DashboardCitizen() {
                                   <span className="match-name">{conversation.otherUserName || 'Unknown'}</span>
                                   <span className="match-role">({conversation.otherUserRole || 'User'})</span>
                                 </div>
-                                <div className="match-desc" style={{ 
+                                <div className="match-desc" style={{
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap',
@@ -1076,7 +1057,7 @@ function DashboardCitizen() {
                     <h3 className="section-title">Upcoming Schedule</h3>
                     <button className="view-all-link" onClick={() => setActiveTab('schedule')}>View All</button>
                   </div>
-                  
+
                   {loadingAppointments ? (
                     <div style={{ textAlign: 'center', padding: '2rem' }}>
                       <div className="loading-spinner" style={{ display: 'inline-block' }}>
@@ -1101,14 +1082,14 @@ function DashboardCitizen() {
                         const appointmentDate = new Date(appointment.scheduledDateTime);
                         const dateStr = appointmentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                         const timeStr = appointmentDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                        
+
                         // Determine status color based on appointment status
                         let statusClass = 'pending';
                         if (appointment.status === 'CONFIRMED') statusClass = 'confirmed';
                         else if (appointment.status === 'CANCELLED') statusClass = 'cancelled';
                         else if (appointment.status === 'COMPLETED') statusClass = 'completed';
                         else if (appointment.status === 'NO_SHOW') statusClass = 'no-show';
-                        
+
                         return (
                           <div key={appointment.id} className={`event-card ${statusClass}`}>
                             <div className="event-date-box">
@@ -1204,7 +1185,7 @@ function DashboardCitizen() {
           )}
 
           {activeTab === 'secure-chat' && (
-            <div className="secure-chat-container">
+            <div className={`secure-chat-container ${activeChat ? 'chat-active' : 'list-active'}`}>
               {/* Chat Sidebar */}
               <div className="chat-sidebar">
                 <div className="chat-sidebar-header">
@@ -1214,9 +1195,9 @@ function DashboardCitizen() {
                     </svg>
                     <input type="text" className="chat-search-input" placeholder="Search conversations..." />
                   </div>
-                  <div style={{ 
-                    marginTop: '8px', 
-                    fontSize: '12px', 
+                  <div style={{
+                    marginTop: '8px',
+                    fontSize: '12px',
                     color: wsConnected ? '#10b981' : '#ef4444',
                     display: 'flex',
                     alignItems: 'center',
@@ -1259,18 +1240,7 @@ function DashboardCitizen() {
                         onClick={() => handleSelectConversation(convo.matchId)}
                       >
                         <div className="convo-avatar">
-                          <div style={{
-                            width: '48px',
-                            height: '48px',
-                            borderRadius: '12px',
-                            backgroundColor: '#6d28d9',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            fontSize: '18px'
-                          }}>
+                          <div className="convo-avatar-inner">
                             {convo.otherUserName?.charAt(0)?.toUpperCase() || '?'}
                           </div>
                         </div>
@@ -1299,22 +1269,15 @@ function DashboardCitizen() {
               {/* Main Chat Window */}
               <div className="chat-window">
                 <div className="chat-header">
+                  <button className="btn-back-mobile" onClick={() => handleSelectConversation(null)}>
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                  </button>
                   <div className="chat-contact-info">
                     {currentContact ? (
                       <>
-                        <div style={{
-                          width: '44px',
-                          height: '44px',
-                          borderRadius: '12px',
-                          backgroundColor: '#6d28d9',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          fontSize: '16px',
-                          marginRight: '12px'
-                        }}>
+                        <div className="chat-contact-avatar-inner">
                           {currentContact.otherUserName?.charAt(0)?.toUpperCase() || '?'}
                         </div>
                         <div className="chat-contact-details">
@@ -1362,14 +1325,14 @@ function DashboardCitizen() {
                         <div key={msg.id} className={`message ${msg.sender}`}>
                           <div className="message-bubble">
                             {msg.text}
-                          </div>
-                          <div className="message-info">
-                            <span>{msg.time}</span>
-                            {msg.sender === 'user' && (
-                              <svg className="msg-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7m-12 6l4 4L19 7" />
-                              </svg>
-                            )}
+                            <div className="message-info">
+                              <span>{msg.time}</span>
+                              {msg.sender === 'user' && (
+                                <svg className="msg-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7m-12 6l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1423,8 +1386,8 @@ function DashboardCitizen() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </button>
-                    <button 
-                      className="btn-send-msg" 
+                    <button
+                      className="btn-send-msg"
                       onClick={handleSendMessage}
                       disabled={!currentContact || !messageText.trim() || !wsConnected}
                       style={{ opacity: (!currentContact || !messageText.trim() || !wsConnected) ? 0.5 : 1 }}
@@ -1725,10 +1688,10 @@ function DashboardCitizen() {
             </div>
             <div className="modal-body">
               <div className="contact-preview-card">
-                <div className="contact-preview-avatar" style={{ 
-                  width: '48px', 
-                  height: '48px', 
-                  borderRadius: '50%', 
+                <div className="contact-preview-avatar" style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
                   backgroundColor: '#8b5cf6',
                   color: 'white',
                   display: 'flex',
@@ -1746,11 +1709,11 @@ function DashboardCitizen() {
               </div>
 
               {appointmentError && (
-                <div style={{ 
-                  padding: '12px', 
-                  backgroundColor: '#fee2e2', 
-                  color: '#dc2626', 
-                  borderRadius: '8px', 
+                <div style={{
+                  padding: '12px',
+                  backgroundColor: '#fee2e2',
+                  color: '#dc2626',
+                  borderRadius: '8px',
                   marginBottom: '16px',
                   fontSize: '14px'
                 }}>
@@ -1784,8 +1747,8 @@ function DashboardCitizen() {
 
                 <div className="form-group">
                   <label>Date</label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     value={appointmentForm.date}
                     onChange={(e) => handleAppointmentFormChange('date', e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
@@ -1902,17 +1865,17 @@ function DashboardCitizen() {
               </div>
             </div>
             <div className="modal-footer" style={{ borderTop: 'none', paddingTop: '0' }}>
-              <button 
-                className="btn-secondary" 
-                style={{ flex: 1 }} 
+              <button
+                className="btn-secondary"
+                style={{ flex: 1 }}
                 onClick={handleCloseScheduleModal}
                 disabled={submittingAppointment}
               >
                 Cancel
               </button>
-              <button 
-                className="btn-primary btn-confirm-schedule" 
-                style={{ flex: 2 }} 
+              <button
+                className="btn-primary btn-confirm-schedule"
+                style={{ flex: 2 }}
                 onClick={handleSubmitAppointment}
                 disabled={submittingAppointment}
               >
