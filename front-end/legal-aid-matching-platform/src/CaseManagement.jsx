@@ -434,7 +434,7 @@ const CaseManagement = () => {
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Case ID</span>
-                  <span className="detail-value">#{selectedCase.id}</span>
+                  <span className="detail-value">#{selectedCase.caseNumber || selectedCase.id}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">Created By</span>

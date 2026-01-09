@@ -42,8 +42,8 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
       const transformedCases = completedCases.map(c => ({
         id: c.id,
         matchId: c.id,
-        caseId: c.caseId,
-        caseTitle: c.caseTitle || `Case #${c.caseId} `,
+        caseId: c.caseNumber || c.caseId,
+        caseTitle: c.caseTitle || `Case #${c.caseNumber || c.caseId} `,
         caseType: c.caseType || 'Legal Aid',
         caseLocation: c.caseLocation || 'Not specified',
         caseDescription: c.caseDescription || 'No description provided',

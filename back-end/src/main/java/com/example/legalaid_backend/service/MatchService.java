@@ -586,6 +586,7 @@ public class MatchService {
         MatchResponse response = new MatchResponse();
         response.setId(match.getId());
         response.setCaseId(match.getLegalCase().getId());
+        response.setCaseNumber(match.getLegalCase().getCaseNumber());
         response.setCaseTitle(match.getLegalCase().getTitle());
         response.setCaseType(match.getLegalCase().getCaseType());
         response.setCaseLocation(match.getLegalCase().getLocation());

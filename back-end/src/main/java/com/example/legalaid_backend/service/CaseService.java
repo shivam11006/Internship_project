@@ -50,6 +50,11 @@ public class CaseService {
         legalCase.setStatus("SUBMITTED"); // ✅ default status
         legalCase.setCreatedBy(currentUser);
 
+        // Generate custom case number: 100 + userId + sequentialCaseNumber
+        long userCaseCount = caseRepository.countByCreatedBy(currentUser) + 1;
+        String caseNumber = generateCaseNumber(currentUser.getId(), userCaseCount);
+        legalCase.setCaseNumber(caseNumber);
+
         // Handle Attachments
         if (request.getAttachments() != null && !request.getAttachments().isEmpty()) {
             log.info("Processing {} attachments for new case", request.getAttachments().size());
@@ -148,10 +153,24 @@ public class CaseService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
+    /**
+     * Generates a custom case number in format: 100 + userId (2 digits) + sequentialNumber (2 digits)
+     * Example: User ID 2, Case 1 -> 10021
+     *          User ID 2, Case 2 -> 10022
+     *          User ID 15, Case 3 -> 101503
+     */
+    private String generateCaseNumber(Long userId, long caseSequence) {
+        // Format: 100 + userId (padded to at least 2 digits) + case sequence (padded to at least 2 digits)
+        String userIdPart = String.format("%02d", userId);
+        String sequencePart = String.format("%02d", caseSequence);
+        return "100" + userIdPart + sequencePart;
+    }
+
     private CaseResponse toResponse(Case legalCase) {
 
         CaseResponse response = new CaseResponse();
         response.setId(legalCase.getId());
+        response.setCaseNumber(legalCase.getCaseNumber());
         response.setTitle(legalCase.getTitle());
         response.setDescription(legalCase.getDescription());
         response.setCaseType(legalCase.getCaseType());

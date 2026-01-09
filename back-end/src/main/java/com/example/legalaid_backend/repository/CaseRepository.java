@@ -12,4 +12,8 @@ public interface CaseRepository extends JpaRepository<Case, Long> {
     List<Case> findByCreatedBy(User user);
 
     Optional<Case> findByIdAndCreatedBy(Long id, User user);
+
+    Optional<Case> findByCaseNumber(String caseNumber);
+
+    long countByCreatedBy(User user);
 }

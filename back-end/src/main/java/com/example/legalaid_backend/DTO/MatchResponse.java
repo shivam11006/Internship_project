@@ -13,6 +13,7 @@ import java.util.List;
 public class MatchResponse {
     private Long id;
     private Long caseId;
+    private String caseNumber;
     private String caseTitle;
     private String caseType;
     private String caseLocation;

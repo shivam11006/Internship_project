@@ -143,9 +143,9 @@ function DashboardNgo() {
         const transformedCases = pendingCases.map(c => ({
           id: c.id,
           matchId: c.id,
-          caseId: c.caseId,
-          title: c.caseTitle || `Case #${c.caseId}`,
-          caseTitle: c.caseTitle || `Case #${c.caseId}`,
+          caseId: c.caseNumber || c.caseId,
+          title: c.caseTitle || `Case #${c.caseNumber || c.caseId}`,
+          caseTitle: c.caseTitle || `Case #${c.caseNumber || c.caseId}`,
           description: c.caseDescription || 'No description provided',
           location: c.caseLocation || 'Not specified',
           date: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
