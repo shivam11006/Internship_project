@@ -66,7 +66,7 @@ function MyMatchesView() {
     // Only show selected, accepted, or rejected matches (not pending)
     const validStatuses = ['SELECTED_BY_CITIZEN', 'ACCEPTED_BY_PROVIDER', 'REJECTED_BY_CITIZEN'];
     if (!validStatuses.includes(match.status)) return false;
-    
+
     if (filterStatus === 'all') return true;
     return match.status === filterStatus;
   });
@@ -348,7 +348,7 @@ function DashboardCitizen() {
     newMatches: { value: 12, label: 'This week' },
     activeConversations: { value: conversations.length || 0, label: 'With lawyers/NGOs' },
     scheduledCalls: { value: appointments.length, label: 'Upcoming sessions' },
-    resolvedCases: { value: 25, label: 'Total cases' }
+    resolvedCases: { value: 0, label: 'Total cases' }
   };
 
   const recentMatches = [
@@ -430,14 +430,7 @@ function DashboardCitizen() {
 
   ];
 
-  const matchesOverTimeData = [
-    { name: 'Jan', matches: 5 },
-    { name: 'Feb', matches: 7 },
-    { name: 'Mar', matches: 10 },
-    { name: 'Apr', matches: 12 },
-    { name: 'May', matches: 15 },
-    { name: 'Jun', matches: 18 }
-  ];
+  const [matchesOverTimeData, setMatchesOverTimeData] = useState([]);
 
   // Utility function to format relative time
   const formatTimeAgo = (date) => {
@@ -454,18 +447,70 @@ function DashboardCitizen() {
     return date.toLocaleDateString();
   };
 
+  // Process matches for the chart (last 6 months)
+  const processMatchesForChart = (matches) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const today = new Date();
+    const last6Months = [];
+
+    // Initialize last 6 months with 0 matches
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      last6Months.push({
+        monthIndex: d.getMonth(),
+        year: d.getFullYear(),
+        name: months[d.getMonth()],
+        matches: 0
+      });
+    }
+
+    // Count matches per month
+    matches.forEach(match => {
+      if (!match.createdAt) return;
+      const matchDate = new Date(match.createdAt);
+      const matchMonth = matchDate.getMonth();
+      const matchYear = matchDate.getFullYear();
+
+      const monthData = last6Months.find(m => m.monthIndex === matchMonth && m.year === matchYear);
+      if (monthData) {
+        monthData.matches++;
+      }
+    });
+
+    return last6Months;
+  };
+
   useEffect(() => {
-    const fetchProfile = async () => {
-      const result = await authService.getProfile();
-      if (result.success) {
-        setProfileData({
-          username: result.data.username || '',
-          email: result.data.email || '',
-          location: result.data.location || '',
-        });
+    const loadDashboardData = async () => {
+      // Load Profile
+      try {
+        const profileResult = await authService.getProfile();
+        if (profileResult.success) {
+          setProfileData({
+            username: profileResult.data.username || '',
+            email: profileResult.data.email || '',
+            location: profileResult.data.location || '',
+          });
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      }
+
+      // Load Matches for Chart
+      try {
+        const matchesResult = await matchService.getMyMatches();
+        if (matchesResult.matches) {
+          const processedData = processMatchesForChart(matchesResult.matches);
+          setMatchesOverTimeData(processedData);
+        }
+      } catch (error) {
+        console.error('Error loading matches for chart:', error);
+        // Fallback to empty chart or error state if needed
+        setMatchesOverTimeData([]);
       }
     };
-    fetchProfile();
+
+    loadDashboardData();
   }, []);
 
   // Load upcoming appointments
@@ -1332,7 +1377,7 @@ function DashboardCitizen() {
                 <div className="upcoming-events-section">
                   <div className="section-header-row">
                     <h3 className="section-title">Upcoming Schedule</h3>
-                    <button className="view-all-link" onClick={() => setActiveTab('schedule')}>View All</button>
+                    <button className="view-all-link" onClick={() => setActiveTab('my-appointments')}>View All</button>
                   </div>
 
                   {loadingAppointments ? (

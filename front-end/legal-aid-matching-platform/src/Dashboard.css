@@ -2309,6 +2309,7 @@
 
 .event-details {
   flex: 1;
+  min-width: 0;
 }
 
 .event-title-row {
@@ -2316,6 +2317,7 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 8px;
+  gap: 10px;
 }
 
 .event-title-row h4 {
@@ -2323,6 +2325,8 @@
   font-size: 16px;
   font-weight: 700;
   color: #0f172a;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .event-status-pill {
