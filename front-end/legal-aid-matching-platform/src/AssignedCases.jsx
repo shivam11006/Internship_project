@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import './AssignedCases.css';
 import * as matchService from './services/matchService';
+import { apiClient } from './services/authService';
+
+// Helper function to format file size
+const formatFileSize = (bytes) => {
+  if (!bytes) return 'Unknown size';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};
+
+// Helper function to get file icon based on type
+const getFileIcon = (fileType) => {
+  if (fileType?.includes('pdf')) return '📄';
+  if (fileType?.includes('image')) return '🖼️';
+  if (fileType?.includes('word') || fileType?.includes('doc')) return '📝';
+  return '📎';
+};
 
 function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
   const [cases, setCases] = useState([]);
@@ -42,27 +59,35 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
       const transformedCases = completedCases.map(c => ({
         id: c.id,
         matchId: c.id,
-        caseId: c.caseNumber || c.caseId,
-        caseTitle: c.caseTitle || `Case #${c.caseNumber || c.caseId} `,
+        caseId: c.caseId, // Actual case ID for API calls
+        caseNumber: c.caseNumber || c.caseId, // Display number
+        caseTitle: c.caseTitle || `Case #${c.caseNumber || c.caseId}`,
         caseType: c.caseType || 'Legal Aid',
         caseLocation: c.caseLocation || 'Not specified',
         caseDescription: c.caseDescription || 'No description provided',
-        matchScore: c.matchScore || 85,
-        matchReason: c.matchReason || '',
+        matchScore: c.matchScore || 0,
+        matchReason: c.matchReason || 'Expertise matches case type, Verified provider',
         status: c.status === 'ACCEPTED_BY_PROVIDER' ? 'accepted' :
           c.status === 'REJECTED_BY_PROVIDER' ? 'declined' : 
           c.status === 'EXPIRED' ? 'expired' : 'pending',
         createdAt: c.createdAt,
-        citizenName: c.citizenName || 'Citizen',
-        citizenEmail: c.citizenEmail || '',
-        citizenPhone: c.citizenPhone || '',
-        attachments: c.attachments || [],
-        priority: c.priority || 'Medium',
-        preferredLanguage: c.preferredLanguage || 'English',
+        citizenName: c.citizenName || 'Not available',
+        citizenEmail: c.citizenEmail || 'Not available',
+        citizenPhone: c.citizenPhone || 'Not available',
+        // Map attachments with proper field names from API
+        attachments: (c.attachments || []).map(att => ({
+          id: att.id,
+          fileName: att.fileName,
+          fileType: att.fileType,
+          fileSize: att.fileSize
+        })),
+        priority: c.casePriority || 'Medium',
+        preferredLanguage: c.preferredLanguage || 'Not specified',
         expertiseTags: c.expertiseTags || [],
-        additionalParties: c.additionalParties || 'None',
-        evidence: c.attachments || [],
-        rejectionReason: c.rejectionReason || ''
+        additionalParties: 'None',
+        rejectionReason: c.rejectionReason || '',
+        providerName: c.providerName || '',
+        providerType: c.providerType || ''
       }));
 
       setCases(transformedCases);
@@ -74,22 +99,23 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
           id: 1,
           matchId: 1,
           caseId: 101,
+          caseNumber: '1001001',
           caseTitle: 'Property Dispute in Civil Lines',
           caseType: 'Civil Law',
           caseLocation: 'Chennai, Tamil Nadu, India',
           caseDescription: 'A complex property dispute involving ancestral land partition among three siblings. The client states that one sibling has illegally occupied a portion of the shared property.',
           matchScore: 92,
-          matchReason: 'Your expertise in Civil Property Law matches 100% with the case requirements.',
+          matchReason: 'Expertise matches case type, Same location, Verified provider',
           status: 'pending',
           createdAt: new Date().toISOString(),
-          priority: 'High',
-          preferredLanguage: 'Hindi, English',
-          expertiseTags: ['Property Law', 'Civil Litigation', 'Family Dispute'],
-          additionalParties: 'Brother (Respondent 1), Sister (Respondent 2)',
-          evidence: [
-            { name: 'Property_Deed.pdf', url: '#' },
-            { name: 'Site_Map.jpg', url: '#' }
-          ]
+          priority: 'HIGH',
+          preferredLanguage: 'Hindi',
+          expertiseTags: ['Property Law', 'Civil Litigation'],
+          additionalParties: 'None',
+          citizenName: 'Demo User',
+          citizenEmail: 'demo@example.com',
+          citizenPhone: 'Not available',
+          attachments: []
         }
       ]);
       if (!cases.length) setError('Failed to load assigned cases. Showing demo data.');
@@ -145,6 +171,30 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
         setShowDetails(false);
         alert('Case assignment declined (Simulation).');
       }
+    }
+  };
+
+  // Download attachment for a case
+  const handleDownloadAttachment = async (caseId, attachment) => {
+    try {
+      const response = await apiClient.get(
+        `/matches/case/${caseId}/attachment/${attachment.id}`,
+        { responseType: 'blob' }
+      );
+      
+      // Create download link
+      const blob = new Blob([response.data], { type: attachment.fileType || 'application/octet-stream' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment.fileName || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading attachment:', err);
+      alert('Failed to download attachment. Please try again.');
     }
   };
 
@@ -372,118 +422,180 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
         )}
       </div>
 
-      {/* Enhanced Details Modal */}
+      {/* Enhanced Details Modal - Modern Layout like CaseManagement */}
       {showDetails && selectedCase && (
         <div className="modal-overlay" onClick={() => setShowDetails(false)}>
-          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
-            {/* Dark Header */}
-            <div className="modal-header-new">
-              <div className="header-title-section">
-                <h3 className="header-main-title">Case Details</h3>
-                <p className="header-subtitle">
-                  ID: #{selectedCase.caseId} • Posted on {new Date(selectedCase.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
-                </p>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%', maxHeight: '90vh', overflow: 'hidden', borderRadius: '12px' }}>
+            {/* Modern Header */}
+            <div style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2e5a8a 100%)', color: 'white', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h2 style={{ color: 'white', marginBottom: '4px', fontSize: '1.25rem', fontWeight: '600' }}>Case Details</h2>
+                <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+                  ID: #{selectedCase.caseNumber} • Created {new Date(selectedCase.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </div>
               </div>
-              <button className="close-btn-new" onClick={() => setShowDetails(false)}>&times;</button>
+              <button onClick={() => setShowDetails(false)} style={{ color: 'white', background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', padding: '0', lineHeight: '1' }}>×</button>
             </div>
 
-            <div className="modal-body-new">
-              {/* Title and Badges */}
-              <div className="title-badges-section">
-                <h2 className="case-title-large">{selectedCase.caseTitle}</h2>
-                <div className="badges-row">
-                  <span className="badge-match">{Math.round(selectedCase.matchScore)}% Match</span>
-                  <span className="badge-priority" style={{
-                    backgroundColor: getPriorityColor(selectedCase.priority) + '33',
-                    color: getPriorityColor(selectedCase.priority),
-                    borderColor: getPriorityColor(selectedCase.priority)
-                  }}>
-                    {selectedCase.priority} Priority
-                  </span>
-                </div>
-              </div>
-
-              {/* Meta Info Row */}
-              <div className="meta-info-row">
-                <div className="meta-item">
-                  <span className="meta-icon">📍</span>
-                  <span className="meta-text">{selectedCase.caseLocation}</span>
-                </div>
-                <div className="meta-item">
-                  <span className="meta-icon">📄</span>
-                  <span className="meta-text">{selectedCase.caseType}</span>
-                </div>
-                <div className="meta-item">
-                  <span className="meta-icon">👤</span>
-                  <span className="meta-text">{selectedCase.citizenName || 'user'}</span>
+            <div style={{ overflowY: 'auto', maxHeight: 'calc(90vh - 180px)' }}>
+              {/* Title and Status Bar */}
+              <div style={{ padding: '24px', borderBottom: '1px solid #e5e7eb' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#111827', margin: 0 }}>{selectedCase.caseTitle}</h3>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', backgroundColor: getStatusBadge(selectedCase.status).bg, color: getStatusBadge(selectedCase.status).color, border: `1px solid ${getStatusBadge(selectedCase.status).color}` }}>
+                      {getStatusBadge(selectedCase.status).text}
+                    </span>
+                    <span style={{ padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', backgroundColor: getPriorityColor(selectedCase.priority) + '22', color: getPriorityColor(selectedCase.priority), border: `1px solid ${getPriorityColor(selectedCase.priority)}` }}>
+                      {selectedCase.priority} Priority
+                    </span>
+                    <span style={{ padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#dcfce7', color: '#16a34a', border: '1px solid #16a34a' }}>
+                      {Math.round(selectedCase.matchScore)}% Match
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {/* Two Column Layout */}
-              <div className="two-column-layout">
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', minHeight: '400px' }}>
                 {/* Left Column */}
-                <div className="left-column">
-                  <div className="section-block">
-                    <h4 className="section-label">DESCRIPTION</h4>
-                    <p className="description-text">{selectedCase.caseDescription}</p>
-                  </div>
+                <div style={{ padding: '24px', borderRight: '1px solid #e5e7eb' }}>
+                  {/* Description Section */}
+                  <section style={{ marginBottom: '24px' }}>
+                    <h4 style={{ fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Description</h4>
+                    <p style={{ color: '#374151', lineHeight: '1.7', whiteSpace: 'pre-wrap', margin: 0 }}>{selectedCase.caseDescription}</p>
+                  </section>
 
-                  <div className="section-block">
-                    <h4 className="section-label">EXPERTISE TAGS</h4>
-                    <div className="expertise-tags-list">
+                  {/* Case Info Grid */}
+                  <section style={{ marginBottom: '24px' }}>
+                    <h4 style={{ fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Case Information</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div style={{ padding: '12px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px' }}>Case Type</div>
+                        <div style={{ fontWeight: '600', color: '#111827' }}>{selectedCase.caseType || 'N/A'}</div>
+                      </div>
+                      <div style={{ padding: '12px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px' }}>Priority</div>
+                        <div style={{ fontWeight: '600', color: getPriorityColor(selectedCase.priority) }}>{selectedCase.priority || 'Medium'}</div>
+                      </div>
+                      <div style={{ padding: '12px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px' }}>Location</div>
+                        <div style={{ fontWeight: '600', color: '#111827' }}>{selectedCase.caseLocation || 'Not specified'}</div>
+                      </div>
+                      <div style={{ padding: '12px', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px' }}>Preferred Language</div>
+                        <div style={{ fontWeight: '600', color: '#111827' }}>{selectedCase.preferredLanguage || 'Not specified'}</div>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Expertise Tags Section */}
+                  <section>
+                    <h4 style={{ fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Expertise Tags</h4>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                       {selectedCase.expertiseTags && selectedCase.expertiseTags.length > 0 ? (
-                        selectedCase.expertiseTags.map((tag, i) => (
-                          <span key={i} className="expertise-tag-pill">{tag}</span>
+                        selectedCase.expertiseTags.map((tag, index) => (
+                          <span key={index} style={{ backgroundColor: '#eef2ff', color: '#4338ca', padding: '6px 14px', borderRadius: '20px', fontSize: '0.875rem', fontWeight: '600', border: '1px solid #c7d2fe' }}>{tag}</span>
                         ))
                       ) : (
-                        <span className="no-data-text">No specific tags</span>
+                        <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No tags specified</span>
                       )}
                     </div>
-                  </div>
+                  </section>
                 </div>
 
                 {/* Right Column */}
-                <div className="right-column">
-                  <div className="section-block">
-                    <h4 className="section-label">ADDITIONAL PARTIES</h4>
-                    <p className="parties-text">{selectedCase.additionalParties || 'None'}</p>
-                  </div>
-
-                  <div className="section-block">
-                    <h4 className="section-label">CONTACT INFORMATION</h4>
-                    <div className="contact-info-grid">
-                      <div className="contact-row">
-                        <span className="contact-label">Email</span>
-                        <span className="contact-value">{selectedCase.citizenEmail || 'user1@gmail.com'}</span>
+                <div style={{ padding: '24px', backgroundColor: '#f9fafb' }}>
+                  {/* Citizen Profile Section */}
+                  <section style={{ marginBottom: '24px' }}>
+                    <h4 style={{ fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Citizen Profile</h4>
+                    <div style={{ padding: '16px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                        <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#667eea', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '700', fontSize: '1.25rem' }}>
+                          {selectedCase.citizenName?.charAt(0)?.toUpperCase() || 'U'}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: '600', color: '#111827', fontSize: '1rem' }}>{selectedCase.citizenName || 'Unknown'}</div>
+                          <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Case Requester</div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ color: '#6b7280' }}>📧</span>
+                          <span style={{ fontSize: '0.875rem', color: '#374151' }}>{selectedCase.citizenEmail || 'Not available'}</span>
+                        </div>
+                        {selectedCase.citizenPhone && selectedCase.citizenPhone !== 'Not available' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ color: '#6b7280' }}>📱</span>
+                            <span style={{ fontSize: '0.875rem', color: '#374151' }}>{selectedCase.citizenPhone}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
+                  </section>
 
-                  <div className="section-block">
-                    <div className="match-explanation-box">
-                      <h4 className="match-box-title">Why it matches?</h4>
+                  {/* Match Reason Section */}
+                  <section style={{ marginBottom: '24px' }}>
+                    <h4 style={{ fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Why This Match?</h4>
+                    <div style={{ padding: '16px', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                      <p style={{ color: '#166534', fontSize: '0.875rem', margin: 0, lineHeight: '1.6' }}>{selectedCase.matchReason || 'Expertise matches case type'}</p>
                     </div>
-                  </div>
+                  </section>
+
+                  {/* Evidence & Documents Section */}
+                  <section>
+                    <h4 style={{ fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Evidence & Documents</h4>
+                    {selectedCase.attachments && selectedCase.attachments.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {selectedCase.attachments.map((attachment, index) => (
+                          <div
+                            key={index}
+                            onClick={() => handleDownloadAttachment(selectedCase.caseId, attachment)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e5e7eb', cursor: 'pointer', transition: 'all 0.2s' }}
+                            onMouseOver={(e) => { e.currentTarget.style.borderColor = '#667eea'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                          >
+                            <span style={{ fontSize: '1.5rem' }}>{getFileIcon(attachment.fileType)}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: '600', color: '#111827', fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.fileName}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{formatFileSize(attachment.fileSize)}</div>
+                            </div>
+                            <span style={{ color: '#667eea', fontWeight: '600', fontSize: '0.75rem' }}>⬇️ Download</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ padding: '16px', backgroundColor: 'white', borderRadius: '8px', border: '1px dashed #d1d5db', textAlign: 'center' }}>
+                        <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>No documents attached</span>
+                      </div>
+                    )}
+                  </section>
                 </div>
               </div>
+            </div>
 
-              {/* Action Buttons */}
+            {/* Footer Actions */}
+            <div style={{ padding: '20px 24px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end', gap: '12px', backgroundColor: 'white' }}>
               {selectedCase.status === 'pending' && (
-                <div className="modal-actions-new">
+                <>
                   <button
-                    className="btn-decline-new"
                     onClick={() => handleDecline(selectedCase.id)}
+                    style={{ padding: '10px 20px', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
                     ✗ Decline Case
                   </button>
                   <button
-                    className="btn-accept-new"
                     onClick={() => handleAccept(selectedCase.id)}
+                    disabled={processingId === selectedCase.id}
+                    style={{ padding: '10px 20px', background: processingId === selectedCase.id ? '#ccc' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: processingId === selectedCase.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
-                    ✓ Accept Case
+                    {processingId === selectedCase.id ? '⏳ Processing...' : '✓ Accept Case'}
                   </button>
-                </div>
+                </>
               )}
+              <button onClick={() => setShowDetails(false)} style={{ padding: '10px 20px', backgroundColor: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>
+                Close
+              </button>
             </div>
           </div>
         </div>

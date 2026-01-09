@@ -61,15 +61,18 @@ public class CaseService {
             java.util.List<CaseAttachment> attachments = request.getAttachments().stream().map(dto -> {
                 try {
                     CaseAttachment attachment = new CaseAttachment();
-                    attachment.setFileName(dto.getName());
-                    attachment.setFileType(dto.getType());
+                    // Support both old (name/type) and new (fileName/fileType) field names
+                    String fileName = dto.getFileName() != null ? dto.getFileName() : dto.getName();
+                    String fileType = dto.getFileType() != null ? dto.getFileType() : dto.getType();
+                    attachment.setFileName(fileName);
+                    attachment.setFileType(fileType);
                     attachment.setContent(java.util.Base64.getDecoder().decode(dto.getContent()));
                     attachment.setLegalCase(legalCase);
-                    log.debug("Decoded attachment: {} ({} bytes)", dto.getName(), attachment.getContent().length);
+                    log.debug("Decoded attachment: {} ({} bytes)", fileName, attachment.getContent().length);
                     return attachment;
                 } catch (Exception e) {
-                    log.error("Failed to decode attachment {}: {}", dto.getName(), e.getMessage());
-                    throw new RuntimeException("Invalid attachment data: " + dto.getName());
+                    log.error("Failed to decode attachment: {}", e.getMessage());
+                    throw new RuntimeException("Invalid attachment data");
                 }
             }).collect(Collectors.toList());
             legalCase.setAttachments(attachments);
@@ -187,8 +190,10 @@ public class CaseService {
         if (legalCase.getAttachments() != null) {
             response.setAttachments(legalCase.getAttachments().stream().map(attachment -> {
                 AttachmentDTO dto = new AttachmentDTO();
-                dto.setName(attachment.getFileName());
-                dto.setType(attachment.getFileType());
+                dto.setId(attachment.getId());
+                dto.setFileName(attachment.getFileName());
+                dto.setFileType(attachment.getFileType());
+                dto.setFileSize(attachment.getContent() != null ? (long) attachment.getContent().length : 0L);
                 dto.setContent(java.util.Base64.getEncoder().encodeToString(attachment.getContent()));
                 return dto;
             }).collect(Collectors.toList()));

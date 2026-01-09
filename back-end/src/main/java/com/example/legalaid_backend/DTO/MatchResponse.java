@@ -19,6 +19,8 @@ public class MatchResponse {
     private String caseLocation;
     private String caseDescription;
     private String casePriority;
+    private String preferredLanguage;
+    private List<String> expertiseTags;
     private Long providerId;
     private String providerName;
     private String providerType; // "LAWYER" or "NGO"

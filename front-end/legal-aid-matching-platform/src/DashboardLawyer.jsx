@@ -126,21 +126,27 @@ function DashboardLawyer() {
           description: c.caseDescription || 'No description provided',
           location: c.caseLocation || 'Not specified',
           date: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
-          matchScore: c.matchScore || 85,
+          matchScore: c.matchScore || 0,
           status: c.status === 'SELECTED_BY_CITIZEN' ? 'pending' : c.status,
           caseType: c.caseType || 'Legal Aid',
-          matchReason: c.matchReason || '',
-          citizenName: c.citizenName || 'Citizen',
-          citizenEmail: c.citizenEmail || '',
-          citizenPhone: c.citizenPhone || '',
+          matchReason: c.matchReason || 'Expertise matches case type, Verified provider',
+          citizenName: c.citizenName || 'Not available',
+          citizenEmail: c.citizenEmail || 'Not available',
+          citizenPhone: c.citizenPhone || 'Not available',
           createdAt: c.createdAt,
-          // Newly added fields for details view
-          priority: c.priority || 'Medium',
+          // Case details from API
+          priority: c.casePriority || 'Medium',
           preferredLanguage: c.preferredLanguage || 'Not specified',
-          expertiseTags: Array.isArray(c.expertiseTags) ? c.expertiseTags : (c.expertiseTags ? c.expertiseTags.split(',') : []),
-          additionalParties: c.additionalParties || 'None',
+          expertiseTags: Array.isArray(c.expertiseTags) ? c.expertiseTags : [],
+          additionalParties: 'None',
           category: c.caseType || 'General',
-          evidence: c.attachments || [],
+          // Attachments - map to expected format
+          evidence: (c.attachments || []).map(att => ({
+            id: att.id,
+            name: att.fileName,
+            type: att.fileType,
+            fileSize: att.fileSize
+          })),
         }));
 
         setNewRequests(transformedCases);
@@ -1909,10 +1915,17 @@ function DashboardLawyer() {
                       <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#374151', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Contact Information</h4>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                          <span style={{ color: '#6b7280' }}>Name</span>
+                          <span style={{ color: '#111827', fontWeight: '500' }}>{selectedCase.citizenName || 'Not available'}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
                           <span style={{ color: '#6b7280' }}>Email</span>
                           <span style={{ color: '#111827', fontWeight: '500' }}>{selectedCase.citizenEmail || 'Not available'}</span>
                         </div>
-
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                          <span style={{ color: '#6b7280' }}>Phone</span>
+                          <span style={{ color: '#111827', fontWeight: '500' }}>{selectedCase.citizenPhone || 'Not available'}</span>
+                        </div>
                       </div>
                     </section>
 

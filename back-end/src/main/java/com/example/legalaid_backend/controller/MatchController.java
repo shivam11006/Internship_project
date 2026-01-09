@@ -4,10 +4,14 @@ import com.example.legalaid_backend.DTO.GenerateMatchesResponse;
 import com.example.legalaid_backend.DTO.MatchRejectRequest;
 import com.example.legalaid_backend.DTO.MatchResponse;
 import com.example.legalaid_backend.DTO.MatchResultDTO;
+import com.example.legalaid_backend.entity.CaseAttachment;
+import com.example.legalaid_backend.repository.AttachmentRepository;
 import com.example.legalaid_backend.service.MatchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +27,7 @@ import java.util.Map;
 public class MatchController {
 
     private final MatchService matchService;
+    private final AttachmentRepository attachmentRepository;
 
     /**
      * GENERATE MATCHES FOR A CASE (Citizen)
@@ -299,6 +304,49 @@ public class MatchController {
 
         } catch (Exception e) {
             log.error("Failed to decline case assignment {}: {}", matchId, e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
+    }
+
+    /**
+     * DOWNLOAD CASE ATTACHMENT (Lawyer/NGO)
+     * GET /api/matches/case/{caseId}/attachment/{attachmentId}
+     */
+    @GetMapping("/case/{caseId}/attachment/{attachmentId}")
+    public ResponseEntity<byte[]> downloadAttachment(
+            @PathVariable Long caseId,
+            @PathVariable Long attachmentId,
+            Authentication auth) {
+
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/matches/case/" + caseId + "/attachment/" + attachmentId);
+
+        try {
+            log.info("Provider {} downloading attachment {} for case {}", auth.getName(), attachmentId, caseId);
+
+            CaseAttachment attachment = attachmentRepository.findById(attachmentId)
+                    .orElseThrow(() -> new RuntimeException("Attachment not found"));
+
+            // Verify the attachment belongs to the requested case
+            if (!attachment.getLegalCase().getId().equals(caseId)) {
+                throw new RuntimeException("Attachment does not belong to this case");
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(attachment.getFileType()));
+            headers.setContentDispositionFormData("attachment", attachment.getFileName());
+            headers.setContentLength(attachment.getContent().length);
+
+            log.info("Successfully retrieved attachment {} for case {}", attachmentId, caseId);
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(attachment.getContent());
+
+        } catch (Exception e) {
+            log.error("Failed to download attachment {} for case {}: {}", attachmentId, caseId, e.getMessage(), e);
             throw e;
         } finally {
             MDC.clear();
