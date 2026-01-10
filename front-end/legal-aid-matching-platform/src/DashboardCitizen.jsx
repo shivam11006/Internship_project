@@ -308,30 +308,35 @@ function DashboardCitizen() {
   // Notifications State
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
-  const [notifications, setNotifications] = useState([
-    {
-      id: 0,
-      type: 'call-request',
-      sender: 'Michael Chen (Lawyer)',
-      message: 'Michael Chen wants to schedule a call for tomorrow at 2:00 PM.',
-      time: 'Just now',
-      read: false
-    },
-    {
-      id: 1,
-      type: 'message',
-      message: 'New message from Anya Sharma (Lawyer)',
-      time: '5 min ago',
-      read: false
-    },
-    {
-      id: 2,
-      type: 'schedule',
-      message: 'Appointment reminder: Call with Legal Aid Foundation tomorrow at 10 AM',
-      time: '1 hour ago',
-      read: false
-    }
-  ]);
+  // Mock Notification Data
+  const [mockNotifications, setMockNotifications] = useState({
+    messages: [
+      { id: 1, sender: 'Michael Chen (Lawyer)', text: 'Reviewing your case documents.', time: 'Just now' },
+      { id: 2, sender: 'Anya Sharma (Lawyer)', text: 'Can we schedule a call for next week?', time: '5 min ago' }
+    ],
+    appointments: [
+      { id: 101, name: 'Michael Chen', date: 'Jan 12, 2026', time: '2:00 PM' },
+      { id: 102, name: 'Legal Aid Foundation', date: 'Jan 13, 2026', time: '10:00 AM' }
+    ]
+  });
+
+  const handleAcceptMockAppointment = (id) => {
+    alert('Appointment Request Accepted!');
+    // Update mock state to remove the accepted item
+    setMockNotifications(prev => ({
+      ...prev,
+      appointments: prev.appointments.filter(a => a.id !== id)
+    }));
+  };
+
+  const handleRejectMockAppointment = (id) => {
+    alert('Appointment Request Declined.');
+    // Update mock state to remove the rejected item
+    setMockNotifications(prev => ({
+      ...prev,
+      appointments: prev.appointments.filter(a => a.id !== id)
+    }));
+  };
 
   // Appointment State
   const [appointments, setAppointments] = useState([]);
@@ -1143,53 +1148,97 @@ function DashboardCitizen() {
             </h1>
           </div>
           <div className="header-right">
-            <div className="notification-container" style={{ position: 'relative' }}>
+            {/* Notification Icon */}
+            <div className="notification-icon-container">
               <button
-                className={`notification-btn ${showNotifications ? 'active' : ''}`}
+                className="notification-btn"
                 onClick={() => setShowNotifications(!showNotifications)}
               >
-                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                 </svg>
-                {notifications.some(n => !n.read) && <span className="notification-indicator"></span>}
+                {mockNotifications.messages.length + mockNotifications.appointments.length > 0 && (
+                  <span className="notification-badge">
+                    {mockNotifications.messages.length + mockNotifications.appointments.length}
+                  </span>
+                )}
               </button>
 
               {showNotifications && (
                 <div className="notification-dropdown">
-                  <div className="notification-header">
-                    <h3>Notifications</h3>
-                    <button className="mark-read-btn" onClick={() => {
-                      // In a real app, this would update backend
-                      alert('Marked all as read');
-                    }}>Mark all as read</button>
+                  <div className="notification-dropdown-header">
+                    <span>Notifications</span>
+                    <button
+                      style={{ background: 'none', border: 'none', color: '#2e5a8a', cursor: 'pointer', fontSize: '12px' }}
+                      onClick={() => setShowNotifications(false)}
+                    >
+                      Close
+                    </button>
                   </div>
-                  <div className="notification-list">
-                    {notifications.length > 0 ? (
-                      notifications.map(notification => (
-                        <div key={notification.id} className={`notification-item ${notification.type === 'call-request' ? 'call-request-item' : ''} ${!notification.read ? 'unread' : ''}`}>
-                          <div className={`notification-icon ${notification.type}`}>
-                            {notification.type === 'message' && '💬'}
-                            {notification.type === 'schedule' && '📅'}
-                            {notification.type === 'system' && '🔔'}
-                            {notification.type === 'alert' && '⚠️'}
-                            {notification.type === 'call-request' && '📞'}
-                          </div>
-                          <div className="notification-content">
-                            <p className="notification-text">{notification.message}</p>
-                            <span className="notification-time">{notification.time}</span>
 
-                            {notification.type === 'call-request' && (
-                              <div className="notification-actions">
-                                <button className="btn-accept-call" onClick={() => alert('Call Accepted')}>Accept</button>
-                                <button className="btn-reject-call" onClick={() => alert('Call Rejected')}>Reject</button>
+                  <div className="notification-list">
+                    {/* Messages Section */}
+                    {mockNotifications.messages.length > 0 && (
+                      <>
+                        <div className="notification-section-title">New Messages</div>
+                        {mockNotifications.messages.map(msg => (
+                          <div key={msg.id} className="notification-item">
+                            <div className="notification-item-content">
+                              <div className="notification-avatar">
+                                {msg.sender.charAt(0)}
                               </div>
-                            )}
+                              <div className="notification-text">
+                                <div className="notification-title">{msg.sender}</div>
+                                <div className="notification-message">{msg.text}</div>
+                                <div className="notification-time">{msg.time}</div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="notification-empty">
-                        <p>No new notifications</p>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Appointments Section */}
+                    {mockNotifications.appointments.length > 0 && (
+                      <>
+                        <div className="notification-section-title">Appointment Requests</div>
+                        {mockNotifications.appointments.map(apt => (
+                          <div key={apt.id} className="notification-item">
+                            <div className="notification-item-content">
+                              <div className="notification-avatar" style={{ backgroundColor: '#d1fae5', color: '#065f46' }}>
+                                📅
+                              </div>
+                              <div className="notification-text">
+                                <div className="notification-title">New Request</div>
+                                <div className="notification-message">
+                                  Request from <strong>{apt.name}</strong><br />
+                                  {apt.date} at {apt.time}
+                                </div>
+                                <div className="notification-actions">
+                                  <button
+                                    className="btn-notification-accept"
+                                    onClick={() => handleAcceptMockAppointment(apt.id)}
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    className="btn-notification-reject"
+                                    onClick={() => handleRejectMockAppointment(apt.id)}
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {mockNotifications.messages.length === 0 && mockNotifications.appointments.length === 0 && (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+                        No new notifications
                       </div>
                     )}
                   </div>
