@@ -24,6 +24,8 @@ function CaseSubmission({ onSuccess, onClose }) {
   const [customLanguage, setCustomLanguage] = useState('');
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [confirmAccurate, setConfirmAccurate] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
   const fileInputRef = useRef(null);
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -388,6 +390,12 @@ function CaseSubmission({ onSuccess, onClose }) {
   };
 
   const handleSubmit = async () => {
+    // Validate consent checkboxes
+    if (!confirmAccurate || !agreeTerms) {
+      setErrors({ submit: 'Please accept both consent checkboxes before submitting.' });
+      return;
+    }
+
     setIsSubmitting(true);
     setErrors({});
 
@@ -865,14 +873,24 @@ function CaseSubmission({ onSuccess, onClose }) {
 
         <div className="consent-section">
           <label className="consent-checkbox">
-            <input type="checkbox" required />
+            <input 
+              type="checkbox" 
+              checked={confirmAccurate}
+              onChange={(e) => setConfirmAccurate(e.target.checked)}
+              required 
+            />
             <span>
               I confirm that all information provided is accurate and I understand that
               providing false information may affect my case.
             </span>
           </label>
           <label className="consent-checkbox">
-            <input type="checkbox" required />
+            <input 
+              type="checkbox" 
+              checked={agreeTerms}
+              onChange={(e) => setAgreeTerms(e.target.checked)}
+              required 
+            />
             <span>
               I agree to the{' '}
               <a 
@@ -948,8 +966,9 @@ function CaseSubmission({ onSuccess, onClose }) {
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !confirmAccurate || !agreeTerms}
                   className="case-btn case-btn-primary"
+                  title={!confirmAccurate || !agreeTerms ? 'Please accept both checkboxes to submit' : ''}
                 >
                   {isSubmitting ? 'Submitting...' : 'Submit Case'}
                 </button>

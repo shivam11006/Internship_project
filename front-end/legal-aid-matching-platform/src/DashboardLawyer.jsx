@@ -15,6 +15,7 @@ function DashboardLawyer() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // overview, profile, assigned-cases, secure-chat
@@ -75,6 +76,36 @@ function DashboardLawyer() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [currentMatchId, setCurrentMatchId] = useState(null);
 
+  // Mock Notification Data
+  const [mockNotifications, setMockNotifications] = useState({
+    messages: [
+      { id: 1, sender: 'Rahul Sharma', text: 'Hello sir, can we reschedule?', time: '2m ago' },
+      { id: 2, sender: 'Priya Singh', text: 'I have uploaded the documents.', time: '1h ago' }
+    ],
+    appointments: [
+      { id: 101, name: 'Anjali Gupta', date: 'Jan 12, 2026', time: '10:00 AM' },
+      { id: 102, name: 'Vikram Malhotra', date: 'Jan 14, 2026', time: '2:30 PM' }
+    ]
+  });
+
+  const handleAcceptMockAppointment = (id) => {
+    alert('Appointment Request Accepted!');
+    // Update mock state to remove the accepted item
+    setMockNotifications(prev => ({
+      ...prev,
+      appointments: prev.appointments.filter(a => a.id !== id)
+    }));
+  };
+
+  const handleRejectMockAppointment = (id) => {
+    alert('Appointment Request Declined.');
+    // Update mock state to remove the rejected item
+    setMockNotifications(prev => ({
+      ...prev,
+      appointments: prev.appointments.filter(a => a.id !== id)
+    }));
+  };
+
   useEffect(() => {
     const fetchProfile = async () => {
       const result = await authService.getProfile();
@@ -120,27 +151,33 @@ function DashboardLawyer() {
         const transformedCases = pendingCases.map(c => ({
           id: c.id,
           matchId: c.id,
-          caseId: c.caseId,
-          title: c.caseTitle || `Case #${c.caseId}`,
-          caseTitle: c.caseTitle || `Case #${c.caseId}`,
+          caseId: c.caseNumber || c.caseId,
+          title: c.caseTitle || `Case #${c.caseNumber || c.caseId}`,
+          caseTitle: c.caseTitle || `Case #${c.caseNumber || c.caseId}`,
           description: c.caseDescription || 'No description provided',
           location: c.caseLocation || 'Not specified',
           date: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
-          matchScore: c.matchScore || 85,
+          matchScore: c.matchScore || 0,
           status: c.status === 'SELECTED_BY_CITIZEN' ? 'pending' : c.status,
           caseType: c.caseType || 'Legal Aid',
-          matchReason: c.matchReason || '',
-          citizenName: c.citizenName || 'Citizen',
-          citizenEmail: c.citizenEmail || '',
-          citizenPhone: c.citizenPhone || '',
+          matchReason: c.matchReason || 'Expertise matches case type, Verified provider',
+          citizenName: c.citizenName || 'Not available',
+          citizenEmail: c.citizenEmail || 'Not available',
+          citizenPhone: c.citizenPhone || 'Not available',
           createdAt: c.createdAt,
-          // Newly added fields for details view
-          priority: c.priority || 'Medium',
+          // Case details from API
+          priority: c.casePriority || 'Medium',
           preferredLanguage: c.preferredLanguage || 'Not specified',
-          expertiseTags: Array.isArray(c.expertiseTags) ? c.expertiseTags : (c.expertiseTags ? c.expertiseTags.split(',') : []),
-          additionalParties: c.additionalParties || 'None',
+          expertiseTags: Array.isArray(c.expertiseTags) ? c.expertiseTags : [],
+          additionalParties: 'None',
           category: c.caseType || 'General',
-          evidence: c.attachments || [],
+          // Attachments - map to expected format
+          evidence: (c.attachments || []).map(att => ({
+            id: att.id,
+            name: att.fileName,
+            type: att.fileType,
+            fileSize: att.fileSize
+          })),
         }));
 
         setNewRequests(transformedCases);
@@ -817,35 +854,135 @@ function DashboardLawyer() {
             {activeTab === 'assigned-cases' && 'Assigned Cases'}
             {activeTab === 'my-appointments' && 'My Appointments'}
           </h1>
-          <div className="header-profile">
-            <div className="profile-dropdown" onClick={() => setShowProfileMenu(!showProfileMenu)}>
-              <div className="profile-avatar">
-                {user?.username?.charAt(0).toUpperCase() || 'L'}
-              </div>
-              <div className="profile-info">
-                <div className="profile-name">{user?.username || 'Lawyer'}</div>
-                <div className="profile-email">{user?.email || ''}</div>
-              </div>
-              <svg className="dropdown-icon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
+          <div className="header-right">
+            {/* Notification Icon */}
+            <div className="notification-icon-container">
+              <button
+                className="notification-btn"
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                {mockNotifications.messages.length + mockNotifications.appointments.length > 0 && (
+                  <span className="notification-badge">
+                    {mockNotifications.messages.length + mockNotifications.appointments.length}
+                  </span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="notification-dropdown">
+                  <div className="notification-dropdown-header">
+                    <span>Notifications</span>
+                    <button
+                      style={{ background: 'none', border: 'none', color: '#2e5a8a', cursor: 'pointer', fontSize: '12px' }}
+                      onClick={() => setShowNotifications(false)}
+                    >
+                      Close
+                    </button>
+                  </div>
+
+                  <div className="notification-list">
+                    {/* Messages Section */}
+                    {mockNotifications.messages.length > 0 && (
+                      <>
+                        <div className="notification-section-title">New Messages</div>
+                        {mockNotifications.messages.map(msg => (
+                          <div key={msg.id} className="notification-item">
+                            <div className="notification-item-content">
+                              <div className="notification-avatar">
+                                {msg.sender.charAt(0)}
+                              </div>
+                              <div className="notification-text">
+                                <div className="notification-title">{msg.sender}</div>
+                                <div className="notification-message">{msg.text}</div>
+                                <div className="notification-time">{msg.time}</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Appointments Section */}
+                    {mockNotifications.appointments.length > 0 && (
+                      <>
+                        <div className="notification-section-title">Appointment Requests</div>
+                        {mockNotifications.appointments.map(apt => (
+                          <div key={apt.id} className="notification-item">
+                            <div className="notification-item-content">
+                              <div className="notification-avatar" style={{ backgroundColor: '#d1fae5', color: '#065f46' }}>
+                                📅
+                              </div>
+                              <div className="notification-text">
+                                <div className="notification-title">New Request</div>
+                                <div className="notification-message">
+                                  Request from <strong>{apt.name}</strong><br />
+                                  {apt.date} at {apt.time}
+                                </div>
+                                <div className="notification-actions">
+                                  <button
+                                    className="btn-notification-accept"
+                                    onClick={() => handleAcceptMockAppointment(apt.id)}
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    className="btn-notification-reject"
+                                    onClick={() => handleRejectMockAppointment(apt.id)}
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {mockNotifications.messages.length === 0 && mockNotifications.appointments.length === 0 && (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+                        No new notifications
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-            {showProfileMenu && (
-              <div className="profile-menu">
-                <button className="profile-menu-item" onClick={handleViewProfile}>
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  View Profile
-                </button>
-                <button className="profile-menu-item" onClick={handleLogout}>
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  Logout
-                </button>
+
+            <div className="header-profile">
+              <div className="profile-dropdown" onClick={() => setShowProfileMenu(!showProfileMenu)}>
+                <div className="profile-avatar">
+                  {user?.username?.charAt(0).toUpperCase() || 'L'}
+                </div>
+                <div className="profile-info">
+                  <div className="profile-name">{user?.username || 'Lawyer'}</div>
+                  <div className="profile-email">{user?.email || ''}</div>
+                </div>
+                <svg className="dropdown-icon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
               </div>
-            )}
+              {showProfileMenu && (
+                <div className="profile-menu">
+                  <button className="profile-menu-item" onClick={handleViewProfile}>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    View Profile
+                  </button>
+                  <button className="profile-menu-item" onClick={handleLogout}>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1909,10 +2046,17 @@ function DashboardLawyer() {
                       <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#374151', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Contact Information</h4>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                          <span style={{ color: '#6b7280' }}>Name</span>
+                          <span style={{ color: '#111827', fontWeight: '500' }}>{selectedCase.citizenName || 'Not available'}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
                           <span style={{ color: '#6b7280' }}>Email</span>
                           <span style={{ color: '#111827', fontWeight: '500' }}>{selectedCase.citizenEmail || 'Not available'}</span>
                         </div>
-
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                          <span style={{ color: '#6b7280' }}>Phone</span>
+                          <span style={{ color: '#111827', fontWeight: '500' }}>{selectedCase.citizenPhone || 'Not available'}</span>
+                        </div>
                       </div>
                     </section>
 

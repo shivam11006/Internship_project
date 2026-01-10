@@ -13,11 +13,14 @@ import java.util.List;
 public class MatchResponse {
     private Long id;
     private Long caseId;
+    private String caseNumber;
     private String caseTitle;
     private String caseType;
     private String caseLocation;
     private String caseDescription;
     private String casePriority;
+    private String preferredLanguage;
+    private List<String> expertiseTags;
     private Long providerId;
     private String providerName;
     private String providerType; // "LAWYER" or "NGO"

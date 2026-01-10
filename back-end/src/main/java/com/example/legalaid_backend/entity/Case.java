@@ -18,6 +18,9 @@ public class Case {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true)
+    private String caseNumber;
+
     @Column(nullable = false)
     private String title;
 

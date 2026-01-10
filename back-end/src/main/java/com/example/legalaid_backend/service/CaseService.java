@@ -50,21 +50,29 @@ public class CaseService {
         legalCase.setStatus("SUBMITTED"); // ✅ default status
         legalCase.setCreatedBy(currentUser);
 
+        // Generate custom case number: 100 + userId + sequentialCaseNumber
+        long userCaseCount = caseRepository.countByCreatedBy(currentUser) + 1;
+        String caseNumber = generateCaseNumber(currentUser.getId(), userCaseCount);
+        legalCase.setCaseNumber(caseNumber);
+
         // Handle Attachments
         if (request.getAttachments() != null && !request.getAttachments().isEmpty()) {
             log.info("Processing {} attachments for new case", request.getAttachments().size());
             java.util.List<CaseAttachment> attachments = request.getAttachments().stream().map(dto -> {
                 try {
                     CaseAttachment attachment = new CaseAttachment();
-                    attachment.setFileName(dto.getName());
-                    attachment.setFileType(dto.getType());
+                    // Support both old (name/type) and new (fileName/fileType) field names
+                    String fileName = dto.getFileName() != null ? dto.getFileName() : dto.getName();
+                    String fileType = dto.getFileType() != null ? dto.getFileType() : dto.getType();
+                    attachment.setFileName(fileName);
+                    attachment.setFileType(fileType);
                     attachment.setContent(java.util.Base64.getDecoder().decode(dto.getContent()));
                     attachment.setLegalCase(legalCase);
-                    log.debug("Decoded attachment: {} ({} bytes)", dto.getName(), attachment.getContent().length);
+                    log.debug("Decoded attachment: {} ({} bytes)", fileName, attachment.getContent().length);
                     return attachment;
                 } catch (Exception e) {
-                    log.error("Failed to decode attachment {}: {}", dto.getName(), e.getMessage());
-                    throw new RuntimeException("Invalid attachment data: " + dto.getName());
+                    log.error("Failed to decode attachment: {}", e.getMessage());
+                    throw new RuntimeException("Invalid attachment data");
                 }
             }).collect(Collectors.toList());
             legalCase.setAttachments(attachments);
@@ -169,10 +177,24 @@ public class CaseService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
+    /**
+     * Generates a custom case number in format: 100 + userId (2 digits) + sequentialNumber (2 digits)
+     * Example: User ID 2, Case 1 -> 10021
+     *          User ID 2, Case 2 -> 10022
+     *          User ID 15, Case 3 -> 101503
+     */
+    private String generateCaseNumber(Long userId, long caseSequence) {
+        // Format: 100 + userId (padded to at least 2 digits) + case sequence (padded to at least 2 digits)
+        String userIdPart = String.format("%02d", userId);
+        String sequencePart = String.format("%02d", caseSequence);
+        return "100" + userIdPart + sequencePart;
+    }
+
     private CaseResponse toResponse(Case legalCase) {
 
         CaseResponse response = new CaseResponse();
         response.setId(legalCase.getId());
+        response.setCaseNumber(legalCase.getCaseNumber());
         response.setTitle(legalCase.getTitle());
         response.setDescription(legalCase.getDescription());
         response.setCaseType(legalCase.getCaseType());
@@ -189,8 +211,10 @@ public class CaseService {
         if (legalCase.getAttachments() != null) {
             response.setAttachments(legalCase.getAttachments().stream().map(attachment -> {
                 AttachmentDTO dto = new AttachmentDTO();
-                dto.setName(attachment.getFileName());
-                dto.setType(attachment.getFileType());
+                dto.setId(attachment.getId());
+                dto.setFileName(attachment.getFileName());
+                dto.setFileType(attachment.getFileType());
+                dto.setFileSize(attachment.getContent() != null ? (long) attachment.getContent().length : 0L);
                 dto.setContent(java.util.Base64.getEncoder().encodeToString(attachment.getContent()));
                 return dto;
             }).collect(Collectors.toList()));

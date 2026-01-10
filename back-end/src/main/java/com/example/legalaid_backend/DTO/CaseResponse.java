@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public class CaseResponse {
 
     private Long id;
+    private String caseNumber;
     private String title;
     private String description;
     private String caseType;

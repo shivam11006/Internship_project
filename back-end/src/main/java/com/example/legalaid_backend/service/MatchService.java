@@ -1,5 +1,6 @@
 package com.example.legalaid_backend.service;
 
+import com.example.legalaid_backend.DTO.AttachmentDTO;
 import com.example.legalaid_backend.DTO.GenerateMatchesResponse;
 import com.example.legalaid_backend.DTO.MatchResponse;
 import com.example.legalaid_backend.DTO.MatchResultDTO;
@@ -590,12 +591,15 @@ public class MatchService {
         MatchResponse response = new MatchResponse();
         response.setId(match.getId());
         response.setCaseId(match.getLegalCase().getId());
+        response.setCaseNumber(match.getLegalCase().getCaseNumber());
         response.setCaseTitle(match.getLegalCase().getTitle());
         response.setCaseType(match.getLegalCase().getCaseType());
         response.setCaseLocation(match.getLegalCase().getLocation());
         response.setCaseDescription(match.getLegalCase().getDescription());
         response.setCasePriority(
                 match.getLegalCase().getPriority() != null ? match.getLegalCase().getPriority().toString() : null);
+        response.setPreferredLanguage(match.getLegalCase().getPreferredLanguage());
+        response.setExpertiseTags(match.getLegalCase().getExpertiseTags());
         response.setStatus(match.getStatus().toString());
         response.setMatchScore(match.getMatchScore());
         response.setMatchReason(match.getMatchReason());
@@ -609,6 +613,24 @@ public class MatchService {
         if (citizen != null) {
             response.setCitizenName(citizen.getUsername());
             response.setCitizenEmail(citizen.getEmail());
+            // Note: Phone is not stored in User entity - field will be null
+        }
+
+        // Add attachments with proper metadata for downloads
+        if (match.getLegalCase().getAttachments() != null) {
+            response.setAttachments(
+                match.getLegalCase().getAttachments().stream()
+                    .map(att -> {
+                        AttachmentDTO dto = new AttachmentDTO();
+                        dto.setId(att.getId());
+                        dto.setFileName(att.getFileName());
+                        dto.setFileType(att.getFileType());
+                        dto.setFileSize(att.getContent() != null ? (long) att.getContent().length : 0L);
+                        // Don't include content here - use download endpoint instead
+                        return dto;
+                    })
+                    .collect(java.util.stream.Collectors.toList())
+            );
         }
 
         if (match.getLawyer() != null) {
