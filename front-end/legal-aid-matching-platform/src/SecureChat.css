@@ -445,3 +445,65 @@
 ::-webkit-scrollbar-thumb {
     background: #ced0d1;
 }
+/* Attachment Toggle Menu */
+.attach-menu-dropdown {
+    position: absolute;
+    bottom: 60px; /* Above the input area */
+    left: 10px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    border: 1px solid #e9edef;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 10;
+    min-width: 150px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.attach-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    color: var(--chat-text-primary);
+    font-size: 14px;
+}
+
+.attach-menu-item:hover {
+    background-color: #f0f2f5;
+}
+
+.attach-menu-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+/* Colors for attachment icons */
+.icon-image { background: linear-gradient(135deg, #AC46EB, #7F00FF); }
+.icon-document { background: linear-gradient(135deg, #515BD4, #8134AF); }
+.icon-camera { background: linear-gradient(135deg, #FD1D1D, #F9564F); }
+
+/* Ensure input wrapper is relative for absolute positioning of dropdown if needed, 
+   though currently positioning relative to screen/container is safer or using fixed bottom. 
+   Using absolute bottom on dropdown assumes container has relative/absolute positioning. */
+.chat-input-container {
+    position: relative; 
+}

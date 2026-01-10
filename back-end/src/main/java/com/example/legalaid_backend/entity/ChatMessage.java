@@ -12,7 +12,8 @@ import java.time.LocalDateTime;
  * ChatMessage Entity
  *
  * Represents a message between citizen and provider (lawyer/NGO)
- * Chat is only available when match status is SELECTED_BY_CITIZEN or ACCEPTED_BY_PROVIDER
+ * Chat is only available when match status is SELECTED_BY_CITIZEN or
+ * ACCEPTED_BY_PROVIDER
  */
 @Entity
 @Table(name = "chat_messages", indexes = {

@@ -27,277 +27,278 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ChatService {
-    private final ChatMessageRepository chatMessageRepository;
-    private final MatchRepository matchRepository;
-    private final UserRepository userRepository;
+        private final ChatMessageRepository chatMessageRepository;
+        private final MatchRepository matchRepository;
+        private final UserRepository userRepository;
 
-    // ==================== SEND MESSAGE ====================
+        // ==================== SEND MESSAGE ====================
 
-    /**
-     * Send a chat message (called from WebSocket controller)
-     */
-    @Transactional
-    public ChatMessageDto sendMessage(SendChatMessageRequest request, Long senderId) {
-        log.info("Sending message: matchId={}, senderId={}", request.getMatchId(), senderId);
+        /**
+         * Send a chat message (called from WebSocket controller)
+         */
+        @Transactional
+        public ChatMessageDto sendMessage(SendChatMessageRequest request, Long senderId) {
+                log.info("Sending message: matchId={}, senderId={}", request.getMatchId(), senderId);
 
-        // Validate message content
-        ChatUtils.validateMessageContent(request.getContent());
+                // Validate message content
+                ChatUtils.validateMessageContent(request.getContent());
 
-        // Get and validate match
-        Match match = matchRepository.findById(request.getMatchId())
-                .orElseThrow(() -> new RuntimeException("Match not found"));
+                // Get and validate match
+                Match match = matchRepository.findById(request.getMatchId())
+                                .orElseThrow(() -> new RuntimeException("Match not found"));
 
-        // Security: Check if sender is participant
-        if (!ChatUtils.isParticipant(match, senderId)) {
-            log.error("User {} is not participant in match {}", senderId, request.getMatchId());
-            throw new RuntimeException("You are not part of this conversation");
+                // Security: Check if sender is participant
+                if (!ChatUtils.isParticipant(match, senderId)) {
+                        log.error("User {} is not participant in match {}", senderId, request.getMatchId());
+                        throw new RuntimeException("You are not part of this conversation");
+                }
+
+                // Check if chat is allowed for this match status
+                if (!ChatUtils.canChat(match)) {
+                        log.error("Chat not allowed for match {} with status {}",
+                                        request.getMatchId(), match.getStatus());
+                        throw new RuntimeException("Chat is not available for this match status: " + match.getStatus());
+                }
+
+                // Get sender user
+                User sender = userRepository.findById(senderId)
+                                .orElseThrow(() -> new RuntimeException("Sender not found"));
+
+                // Create and save message
+                ChatMessage message = new ChatMessage();
+                message.setMatch(match);
+                message.setSender(sender);
+                message.setContent(request.getContent().trim());
+                message.setMessageType(request.getMessageType());
+                message.setRead(false);
+                message.setDeleted(false);
+
+                ChatMessage savedMessage = chatMessageRepository.save(message);
+
+                log.info("Message saved: id={}, matchId={}, sender={}",
+                                savedMessage.getId(), request.getMatchId(), sender.getUsername());
+
+                return convertToDto(savedMessage, senderId);
         }
 
-        // Check if chat is allowed for this match status
-        if (!ChatUtils.canChat(match)) {
-            log.error("Chat not allowed for match {} with status {}",
-                    request.getMatchId(), match.getStatus());
-            throw new RuntimeException("Chat is not available for this match status: " + match.getStatus());
+        // ==================== GET CHAT HISTORY ====================
+
+        /**
+         * Get chat history for a match with pagination
+         */
+        public ChatHistoryDto getChatHistory(Long matchId, int page, int size) {
+                User currentUser = getCurrentUser();
+                log.info("Loading chat history: matchId={}, userId={}, page={}",
+                                matchId, currentUser.getId(), page);
+
+                // Get and validate match
+                Match match = matchRepository.findById(matchId)
+                                .orElseThrow(() -> new RuntimeException("Match not found"));
+
+                // Security check
+                if (!ChatUtils.isParticipant(match, currentUser.getId())) {
+                        log.error("User {} attempted to access match {} without permission",
+                                        currentUser.getId(), matchId);
+                        throw new RuntimeException("Access denied: You are not part of this conversation");
+                }
+
+                // Get paginated messages (newest first for loading older messages)
+                PageRequest pageRequest = PageRequest.of(page, size, Sort.by("sentAt").descending());
+                Page<ChatMessage> messagePage = chatMessageRepository
+                                .findByMatchIdAndDeletedFalseOrderBySentAtDesc(matchId, pageRequest);
+
+                // Convert to DTOs
+                List<ChatMessageDto> messages = messagePage.getContent().stream()
+                                .map(msg -> convertToDto(msg, currentUser.getId()))
+                                .collect(Collectors.toList());
+
+                // Reverse to show oldest first (chronological order)
+                java.util.Collections.reverse(messages);
+
+                // Get unread count
+                long unreadCount = chatMessageRepository.countUnreadByMatchIdAndUserId(
+                                matchId, currentUser.getId());
+
+                return ChatHistoryDto.builder()
+                                .matchId(matchId)
+                                .messages(messages)
+                                .totalMessages((int) messagePage.getTotalElements())
+                                .unreadCount((int) unreadCount)
+                                .hasMore(messagePage.hasNext())
+                                .currentPage(page)
+                                .build();
         }
 
-        // Get sender user
-        User sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new RuntimeException("Sender not found"));
+        // ==================== GET CONVERSATION LIST ====================
 
-        // Create and save message
-        ChatMessage message = new ChatMessage();
-        message.setMatch(match);
-        message.setSender(sender);
-        message.setContent(request.getContent().trim());
-        message.setMessageType(request.getMessageType());
-        message.setRead(false);
-        message.setDeleted(false);
+        /**
+         * Get list of all conversations for current user
+         */
+        public ChatListDto getConversations() {
+                User currentUser = getCurrentUser();
+                log.info("Loading conversations for user: {} (role: {})", currentUser.getId(), currentUser.getRole());
 
-        ChatMessage savedMessage = chatMessageRepository.save(message);
+                List<Match> allMatches = new ArrayList<>();
 
-        log.info("Message saved: id={}, matchId={}, sender={}",
-                savedMessage.getId(), request.getMatchId(), sender.getUsername());
+                // Get matches where user is a provider (lawyer or NGO)
+                List<Match> providerMatches = matchRepository.findByProviderId(currentUser.getId());
+                log.debug("Found {} provider matches for user {}", providerMatches.size(), currentUser.getId());
+                allMatches.addAll(providerMatches);
 
-        return convertToDto(savedMessage, senderId);
-    }
+                // Get matches where user is the citizen (case creator)
+                List<Match> citizenMatches = matchRepository.findByCitizenId(currentUser.getId());
+                log.debug("Found {} citizen matches for user {}", citizenMatches.size(), currentUser.getId());
+                allMatches.addAll(citizenMatches);
 
-    // ==================== GET CHAT HISTORY ====================
+                // Remove duplicates (in case a match appears in both lists somehow)
+                Set<Long> seenMatchIds = new HashSet<>();
+                List<Match> uniqueMatches = allMatches.stream()
+                                .filter(match -> {
+                                        if (seenMatchIds.contains(match.getId())) {
+                                                return false;
+                                        }
+                                        seenMatchIds.add(match.getId());
+                                        return true;
+                                })
+                                .collect(Collectors.toList());
 
-    /**
-     * Get chat history for a match with pagination
-     */
-    public ChatHistoryDto getChatHistory(Long matchId, int page, int size) {
-        User currentUser = getCurrentUser();
-        log.info("Loading chat history: matchId={}, userId={}, page={}",
-                matchId, currentUser.getId(), page);
+                log.debug("Total unique matches: {}", uniqueMatches.size());
 
-        // Get and validate match
-        Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new RuntimeException("Match not found"));
+                // Filter to only matches where chat is enabled
+                List<ChatConversationDto> conversations = uniqueMatches.stream()
+                                .filter(ChatUtils::canChat)
+                                .map(match -> {
+                                        try {
+                                                return convertToConversationDto(match, currentUser.getId());
+                                        } catch (Exception e) {
+                                                log.error("Error converting match {} to conversation DTO: {}",
+                                                                match.getId(), e.getMessage());
+                                                return null;
+                                        }
+                                })
+                                .filter(Objects::nonNull)
+                                .sorted(Comparator.comparing(ChatConversationDto::getLastMessageTime,
+                                                Comparator.nullsLast(Comparator.reverseOrder())))
+                                .collect(Collectors.toList());
 
-        // Security check
-        if (!ChatUtils.isParticipant(match, currentUser.getId())) {
-            log.error("User {} attempted to access match {} without permission",
-                    currentUser.getId(), matchId);
-            throw new RuntimeException("Access denied: You are not part of this conversation");
+                log.info("Returning {} conversations for user {}", conversations.size(), currentUser.getId());
+
+                // Get total unread count
+                long totalUnread = chatMessageRepository.countTotalUnreadByUserId(currentUser.getId());
+
+                return ChatListDto.builder()
+                                .conversations(conversations)
+                                .totalConversations(conversations.size())
+                                .totalUnreadMessages((int) totalUnread)
+                                .build();
         }
 
-        // Get paginated messages (newest first for loading older messages)
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("sentAt").descending());
-        Page<ChatMessage> messagePage = chatMessageRepository
-                .findByMatchIdAndDeletedFalseOrderBySentAtDesc(matchId, pageRequest);
+        // ==================== MARK AS READ ====================
 
-        // Convert to DTOs
-        List<ChatMessageDto> messages = messagePage.getContent().stream()
-                .map(msg -> convertToDto(msg, currentUser.getId()))
-                .collect(Collectors.toList());
+        /**
+         * Mark all messages in a match as read
+         */
+        @Transactional
+        public void markMessagesAsRead(Long matchId) {
+                User currentUser = getCurrentUser();
+                log.info("Marking messages as read: matchId={}, userId={}", matchId, currentUser.getId());
 
-        // Reverse to show oldest first (chronological order)
-        java.util.Collections.reverse(messages);
+                // Get and validate match
+                Match match = matchRepository.findById(matchId)
+                                .orElseThrow(() -> new RuntimeException("Match not found"));
 
-        // Get unread count
-        long unreadCount = chatMessageRepository.countUnreadByMatchIdAndUserId(
-                matchId, currentUser.getId());
+                // Security check
+                if (!ChatUtils.isParticipant(match, currentUser.getId())) {
+                        throw new RuntimeException("Access denied");
+                }
 
-        return ChatHistoryDto.builder()
-                .matchId(matchId)
-                .messages(messages)
-                .totalMessages((int) messagePage.getTotalElements())
-                .unreadCount((int) unreadCount)
-                .hasMore(messagePage.hasNext())
-                .currentPage(page)
-                .build();
-    }
+                // Mark messages as read
+                int updatedCount = chatMessageRepository.markMessagesAsRead(
+                                matchId, currentUser.getId(), LocalDateTime.now());
 
-    // ==================== GET CONVERSATION LIST ====================
-
-    /**
-     * Get list of all conversations for current user
-     */
-    public ChatListDto getConversations() {
-        User currentUser = getCurrentUser();
-        log.info("Loading conversations for user: {} (role: {})", currentUser.getId(), currentUser.getRole());
-
-        List<Match> allMatches = new ArrayList<>();
-
-        // Get matches where user is a provider (lawyer or NGO)
-        List<Match> providerMatches = matchRepository.findByProviderId(currentUser.getId());
-        log.debug("Found {} provider matches for user {}", providerMatches.size(), currentUser.getId());
-        allMatches.addAll(providerMatches);
-
-        // Get matches where user is the citizen (case creator)
-        List<Match> citizenMatches = matchRepository.findByCitizenId(currentUser.getId());
-        log.debug("Found {} citizen matches for user {}", citizenMatches.size(), currentUser.getId());
-        allMatches.addAll(citizenMatches);
-
-        // Remove duplicates (in case a match appears in both lists somehow)
-        Set<Long> seenMatchIds = new HashSet<>();
-        List<Match> uniqueMatches = allMatches.stream()
-                .filter(match -> {
-                    if (seenMatchIds.contains(match.getId())) {
-                        return false;
-                    }
-                    seenMatchIds.add(match.getId());
-                    return true;
-                })
-                .collect(Collectors.toList());
-
-        log.debug("Total unique matches: {}", uniqueMatches.size());
-
-        // Filter to only matches where chat is enabled
-        List<ChatConversationDto> conversations = uniqueMatches.stream()
-                .filter(ChatUtils::canChat)
-                .map(match -> {
-                    try {
-                        return convertToConversationDto(match, currentUser.getId());
-                    } catch (Exception e) {
-                        log.error("Error converting match {} to conversation DTO: {}", match.getId(), e.getMessage());
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(ChatConversationDto::getLastMessageTime,
-                        Comparator.nullsLast(Comparator.reverseOrder())))
-                .collect(Collectors.toList());
-
-        log.info("Returning {} conversations for user {}", conversations.size(), currentUser.getId());
-
-        // Get total unread count
-        long totalUnread = chatMessageRepository.countTotalUnreadByUserId(currentUser.getId());
-
-        return ChatListDto.builder()
-                .conversations(conversations)
-                .totalConversations(conversations.size())
-                .totalUnreadMessages((int) totalUnread)
-                .build();
-    }
-
-    // ==================== MARK AS READ ====================
-
-    /**
-     * Mark all messages in a match as read
-     */
-    @Transactional
-    public void markMessagesAsRead(Long matchId) {
-        User currentUser = getCurrentUser();
-        log.info("Marking messages as read: matchId={}, userId={}", matchId, currentUser.getId());
-
-        // Get and validate match
-        Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new RuntimeException("Match not found"));
-
-        // Security check
-        if (!ChatUtils.isParticipant(match, currentUser.getId())) {
-            throw new RuntimeException("Access denied");
+                log.info("Marked {} messages as read for match {}", updatedCount, matchId);
         }
 
-        // Mark messages as read
-        int updatedCount = chatMessageRepository.markMessagesAsRead(
-                matchId, currentUser.getId(), LocalDateTime.now());
+        // ==================== GET UNREAD COUNT ====================
 
-        log.info("Marked {} messages as read for match {}", updatedCount, matchId);
-    }
+        /**
+         * Get unread message count for a specific match
+         */
+        public int getUnreadCount(Long matchId) {
+                User currentUser = getCurrentUser();
+                return (int) chatMessageRepository.countUnreadByMatchIdAndUserId(
+                                matchId, currentUser.getId());
+        }
 
-    // ==================== GET UNREAD COUNT ====================
+        /**
+         * Get total unread count across all conversations
+         */
+        public int getTotalUnreadCount() {
+                User currentUser = getCurrentUser();
+                return (int) chatMessageRepository.countTotalUnreadByUserId(currentUser.getId());
+        }
 
-    /**
-     * Get unread message count for a specific match
-     */
-    public int getUnreadCount(Long matchId) {
-        User currentUser = getCurrentUser();
-        return (int) chatMessageRepository.countUnreadByMatchIdAndUserId(
-                matchId, currentUser.getId());
-    }
+        // ==================== HELPER METHODS ====================
 
-    /**
-     * Get total unread count across all conversations
-     */
-    public int getTotalUnreadCount() {
-        User currentUser = getCurrentUser();
-        return (int) chatMessageRepository.countTotalUnreadByUserId(currentUser.getId());
-    }
+        /**
+         * Convert ChatMessage entity to DTO
+         */
+        private ChatMessageDto convertToDto(ChatMessage message, Long currentUserId) {
+                return ChatMessageDto.builder()
+                                .id(message.getId())
+                                .matchId(message.getMatch().getId())
+                                .senderId(message.getSender().getId())
+                                .senderName(message.getSender().getUsername())
+                                .senderRole(message.getSender().getRole().name())
+                                .content(message.getContent())
+                                .messageType(message.getMessageType())
+                                .isRead(message.isRead())
+                                .isOwnMessage(message.getSender().getId().equals(currentUserId))
+                                .sentAt(message.getSentAt())
+                                .readAt(message.getReadAt())
+                                .editedAt(message.getEditedAt())
+                                .build();
+        }
 
-    // ==================== HELPER METHODS ====================
+        /**
+         * Convert Match to conversation DTO (for chat list)
+         */
+        private ChatConversationDto convertToConversationDto(Match match, Long currentUserId) {
+                // Get other participant
+                User otherUser = ChatUtils.getOtherParticipant(match, currentUserId);
 
-    /**
-     * Convert ChatMessage entity to DTO
-     */
-    private ChatMessageDto convertToDto(ChatMessage message, Long currentUserId) {
-        return ChatMessageDto.builder()
-                .id(message.getId())
-                .matchId(message.getMatch().getId())
-                .senderId(message.getSender().getId())
-                .senderName(message.getSender().getUsername())
-                .senderRole(message.getSender().getRole().name())
-                .content(message.getContent())
-                .messageType(message.getMessageType())
-                .isRead(message.isRead())
-                .isOwnMessage(message.getSender().getId().equals(currentUserId))
-                .sentAt(message.getSentAt())
-                .readAt(message.getReadAt())
-                .editedAt(message.getEditedAt())
-                .build();
-    }
+                // Get last message
+                ChatMessage lastMessage = chatMessageRepository
+                                .findLastMessageByMatchId(match.getId())
+                                .orElse(null);
 
-    /**
-     * Convert Match to conversation DTO (for chat list)
-     */
-    private ChatConversationDto convertToConversationDto(Match match, Long currentUserId) {
-        // Get other participant
-        User otherUser = ChatUtils.getOtherParticipant(match, currentUserId);
+                // Get unread count
+                long unreadCount = chatMessageRepository.countUnreadByMatchIdAndUserId(
+                                match.getId(), currentUserId);
 
-        // Get last message
-        ChatMessage lastMessage = chatMessageRepository
-                .findLastMessageByMatchId(match.getId())
-                .orElse(null);
+                return ChatConversationDto.builder()
+                                .matchId(match.getId())
+                                .caseId(match.getLegalCase().getId())
+                                .caseTitle(match.getLegalCase().getTitle())
+                                .caseType(match.getLegalCase().getCaseType())
+                                .matchStatus(match.getStatus().name())
+                                .otherUserId(otherUser.getId())
+                                .otherUserName(otherUser.getUsername())
+                                .otherUserRole(otherUser.getRole().name())
+                                .lastMessage(lastMessage != null ? lastMessage.getContent() : null)
+                                .lastMessageTime(lastMessage != null ? lastMessage.getSentAt() : null)
+                                .unreadCount((int) unreadCount)
+                                .canChat(ChatUtils.canChat(match))
+                                .createdAt(match.getCreatedAt())
+                                .build();
+        }
 
-        // Get unread count
-        long unreadCount = chatMessageRepository.countUnreadByMatchIdAndUserId(
-                match.getId(), currentUserId);
-
-        return ChatConversationDto.builder()
-                .matchId(match.getId())
-                .caseId(match.getLegalCase().getId())
-                .caseTitle(match.getLegalCase().getTitle())
-                .caseType(match.getLegalCase().getCaseType())
-                .matchStatus(match.getStatus().name())
-                .otherUserId(otherUser.getId())
-                .otherUserName(otherUser.getUsername())
-                .otherUserRole(otherUser.getRole().name())
-                .lastMessage(lastMessage != null ? lastMessage.getContent() : null)
-                .lastMessageTime(lastMessage != null ? lastMessage.getSentAt() : null)
-                .unreadCount((int) unreadCount)
-                .canChat(ChatUtils.canChat(match))
-                .createdAt(match.getCreatedAt())
-                .build();
-    }
-
-    /**
-     * Get current authenticated user
-     */
-    private User getCurrentUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return userRepository.findByEmail(auth.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-    }
+        /**
+         * Get current authenticated user
+         */
+        private User getCurrentUser() {
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                return userRepository.findByEmail(auth.getName())
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+        }
 }

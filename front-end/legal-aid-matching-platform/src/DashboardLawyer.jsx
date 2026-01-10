@@ -16,6 +16,7 @@ function DashboardLawyer() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // overview, profile, assigned-cases, secure-chat
@@ -1458,11 +1459,41 @@ function DashboardLawyer() {
 
                 <div className="chat-input-container">
                   <div className="chat-input-wrapper">
-                    <button className="btn-input-icon">
+                    <button className="btn-input-icon" onClick={() => setShowAttachMenu(!showAttachMenu)}>
                       <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                       </svg>
                     </button>
+
+                    {showAttachMenu && (
+                      <div className="attach-menu-dropdown">
+                        <button className="attach-menu-item" onClick={() => { alert('Image upload not implemented yet'); setShowAttachMenu(false); }}>
+                          <div className="attach-menu-icon icon-image">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <span>Photos & Videos</span>
+                        </button>
+                        <button className="attach-menu-item" onClick={() => { alert('Document upload not implemented yet'); setShowAttachMenu(false); }}>
+                          <div className="attach-menu-icon icon-document">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <span>Document</span>
+                        </button>
+                        <button className="attach-menu-item" onClick={() => { alert('Camera not implemented yet'); setShowAttachMenu(false); }}>
+                          <div className="attach-menu-icon icon-camera">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </div>
+                          <span>Camera</span>
+                        </button>
+                      </div>
+                    )}
                     <textarea
                       className="chat-input-field"
                       placeholder={currentContact ? "Type your message here..." : "Select a conversation to start chatting"}
