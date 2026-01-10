@@ -89,19 +89,40 @@ public class CaseService {
     // =========================
     // GET CASE BY ID (CITIZEN)
     // =========================
+    private final com.example.legalaid_backend.repository.MatchRepository matchRepository;
+
+    // ... (constructor will auto-inject due to @RequiredArgsConstructor)
+
+    // =========================
+    // GET CASE BY ID (Authorized)
+    // =========================
     public CaseResponse getCaseById(Long id) {
 
         User currentUser = getCurrentUser();
 
-        if (currentUser.getRole() != Role.CITIZEN) {
-            throw new RuntimeException("Access denied");
+        // Check if user is the case owner (Citizen)
+        if (currentUser.getRole() == Role.CITIZEN) {
+            Case legalCase = caseRepository
+                    .findByIdAndCreatedBy(id, currentUser)
+                    .orElseThrow(() -> new RuntimeException("Case not found or access denied"));
+            return toResponse(legalCase);
         }
 
-        Case legalCase = caseRepository
-                .findByIdAndCreatedBy(id, currentUser)
-                .orElseThrow(() -> new RuntimeException("Case not found"));
+        // Check if user is a provider (Lawyer/NGO)
+        if (currentUser.getRole() == Role.LAWYER || currentUser.getRole() == Role.NGO) {
+            // Verify if this provider has a match with this case
+            boolean hasMatch = matchRepository.findByLegalCaseId(id).stream()
+                    .anyMatch(m -> (m.getLawyer() != null && m.getLawyer().getId().equals(currentUser.getId())) ||
+                            (m.getNgo() != null && m.getNgo().getId().equals(currentUser.getId())));
 
-        return toResponse(legalCase);
+            if (hasMatch) {
+                Case legalCase = caseRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("Case not found"));
+                return toResponse(legalCase);
+            }
+        }
+
+        throw new RuntimeException("Access denied: You do not have permission to view this case");
     }
 
     // =========================

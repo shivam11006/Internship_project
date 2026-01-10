@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './AssignedCases.css';
 import * as matchService from './services/matchService';
+import * as caseService from './services/caseService';
 
 function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
   const [cases, setCases] = useState([]);
@@ -50,8 +51,8 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
         matchScore: c.matchScore || 85,
         matchReason: c.matchReason || '',
         status: c.status === 'ACCEPTED_BY_PROVIDER' ? 'accepted' :
-          c.status === 'REJECTED_BY_PROVIDER' ? 'declined' : 
-          c.status === 'EXPIRED' ? 'expired' : 'pending',
+          c.status === 'REJECTED_BY_PROVIDER' ? 'declined' :
+            c.status === 'EXPIRED' ? 'expired' : 'pending',
         createdAt: c.createdAt,
         citizenName: c.citizenName || 'Citizen',
         citizenEmail: c.citizenEmail || '',
@@ -315,9 +316,57 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
               <div className="case-actions-footer">
                 <button
                   className="btn-view-details"
-                  onClick={() => {
+                  onClick={async () => {
+                    // Set basic details first for immediate feedback
                     setSelectedCase(caseItem);
                     setShowDetails(true);
+
+                    // Fetch full details from DB to get evidence/docs
+                    try {
+                      console.log("Fetching details for caseId:", caseItem.caseId);
+                      const fullCaseDetails = await caseService.getCaseById(caseItem.caseId);
+                      console.log("Full case details received:", fullCaseDetails);
+
+                      if (fullCaseDetails) {
+                        const attachments = fullCaseDetails.attachments || fullCaseDetails.documents || [];
+                        console.log("Attachments found:", attachments);
+
+                        // Process attachments to create download URLs from base64 if needed
+                        const processedEvidence = attachments.map(att => {
+                          // Handle AttachmentDTO structure (name, type, content)
+                          // If content is base64 and no URL, create one
+                          if (att.content && !att.url) {
+                            try {
+                              const byteCharacters = atob(att.content);
+                              const byteNumbers = new Array(byteCharacters.length);
+                              for (let i = 0; i < byteCharacters.length; i++) {
+                                byteNumbers[i] = byteCharacters.charCodeAt(i);
+                              }
+                              const byteArray = new Uint8Array(byteNumbers);
+                              const blob = new Blob([byteArray], { type: att.type || 'application/pdf' });
+                              const blobUrl = URL.createObjectURL(blob);
+                              return { ...att, url: blobUrl };
+                            } catch (e) {
+                              console.error("Error converting base64 to blob:", e);
+                              return att;
+                            }
+                          }
+                          return att;
+                        });
+
+                        setSelectedCase(prev => ({
+                          ...prev,
+                          ...fullCaseDetails,
+                          matchScore: prev.matchScore,
+                          status: prev.status,
+                          id: prev.id, // match ID
+                          evidence: processedEvidence
+                        }));
+                      }
+                    } catch (err) {
+                      console.error("Failed to fetch full case details:", err);
+                      // Fallback or just show what we have
+                    }
                   }}
                 >
                   View Details
@@ -355,9 +404,9 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
                   </div>
                 )}
                 {caseItem.status === 'expired' && (
-                  <div className="expired-notice" style={{ 
-                    color: '#6b7280', 
-                    fontSize: '12px', 
+                  <div className="expired-notice" style={{
+                    color: '#6b7280',
+                    fontSize: '12px',
                     fontStyle: 'italic',
                     padding: '4px 8px',
                     backgroundColor: '#f3f4f6',
@@ -381,109 +430,164 @@ function AssignedCases({ refreshTrigger, onNavigateToChat, onScheduleCall }) {
               <div className="header-title-section">
                 <h3 className="header-main-title">Case Details</h3>
                 <p className="header-subtitle">
-                  ID: #{selectedCase.caseId} • Posted on {new Date(selectedCase.createdAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                  ID: #{selectedCase.caseId} • Posted on {new Date(selectedCase.createdAt).toLocaleDateString('en-GB')}
                 </p>
               </div>
               <button className="close-btn-new" onClick={() => setShowDetails(false)}>&times;</button>
             </div>
 
-            <div className="modal-body-new">
-              {/* Title and Badges */}
-              <div className="title-badges-section">
-                <h2 className="case-title-large">{selectedCase.caseTitle}</h2>
-                <div className="badges-row">
-                  <span className="badge-match">{Math.round(selectedCase.matchScore)}% Match</span>
-                  <span className="badge-priority" style={{
-                    backgroundColor: getPriorityColor(selectedCase.priority) + '33',
-                    color: getPriorityColor(selectedCase.priority),
-                    borderColor: getPriorityColor(selectedCase.priority)
-                  }}>
-                    {selectedCase.priority} Priority
-                  </span>
-                </div>
-              </div>
+            <div className="modal-body-scollable">
+              <div className="modal-body-content">
 
-              {/* Meta Info Row */}
-              <div className="meta-info-row">
-                <div className="meta-item">
-                  <span className="meta-icon">📍</span>
-                  <span className="meta-text">{selectedCase.caseLocation}</span>
+                {/* 1. Description Section */}
+                <div className="section-block mb-large">
+                  <h2 className="case-title-large">{selectedCase.caseTitle || 'N/A'}</h2>
+                  <div className="badges-row mb-medium">
+                    <span className="badge-match">{Math.round(selectedCase.matchScore || 0)}% Match</span>
+                  </div>
+                  <h4 className="section-label">DESCRIPTION</h4>
+                  <p className="description-text">
+                    {selectedCase.caseDescription || 'N/A'}
+                  </p>
                 </div>
-                <div className="meta-item">
-                  <span className="meta-icon">📄</span>
-                  <span className="meta-text">{selectedCase.caseType}</span>
-                </div>
-                <div className="meta-item">
-                  <span className="meta-icon">👤</span>
-                  <span className="meta-text">{selectedCase.citizenName || 'user'}</span>
-                </div>
-              </div>
 
-              {/* Two Column Layout */}
-              <div className="two-column-layout">
-                {/* Left Column */}
-                <div className="left-column">
-                  <div className="section-block">
-                    <h4 className="section-label">DESCRIPTION</h4>
-                    <p className="description-text">{selectedCase.caseDescription}</p>
+                <hr className="divider" />
+
+                {/* 2. Details Grid */}
+                <div className="details-grid">
+                  {/* Row 1 */}
+                  <div className="grid-item">
+                    <label>CASE TYPE</label>
+                    <div className="value-text">{selectedCase.caseType || 'N/A'}</div>
+                  </div>
+                  <div className="grid-item">
+                    <label>PRIORITY</label>
+                    <div className="value-component">
+                      <span className={`priority-pill ${selectedCase.priority?.toLowerCase() || 'medium'}`}>
+                        {selectedCase.priority || 'N/A'}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="section-block">
-                    <h4 className="section-label">EXPERTISE TAGS</h4>
+                  {/* Row 2 */}
+                  <div className="grid-item">
+                    <label>CASE ID</label>
+                    <div className="value-text">#{selectedCase.caseId || 'N/A'}</div>
+                  </div>
+                  <div className="grid-item">
+                    <label>CREATED BY</label>
+                    <div className="value-text">{selectedCase.citizenName ? `User ${selectedCase.citizenName}` : 'User #N/A'}</div>
+                    {/* fallback naming logic as per screenshot style "User #253", assuming citizenName might be a name or ID */}
+                  </div>
+
+                  {/* Row 3 */}
+                  <div className="grid-item">
+                    <label>LOCATION</label>
+                    <div className="value-text">{selectedCase.caseLocation || 'N/A'}</div>
+                  </div>
+                  <div className="grid-item">
+                    <label>PREFERRED LANGUAGE</label>
+                    <div className="value-text">{selectedCase.preferredLanguage || 'N/A'}</div>
+                  </div>
+
+                  {/* Row 4 - Full Width Tags */}
+                  <div className="grid-item full-width">
+                    <label>EXPERTISE TAGS</label>
                     <div className="expertise-tags-list">
                       {selectedCase.expertiseTags && selectedCase.expertiseTags.length > 0 ? (
                         selectedCase.expertiseTags.map((tag, i) => (
-                          <span key={i} className="expertise-tag-pill">{tag}</span>
+                          <span key={i} className="expertise-tag-outline">{tag}</span>
                         ))
                       ) : (
-                        <span className="no-data-text">No specific tags</span>
+                        <span className="value-text">N/A</span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Right Column */}
-                <div className="right-column">
-                  <div className="section-block">
-                    <h4 className="section-label">ADDITIONAL PARTIES</h4>
-                    <p className="parties-text">{selectedCase.additionalParties || 'None'}</p>
-                  </div>
+                <hr className="divider" />
 
-                  <div className="section-block">
-                    <h4 className="section-label">CONTACT INFORMATION</h4>
-                    <div className="contact-info-grid">
-                      <div className="contact-row">
-                        <span className="contact-label">Email</span>
-                        <span className="contact-value">{selectedCase.citizenEmail || 'user1@gmail.com'}</span>
+                {/* 3. Timeline Section */}
+                <div className="section-block">
+                  <h4 className="section-label">TIMELINE</h4>
+                  <div className="timeline-container">
+                    <div className="timeline-item">
+                      <div className="timeline-marker"></div>
+                      <div className="timeline-content">
+                        <div className="timeline-title">Case Submitted</div>
+                        <div className="timeline-date">
+                          {selectedCase.createdAt
+                            ? new Date(selectedCase.createdAt).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                            : 'Date N/A'}
+                        </div>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  <div className="section-block">
-                    <div className="match-explanation-box">
-                      <h4 className="match-box-title">Why it matches?</h4>
-                    </div>
+                <hr className="divider" />
+
+                {/* 4. Evidence & Documents Section */}
+                <div className="section-block">
+                  <h4 className="section-label">EVIDENCE & DOCUMENTS</h4>
+                  <div className="evidence-list">
+                    {selectedCase.evidence && selectedCase.evidence.length > 0 ? (
+                      selectedCase.evidence.map((doc, idx) => (
+                        <div key={idx} className="evidence-card">
+                          <div className="file-icon">📄</div>
+                          <div className="file-info">
+                            <div className="file-name">{doc.name || `Document ${idx + 1}`}</div>
+                            <div className="file-type">PDF</div> {/* Assuming PDF for now as per screenshot */}
+                          </div>
+                          <a href={doc.url || '#'} className="download-link" target="_blank" rel="noopener noreferrer">
+                            ⬇
+                          </a>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="no-data-text">No documents attached (N/A)</div>
+                    )}
                   </div>
                 </div>
-              </div>
 
-              {/* Action Buttons */}
-              {selectedCase.status === 'pending' && (
-                <div className="modal-actions-new">
-                  <button
-                    className="btn-decline-new"
-                    onClick={() => handleDecline(selectedCase.id)}
-                  >
-                    ✗ Decline Case
-                  </button>
-                  <button
-                    className="btn-accept-new"
-                    onClick={() => handleAccept(selectedCase.id)}
-                  >
-                    ✓ Accept Case
+                <hr className="divider" />
+
+                {/* 5. Additional Info (Parties, Contact) - Kept for completeness but styled to fit */}
+                <div className="details-grid">
+                  <div className="grid-item">
+                    <label>ADDITIONAL PARTIES</label>
+                    <div className="value-text">{selectedCase.additionalParties || 'N/A'}</div>
+                  </div>
+                  <div className="grid-item">
+                    <label>CONTACT EMAIL</label>
+                    <div className="value-text">{selectedCase.citizenEmail || 'N/A'}</div>
+                  </div>
+                </div>
+
+                <div className="section-block mt-large">
+                  <button className="why-match-btn">
+                    Why it matches?
                   </button>
                 </div>
-              )}
+
+                {/* Action Buttons */}
+                {selectedCase.status === 'pending' && (
+                  <div className="modal-actions-new">
+                    <button
+                      className="btn-decline-new"
+                      onClick={() => handleDecline(selectedCase.id)}
+                    >
+                      ✗ Decline Case
+                    </button>
+                    <button
+                      className="btn-accept-new"
+                      onClick={() => handleAccept(selectedCase.id)}
+                    >
+                      ✓ Accept Case
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

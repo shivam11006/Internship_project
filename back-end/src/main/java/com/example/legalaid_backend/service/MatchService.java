@@ -223,29 +223,29 @@ public class MatchService {
         return toMatchResponse(updatedMatch);
     }
 
-    // =========================    // GET MY MATCHES (For Citizens)
+    // ========================= // GET MY MATCHES (For Citizens)
     // =========================
     public List<MatchResponse> getMyMatches() {
         User currentUser = getCurrentUser();
-        
+
         if (currentUser.getRole() != Role.CITIZEN) {
             throw new RuntimeException("Only citizens can view their matches");
         }
-        
+
         log.info("Fetching all matches for citizen: {}", currentUser.getId());
-        
+
         // Get all cases created by this citizen
         List<Case> myCases = caseRepository.findByCreatedBy(currentUser);
-        
+
         // Get all matches for these cases
         List<Match> allMatches = new ArrayList<>();
         for (Case legalCase : myCases) {
             List<Match> caseMatches = matchRepository.findByLegalCaseId(legalCase.getId());
             allMatches.addAll(caseMatches);
         }
-        
+
         log.info("Found {} total matches across {} cases", allMatches.size(), myCases.size());
-        
+
         // Convert to response DTOs
         return allMatches.stream()
                 .map(this::toMatchResponse)
@@ -253,7 +253,7 @@ public class MatchService {
                 .collect(Collectors.toList());
     }
 
-    // =========================    // GET ASSIGNED CASES (Lawyer/NGO)
+    // ========================= // GET ASSIGNED CASES (Lawyer/NGO)
     // =========================
     public List<MatchResponse> getAssignedCases() {
 
@@ -302,11 +302,13 @@ public class MatchService {
 
         // Check current status - must be SELECTED_BY_CITIZEN to accept
         if (match.getStatus() == MatchStatus.EXPIRED) {
-            throw new RuntimeException("This case has already been accepted by another provider. You can no longer accept it.");
+            throw new RuntimeException(
+                    "This case has already been accepted by another provider. You can no longer accept it.");
         }
-        
+
         if (match.getStatus() != MatchStatus.SELECTED_BY_CITIZEN) {
-            throw new RuntimeException("Only cases selected by citizens can be accepted. Current status: " + match.getStatus());
+            throw new RuntimeException(
+                    "Only cases selected by citizens can be accepted. Current status: " + match.getStatus());
         }
 
         // Double-check if another provider has already accepted this case
@@ -317,7 +319,8 @@ public class MatchService {
             match.setStatus(MatchStatus.EXPIRED);
             match.setRejectionReason("Another provider has accepted this case");
             matchRepository.save(match);
-            throw new RuntimeException("This case has already been accepted by another provider. You can no longer accept it.");
+            throw new RuntimeException(
+                    "This case has already been accepted by another provider. You can no longer accept it.");
         }
 
         // Accept the case
@@ -327,13 +330,14 @@ public class MatchService {
         Match updatedMatch = matchRepository.save(match);
 
         // Expire all other SELECTED_BY_CITIZEN matches for this case
-        List<Match> otherSelectedMatches = matchRepository.findByCaseIdAndStatus(caseId, MatchStatus.SELECTED_BY_CITIZEN);
+        List<Match> otherSelectedMatches = matchRepository.findByCaseIdAndStatus(caseId,
+                MatchStatus.SELECTED_BY_CITIZEN);
         for (Match otherMatch : otherSelectedMatches) {
             if (!otherMatch.getId().equals(matchId)) {
                 otherMatch.setStatus(MatchStatus.EXPIRED);
                 otherMatch.setRejectionReason("Another provider has accepted this case");
                 matchRepository.save(otherMatch);
-                log.info("Match {} expired because provider {} accepted case {}", 
+                log.info("Match {} expired because provider {} accepted case {}",
                         otherMatch.getId(), currentUser.getEmail(), caseId);
             }
         }
