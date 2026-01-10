@@ -17,6 +17,7 @@ function DashboardLawyer() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // overview, profile, assigned-cases, secure-chat
@@ -1464,6 +1465,7 @@ function DashboardLawyer() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                       </svg>
                     </button>
+                    {/* Add Missing State: This is UI render logic, not state definition. I need to find state definition location again. */}
 
                     {showAttachMenu && (
                       <div className="attach-menu-dropdown">
@@ -1511,6 +1513,56 @@ function DashboardLawyer() {
                       }}
                       disabled={!currentContact || !wsConnected}
                     ></textarea>
+                    <button
+                      className="btn-input-icon"
+                      disabled={!currentContact}
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    >
+                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+
+                    {showEmojiPicker && (
+                      <div className="emoji-picker-dropdown" style={{
+                        position: 'absolute',
+                        bottom: '100%',
+                        right: '50px',
+                        marginBottom: '10px',
+                        backgroundColor: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(5, 1fr)',
+                        gap: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        zIndex: 50,
+                        width: '200px'
+                      }}>
+                        {['😀', '😂', '🤣', '😊', '😍', '🥰', '😎', '🤔', '😐', '🙄', '😥', '😭', '😱', '😡', '👍', '👎', '👋', '🙏', '🔥', '✨', '🎉', '💯', '❤️', '💔', '💩', '🤝'].map(emoji => (
+                          <button
+                            key={emoji}
+                            onClick={() => {
+                              setMessageText(prev => prev + emoji);
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              fontSize: '20px',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              borderRadius: '4px',
+                              transition: 'background-color 0.2s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <button
                       className="btn-send-msg"
                       onClick={handleSendMessage}

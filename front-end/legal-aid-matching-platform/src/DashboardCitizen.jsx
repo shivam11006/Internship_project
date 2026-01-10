@@ -308,6 +308,7 @@ function DashboardCitizen() {
   // Notifications State
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   // Mock Notification Data
   const [mockNotifications, setMockNotifications] = useState({
     messages: [
@@ -1408,7 +1409,10 @@ function DashboardCitizen() {
                             <div className="match-actions">
                               <button
                                 className="btn-match-action btn-chat"
-                                onClick={() => handleSelectConversation(conversation.matchId)}
+                                onClick={() => {
+                                  handleSelectConversation(conversation.matchId);
+                                  setActiveTab('secure-chat');
+                                }}
                               >
                                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -1781,11 +1785,63 @@ function DashboardCitizen() {
                       }}
                       disabled={!currentContact || !wsConnected}
                     ></textarea>
-                    <button className="btn-input-icon" disabled={!currentContact}>
+                    <button
+                      className="btn-input-icon"
+                      disabled={!currentContact}
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    >
                       <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </button>
+
+                    {showEmojiPicker && (
+                      <div className="emoji-picker-dropdown" style={{
+                        position: 'absolute',
+                        bottom: '100%',
+                        right: '50px',
+                        marginBottom: '10px',
+                        backgroundColor: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(5, 1fr)',
+                        gap: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        zIndex: 50,
+                        width: '200px'
+                      }}>
+                        {['😀', '😂', '🤣', '😊', '😍', '🥰', '😎', '🤔', '😐', '🙄', '😥', '😭', '😱', '😡', '👍', '👎', '👋', '🙏', '🔥', '✨', '🎉', '💯', '❤️', '💔', '💩', '🤝'].map(emoji => (
+                          <button
+                            key={emoji}
+                            onClick={() => {
+                              setMessageText(prev => prev + emoji);
+                              // Optional: keep picker open or close it. Typically keep open for multiple emojis or close?
+                              // User request: "send the message with is icon only" might imply single click send? No, "send the message with this icon only" might mean they want to send emojis.
+                              // "when click on the show some emoji Icon user can send the message with is icon only"
+                              // Phrasing is slightly ambiguous. "send the message with is icon only" -> maybe "send the message with his icon only"?
+                              // Or maybe "user can send the message with THIS icon only" (implying the emoji button sends it?)
+                              // Most likely: User wants to be able to insert emojis into the message.
+                              // I will append to text.
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              fontSize: '20px',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              borderRadius: '4px',
+                              transition: 'background-color 0.2s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <button
                       className="btn-send-msg"
                       onClick={handleSendMessage}
