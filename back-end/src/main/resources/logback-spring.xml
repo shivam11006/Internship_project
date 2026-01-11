@@ -50,8 +50,18 @@
         <appender-ref ref="ASYNC_DATABASE" />
     </logger>
 
-    <!-- SQL logging (optional - for debugging) -->
-    <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+    <!-- SQL logging (disabled in production/development - uncomment DEBUG for troubleshooting) -->
+    <logger name="org.hibernate.SQL" level="WARN" additivity="false">
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- Hibernate dialect logging -->
+    <logger name="org.hibernate.dialect" level="WARN" additivity="false">
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- Hibernate type logging -->
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="WARN" additivity="false">
         <appender-ref ref="CONSOLE" />
     </logger>
 

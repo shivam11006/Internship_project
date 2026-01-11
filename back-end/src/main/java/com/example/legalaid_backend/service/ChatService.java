@@ -8,6 +8,7 @@ import com.example.legalaid_backend.repository.ChatMessageRepository;
 import com.example.legalaid_backend.repository.MatchRepository;
 import com.example.legalaid_backend.repository.UserRepository;
 import com.example.legalaid_backend.util.ChatUtils;
+import com.example.legalaid_backend.util.NotificationType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -30,6 +31,7 @@ public class ChatService {
         private final ChatMessageRepository chatMessageRepository;
         private final MatchRepository matchRepository;
         private final UserRepository userRepository;
+        private final NotificationService notificationService;
 
         // ==================== SEND MESSAGE ====================
 
@@ -77,6 +79,25 @@ public class ChatService {
 
                 log.info("Message saved: id={}, matchId={}, sender={}",
                                 savedMessage.getId(), request.getMatchId(), sender.getUsername());
+
+                // Send notification to the other participant
+                try {
+                        User recipient = ChatUtils.getOtherParticipant(match, sender.getId());
+                        if (recipient != null) {
+                                String title = "Message from " + sender.getUsername();
+                                String message_content = sender.getUsername() + ": " + 
+                                        (request.getContent().length() > 50 ? 
+                                        request.getContent().substring(0, 50) + "..." : 
+                                        request.getContent());
+                                notificationService.createNotificationWithMetadata(
+                                        recipient, NotificationType.MESSAGE_RECEIVED, title, message_content,
+                                        null, null, match.getLegalCase().getId(), savedMessage.getId(), sender.getId(),
+                                        "/dashboard/secure-chat?matchId=" + request.getMatchId()
+                                );
+                        }
+                } catch (Exception e) {
+                        log.warn("Could not send notification for message: {}", e.getMessage());
+                }
 
                 return convertToDto(savedMessage, senderId);
         }

@@ -12,6 +12,7 @@ import com.example.legalaid_backend.repository.UserRepository;
 import com.example.legalaid_backend.util.AppointmentStatus;
 import com.example.legalaid_backend.util.AppointmentType;
 import com.example.legalaid_backend.util.MatchStatus;
+import com.example.legalaid_backend.util.NotificationType;
 import com.example.legalaid_backend.util.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class AppointmentService {
     private final MatchRepository matchRepository;
     private final CaseRepository caseRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     // =========================
     // CREATE APPOINTMENT (ALL AUTHENTICATED USERS)
@@ -127,6 +129,30 @@ public class AppointmentService {
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
         log.info("Appointment created successfully: ID {}, status: {}", savedAppointment.getId(), savedAppointment.getStatus());
+
+        // Send notifications
+        String appointmentTypeStr = appointmentType.toString();
+        String dateTimeStr = savedAppointment.getScheduledDateTime().format(java.time.format.DateTimeFormatter.ofPattern("MMM dd, yyyy 'at' HH:mm"));
+        
+        if (currentUser.getRole() == Role.LAWYER || currentUser.getRole() == Role.NGO) {
+            // Notify citizen of new appointment request
+            String title = "Appointment Scheduled";
+            String message = "Your " + currentUser.getUsername() + " has scheduled an appointment on " + dateTimeStr;
+            notificationService.createNotificationWithMetadata(
+                    citizen, NotificationType.APPOINTMENT_SCHEDULED, title, message,
+                    savedAppointment.getMatch().getId(), savedAppointment.getId(), legalCase.getId(), null, currentUser.getId(),
+                    "/dashboard/my-appointments"
+            );
+        } else {
+            // Notify provider of new appointment request
+            String title = "Appointment Scheduled";
+            String message = "A new appointment has been scheduled on " + dateTimeStr + ". Please review and confirm.";
+            notificationService.createNotificationWithMetadata(
+                    provider, NotificationType.APPOINTMENT_SCHEDULED, title, message,
+                    savedAppointment.getMatch().getId(), savedAppointment.getId(), legalCase.getId(), null, currentUser.getId(),
+                    "/dashboard/my-appointments"
+            );
+        }
 
         return toResponse(savedAppointment);
     }
@@ -508,6 +534,19 @@ public class AppointmentService {
         Appointment savedAppointment = appointmentRepository.save(appointment);
         log.info("Reschedule requested by {} {}: ID {}", requesterRole, currentUser.getEmail(), savedAppointment.getId());
 
+        // Notify the other party about the reschedule request
+        User recipient = isCitizen ? appointment.getProvider() : appointment.getCitizen();
+        String dateTimeStr = request.getPreferredDateTime() != null ? 
+                request.getPreferredDateTime().format(java.time.format.DateTimeFormatter.ofPattern("MMM dd, yyyy 'at' HH:mm")) : 
+                "TBD";
+        String title = "Appointment Reschedule Request";
+        String message = currentUser.getUsername() + " has requested to reschedule the appointment to " + dateTimeStr;
+        notificationService.createNotificationWithMetadata(
+                recipient, NotificationType.APPOINTMENT_UPDATED, title, message,
+                savedAppointment.getMatch().getId(), savedAppointment.getId(), savedAppointment.getLegalCase().getId(), null, currentUser.getId(),
+                "/dashboard/my-appointments"
+        );
+
         return toResponse(savedAppointment);
     }
 
@@ -539,6 +578,18 @@ public class AppointmentService {
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
         log.info("Appointment cancelled by user {}: ID {}", currentUser.getEmail(), savedAppointment.getId());
+
+        // Notify the other party about the cancellation
+        User recipient = currentUser.getId().equals(appointment.getCitizen().getId()) ? 
+                appointment.getProvider() : appointment.getCitizen();
+        String title = "Appointment Cancelled";
+        String message = currentUser.getUsername() + " has cancelled the appointment. Reason: " + 
+                (request.getCancellationReason() != null ? request.getCancellationReason() : "No reason provided");
+        notificationService.createNotificationWithMetadata(
+                recipient, NotificationType.APPOINTMENT_CANCELLED, title, message,
+                savedAppointment.getMatch().getId(), savedAppointment.getId(), savedAppointment.getLegalCase().getId(), null, currentUser.getId(),
+                "/dashboard/my-appointments"
+        );
 
         return toResponse(savedAppointment);
     }

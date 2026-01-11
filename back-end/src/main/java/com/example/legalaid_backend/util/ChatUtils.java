@@ -8,9 +8,8 @@ public class ChatUtils {
     /**
      * Check if chat is allowed for a match based on status
      *
-     * Chat is enabled when:
-     * - SELECTED_BY_CITIZEN: Citizen selected provider, both can chat
-     * - ACCEPTED_BY_PROVIDER: Provider accepted, both can continue chatting
+     * Chat is enabled only when:
+     * - ACCEPTED_BY_PROVIDER: Provider has accepted the match
      */
     public static boolean canChat(Match match) {
         if (match == null || match.getStatus() == null) {
@@ -18,8 +17,7 @@ public class ChatUtils {
         }
 
         MatchStatus status = match.getStatus();
-        return status == MatchStatus.SELECTED_BY_CITIZEN ||
-                status == MatchStatus.ACCEPTED_BY_PROVIDER;
+        return status == MatchStatus.ACCEPTED_BY_PROVIDER;
     }
 
     /**

@@ -4,6 +4,7 @@ import authService from './services/authService';
 import chatService from './services/chatService';
 import * as matchService from './services/matchService';
 import appointmentService from './services/appointmentService';
+import NotificationPanel from './NotificationPanel';
 import AssignedCases from './AssignedCases';
 import MyAppointments from './MyAppointments';
 import './Dashboard.css';
@@ -873,103 +874,8 @@ function DashboardNgo() {
             {activeTab === 'my-appointments' && 'My Appointments'}
           </h1>
           <div className="header-right">
-            {/* Notification Icon */}
-            <div className="notification-icon-container">
-              <button
-                className="notification-btn"
-                onClick={() => setShowNotifications(!showNotifications)}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-                {mockNotifications.messages.length + mockNotifications.appointments.length > 0 && (
-                  <span className="notification-badge">
-                    {mockNotifications.messages.length + mockNotifications.appointments.length}
-                  </span>
-                )}
-              </button>
-
-              {showNotifications && (
-                <div className="notification-dropdown">
-                  <div className="notification-dropdown-header">
-                    <span>Notifications</span>
-                    <button
-                      style={{ background: 'none', border: 'none', color: '#2e5a8a', cursor: 'pointer', fontSize: '12px' }}
-                      onClick={() => setShowNotifications(false)}
-                    >
-                      Close
-                    </button>
-                  </div>
-
-                  <div className="notification-list">
-                    {/* Messages Section */}
-                    {mockNotifications.messages.length > 0 && (
-                      <>
-                        <div className="notification-section-title">New Messages</div>
-                        {mockNotifications.messages.map(msg => (
-                          <div key={msg.id} className="notification-item">
-                            <div className="notification-item-content">
-                              <div className="notification-avatar">
-                                {msg.sender.charAt(0)}
-                              </div>
-                              <div className="notification-text">
-                                <div className="notification-title">{msg.sender}</div>
-                                <div className="notification-message">{msg.text}</div>
-                                <div className="notification-time">{msg.time}</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {/* Appointments Section */}
-                    {mockNotifications.appointments.length > 0 && (
-                      <>
-                        <div className="notification-section-title">Appointment Requests</div>
-                        {mockNotifications.appointments.map(apt => (
-                          <div key={apt.id} className="notification-item">
-                            <div className="notification-item-content">
-                              <div className="notification-avatar" style={{ backgroundColor: '#d1fae5', color: '#065f46' }}>
-                                📅
-                              </div>
-                              <div className="notification-text">
-                                <div className="notification-title">New Request</div>
-                                <div className="notification-message">
-                                  Request from <strong>{apt.name}</strong><br />
-                                  {apt.date} at {apt.time}
-                                </div>
-                                <div className="notification-actions">
-                                  <button
-                                    className="btn-notification-accept"
-                                    onClick={() => handleAcceptMockAppointment(apt.id)}
-                                  >
-                                    Accept
-                                  </button>
-                                  <button
-                                    className="btn-notification-reject"
-                                    onClick={() => handleRejectMockAppointment(apt.id)}
-                                  >
-                                    Reject
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {mockNotifications.messages.length === 0 && mockNotifications.appointments.length === 0 && (
-                      <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
-                        No new notifications
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Notification Panel */}
+            <NotificationPanel />
 
             <div className="header-profile">
               <div className="profile-dropdown" onClick={() => setShowProfileMenu(!showProfileMenu)}>
@@ -984,27 +890,11 @@ function DashboardNgo() {
                   <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
               </div>
-              {showProfileMenu && (
-                <div className="profile-menu">
-                  <button className="profile-menu-item" onClick={handleViewProfile}>
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    View Profile
-                  </button>
-                  <button className="profile-menu-item" onClick={handleLogout}>
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    Logout
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
 
-        <div className="dashboard-content">
+      <div className="dashboard-content">
           {activeTab === 'overview' && (
             <div className="overview-container">
               {/* Upcoming Appointments Section */}

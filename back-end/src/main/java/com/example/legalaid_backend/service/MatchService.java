@@ -12,6 +12,7 @@ import com.example.legalaid_backend.repository.MatchRepository;
 import com.example.legalaid_backend.repository.UserRepository;
 import com.example.legalaid_backend.util.ApprovalStatus;
 import com.example.legalaid_backend.util.MatchStatus;
+import com.example.legalaid_backend.util.NotificationType;
 import com.example.legalaid_backend.util.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,7 @@ public class MatchService {
     private final CaseRepository caseRepository;
     private final MatchRepository matchRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     // =========================
     // GENERATE MATCHES FOR A CASE
@@ -114,6 +116,20 @@ public class MatchService {
 
         log.info("Created {} new matches for case {}", savedMatches.size(), caseId);
 
+        // Send notifications to matched providers
+        for (Match match : savedMatches) {
+            User provider = match.getLawyer() != null ? match.getLawyer() : match.getNgo();
+            String providerRole = match.getLawyer() != null ? "Lawyer" : "NGO";
+            String title = "New Case Match Found";
+            String message = "A new case \"" + legalCase.getTitle() + "\" has been matched with you. Score: " + 
+                            String.format("%.1f", match.getMatchScore()) + "%";
+            notificationService.createNotificationWithMetadata(
+                    provider, NotificationType.MATCH_FOUND, title, message,
+                    match.getId(), null, caseId, null, currentUser.getId(),
+                    "/dashboard/assigned-cases"
+            );
+        }
+
         // Get all matches for this case (including existing ones)
         List<Match> allMatches = matchRepository.findByLegalCaseId(caseId);
 
@@ -183,6 +199,17 @@ public class MatchService {
         match.setStatus(MatchStatus.SELECTED_BY_CITIZEN);
 
         Match updatedMatch = matchRepository.save(match);
+
+        // Notify the provider that they were selected
+        User provider = match.getLawyer() != null ? match.getLawyer() : match.getNgo();
+        String providerRole = match.getLawyer() != null ? "Lawyer" : "NGO";
+        String title = "Match Selected";
+        String message = "Your match has been selected for the case \"" + match.getLegalCase().getTitle() + "\". Please review and respond.";
+        notificationService.createNotificationWithMetadata(
+                provider, NotificationType.MATCH_SELECTED, title, message,
+                updatedMatch.getId(), null, match.getLegalCase().getId(), null, currentUser.getId(),
+                "/dashboard/assigned-cases"
+        );
 
         log.info("Match {} selected by citizen {}", matchId, currentUser.getEmail());
 
@@ -329,6 +356,18 @@ public class MatchService {
         match.setAcceptedAt(LocalDateTime.now());
 
         Match updatedMatch = matchRepository.save(match);
+
+        // Notify the citizen that their selected match has been accepted
+        User citizen = match.getLegalCase().getCreatedBy();
+        String providerRole = match.getLawyer() != null ? "Lawyer" : "NGO";
+        String providerName = match.getLawyer() != null ? match.getLawyer().getUsername() : match.getNgo().getUsername();
+        String title = "Match Accepted";
+        String message = "Your selected " + providerRole + " \"" + providerName + "\" has accepted to take your case!";
+        notificationService.createNotificationWithMetadata(
+                citizen, NotificationType.MATCH_ACCEPTED, title, message,
+                updatedMatch.getId(), null, match.getLegalCase().getId(), null, currentUser.getId(),
+                "/dashboard/matches"
+        );
 
         // Expire all other SELECTED_BY_CITIZEN matches for this case
         List<Match> otherSelectedMatches = matchRepository.findByCaseIdAndStatus(caseId,

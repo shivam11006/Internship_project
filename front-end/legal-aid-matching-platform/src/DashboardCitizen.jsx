@@ -5,6 +5,7 @@ import authService from './services/authService';
 import chatService from './services/chatService';
 import appointmentService from './services/appointmentService';
 import * as matchService from './services/matchService';
+import NotificationPanel from './NotificationPanel';
 import CaseSubmission from './CaseSubmission';
 import Directory from './Directory';
 import CaseManagement from './CaseManagement';
@@ -1149,103 +1150,9 @@ function DashboardCitizen() {
             </h1>
           </div>
           <div className="header-right">
-            {/* Notification Icon */}
-            <div className="notification-icon-container">
-              <button
-                className="notification-btn"
-                onClick={() => setShowNotifications(!showNotifications)}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-                {mockNotifications.messages.length + mockNotifications.appointments.length > 0 && (
-                  <span className="notification-badge">
-                    {mockNotifications.messages.length + mockNotifications.appointments.length}
-                  </span>
-                )}
-              </button>
+            {/* Notification Panel */}
+            <NotificationPanel />
 
-              {showNotifications && (
-                <div className="notification-dropdown">
-                  <div className="notification-dropdown-header">
-                    <span>Notifications</span>
-                    <button
-                      style={{ background: 'none', border: 'none', color: '#2e5a8a', cursor: 'pointer', fontSize: '12px' }}
-                      onClick={() => setShowNotifications(false)}
-                    >
-                      Close
-                    </button>
-                  </div>
-
-                  <div className="notification-list">
-                    {/* Messages Section */}
-                    {mockNotifications.messages.length > 0 && (
-                      <>
-                        <div className="notification-section-title">New Messages</div>
-                        {mockNotifications.messages.map(msg => (
-                          <div key={msg.id} className="notification-item">
-                            <div className="notification-item-content">
-                              <div className="notification-avatar">
-                                {msg.sender.charAt(0)}
-                              </div>
-                              <div className="notification-text">
-                                <div className="notification-title">{msg.sender}</div>
-                                <div className="notification-message">{msg.text}</div>
-                                <div className="notification-time">{msg.time}</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {/* Appointments Section */}
-                    {mockNotifications.appointments.length > 0 && (
-                      <>
-                        <div className="notification-section-title">Appointment Requests</div>
-                        {mockNotifications.appointments.map(apt => (
-                          <div key={apt.id} className="notification-item">
-                            <div className="notification-item-content">
-                              <div className="notification-avatar" style={{ backgroundColor: '#d1fae5', color: '#065f46' }}>
-                                📅
-                              </div>
-                              <div className="notification-text">
-                                <div className="notification-title">New Request</div>
-                                <div className="notification-message">
-                                  Request from <strong>{apt.name}</strong><br />
-                                  {apt.date} at {apt.time}
-                                </div>
-                                <div className="notification-actions">
-                                  <button
-                                    className="btn-notification-accept"
-                                    onClick={() => handleAcceptMockAppointment(apt.id)}
-                                  >
-                                    Accept
-                                  </button>
-                                  <button
-                                    className="btn-notification-reject"
-                                    onClick={() => handleRejectMockAppointment(apt.id)}
-                                  >
-                                    Reject
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {mockNotifications.messages.length === 0 && mockNotifications.appointments.length === 0 && (
-                      <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
-                        No new notifications
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
             <div className="header-profile">
               <div className="profile-dropdown" onClick={() => setShowProfileMenu(!showProfileMenu)}>
                 <div className="profile-avatar">
