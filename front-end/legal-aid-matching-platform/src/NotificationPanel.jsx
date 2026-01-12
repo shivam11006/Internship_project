@@ -9,16 +9,25 @@ const NotificationPanel = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const panelRef = useRef(null);
   const pollIntervalRef = useRef(null);
 
   // Fetch notifications
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (pageNum = 0) => {
     try {
       setLoading(true);
-      const data = await notificationService.getNotifications(page, 20);
-      setNotifications(data.notifications || []);
+      const data = await notificationService.getNotifications(pageNum, 20);
+      const newNotifications = data.notifications || [];
+
+      if (pageNum === 0) {
+        setNotifications(newNotifications);
+      } else {
+        setNotifications(prev => [...prev, ...newNotifications]);
+      }
+
       setUnreadCount(data.unreadCount || 0);
+      setHasMore(newNotifications.length === 20);
       setError(null);
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
@@ -26,7 +35,14 @@ const NotificationPanel = () => {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, []);
+
+  // Effect to fetch when page changes
+  useEffect(() => {
+    if (isOpen) {
+      fetchNotifications(page);
+    }
+  }, [page, fetchNotifications, isOpen]);
 
   // Fetch unread count only
   const fetchUnreadCount = useCallback(async () => {
@@ -38,16 +54,14 @@ const NotificationPanel = () => {
     }
   }, []);
 
-  // Initial load
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
-
   // Poll for new notifications every 10 seconds
   useEffect(() => {
     pollIntervalRef.current = setInterval(() => {
       fetchUnreadCount();
     }, 10000);
+
+    // Initial unread count fetch
+    fetchUnreadCount();
 
     return () => {
       if (pollIntervalRef.current) {
@@ -69,6 +83,14 @@ const NotificationPanel = () => {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isOpen]);
+
+  // Handle scroll for infinite loading
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    if (scrollHeight - scrollTop <= clientHeight + 50 && !loading && hasMore) {
+      setPage(prev => prev + 1);
+    }
+  };
 
   // Handle mark as read
   const handleMarkAsRead = async (notificationId, e) => {
@@ -169,7 +191,7 @@ const NotificationPanel = () => {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -179,10 +201,11 @@ const NotificationPanel = () => {
       <button
         className="notification-bell"
         onClick={() => {
-          setIsOpen(!isOpen);
           if (!isOpen) {
-            fetchNotifications();
+            setPage(0);
+            setNotifications([]); // Clear for fresh load
           }
+          setIsOpen(!isOpen);
         }}
         title="Notifications"
       >
@@ -212,19 +235,10 @@ const NotificationPanel = () => {
           </div>
 
           {/* Content */}
-          <div className="notification-content">
-            {loading && !notifications.length && (
-              <div className="notification-empty">
-                <p>Loading notifications...</p>
-              </div>
-            )}
-
-            {error && (
-              <div className="notification-error">
-                <p>{error}</p>
-              </div>
-            )}
-
+          <div
+            className="notification-content"
+            onScroll={handleScroll}
+          >
             {!loading && notifications.length === 0 && (
               <div className="notification-empty">
                 <p>📭 No notifications yet</p>
@@ -278,28 +292,19 @@ const NotificationPanel = () => {
                 </div>
               </div>
             ))}
-          </div>
 
-          {/* Footer with pagination */}
-          {notifications.length > 0 && (
-            <div className="notification-footer">
-              <button
-                className="pagination-btn"
-                onClick={() => setPage(Math.max(0, page - 1))}
-                disabled={page === 0}
-              >
-                ← Previous
-              </button>
-              <span className="page-info">Page {page + 1}</span>
-              <button
-                className="pagination-btn"
-                onClick={() => setPage(page + 1)}
-                disabled={notifications.length < 20}
-              >
-                Next →
-              </button>
-            </div>
-          )}
+            {loading && (
+              <div className="notification-loading">
+                <p>Loading...</p>
+              </div>
+            )}
+
+            {!hasMore && notifications.length > 0 && (
+              <div className="notification-footer-msg">
+                <p>No more notifications</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

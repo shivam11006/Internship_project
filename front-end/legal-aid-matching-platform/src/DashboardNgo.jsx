@@ -55,6 +55,9 @@ function DashboardNgo() {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState(null);
+  // Match Profile Modal State
+  const [showMatchProfileModal, setShowMatchProfileModal] = useState(false);
+  const [selectedMatchProfile, setSelectedMatchProfile] = useState(null);
 
   // Appointment form state (for new citizen-style scheduling UI)
   const [appointmentForm, setAppointmentForm] = useState({
@@ -890,11 +893,27 @@ function DashboardNgo() {
                   <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
               </div>
+              {showProfileMenu && (
+                <div className="profile-menu">
+                  <button className="profile-menu-item" onClick={handleViewProfile}>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    View Profile
+                  </button>
+                  <button className="profile-menu-item" onClick={handleLogout}>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-      <div className="dashboard-content">
+        <div className="dashboard-content">
           {activeTab === 'overview' && (
             <div className="overview-container">
               {/* Upcoming Appointments Section */}
@@ -1299,7 +1318,7 @@ function DashboardNgo() {
                     )}
                   </div>
                   <div className="chat-header-actions">
-                    <button className="btn-header-action btn-view-profile">
+                    <button className="btn-header-action btn-view-profile" onClick={() => handleProfileClick(currentContact)}>
                       <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
@@ -2165,6 +2184,55 @@ function DashboardNgo() {
           </div>
         )
       }
+      {/* Match Profile Modal */}
+      {showMatchProfileModal && selectedMatchProfile && (
+        <div className="modal-overlay" onClick={handleCloseMatchProfile}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2>Profile Details</h2>
+              <button className="modal-close" onClick={handleCloseMatchProfile}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="profile-section" style={{ marginBottom: '20px' }}>
+                <div className="profile-avatar-large" style={{ width: '80px', height: '80px', fontSize: '32px' }}>
+                  {selectedMatchProfile.otherUserName?.charAt(0).toUpperCase()}
+                </div>
+                <h3 style={{ marginTop: '10px', marginBottom: '5px' }}>{selectedMatchProfile.otherUserName}</h3>
+                <div className="profile-role-badge">{selectedMatchProfile.otherUserRole}</div>
+              </div>
+
+              <div className="profile-details-list" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div className="detail-item">
+                  <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Current Case</label>
+                  <div style={{ fontWeight: '500' }}>{selectedMatchProfile.caseTitle || 'N/A'}</div>
+                </div>
+
+                {selectedMatchProfile.matchScore && (
+                  <div className="detail-item">
+                    <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>Match Score</label>
+                    <div style={{
+                      display: 'inline-block',
+                      backgroundColor: '#e0e7ff',
+                      color: '#4338ca',
+                      padding: '4px 12px',
+                      borderRadius: '9999px',
+                      fontSize: '14px',
+                      fontWeight: '600'
+                    }}>
+                      {Math.round(selectedMatchProfile.matchScore)}% Match
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'center' }}>
+              <button className="btn-primary" onClick={handleCloseMatchProfile} style={{ width: '100%' }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
