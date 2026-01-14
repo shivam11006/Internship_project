@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, Cell, PieChart, Pie
+} from 'recharts';
 import authService from './services/authService';
 import logService from './services/logService';
 import DirectoryIngestion from './DirectoryIngestion';
@@ -8,7 +12,7 @@ import './AdminDashboard.css';
 function DashboardAdmin() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
-  const [activeTab, setActiveTab] = useState('user-verification');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [activeView, setActiveView] = useState('pending');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pendingUsers, setPendingUsers] = useState([]);
@@ -24,7 +28,7 @@ function DashboardAdmin() {
   });
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  
+
   // Logs state
   const [logs, setLogs] = useState([]);
   const [logStats, setLogStats] = useState(null);
@@ -39,15 +43,15 @@ function DashboardAdmin() {
   useEffect(() => {
     // Initial fetch
     fetchUsers();
-    
+
     // Auto-refresh when window/tab gets focus
     const handleFocus = () => {
       console.log('Window focused, refreshing users...');
       fetchUsers();
     };
-    
+
     window.addEventListener('focus', handleFocus);
-    
+
     // Cleanup
     return () => {
       window.removeEventListener('focus', handleFocus);
@@ -65,7 +69,7 @@ function DashboardAdmin() {
     setLoading(true);
     try {
       const result = await authService.getAllUsers();
-      
+
       // Flatten profile data into user object for easier access
       const flattenedUsers = result.map(user => {
         const flatUser = { ...user };
@@ -82,22 +86,22 @@ function DashboardAdmin() {
         }
         return flatUser;
       });
-      
+
       // Filter out CITIZEN role from all displays
-      const pending = flattenedUsers.filter(u => 
-        (u.approvalStatus === 'PENDING' || u.approvalStatus === 'REAPPROVAL_PENDING') && 
+      const pending = flattenedUsers.filter(u =>
+        (u.approvalStatus === 'PENDING' || u.approvalStatus === 'REAPPROVAL_PENDING') &&
         (u.role === 'LAWYER' || u.role === 'NGO')
       );
-      const approved = flattenedUsers.filter(u => 
-        u.approvalStatus === 'APPROVED' && 
+      const approved = flattenedUsers.filter(u =>
+        u.approvalStatus === 'APPROVED' &&
         (u.role === 'LAWYER' || u.role === 'NGO')
       );
-      const rejected = flattenedUsers.filter(u => 
-        u.approvalStatus === 'REJECTED' && 
+      const rejected = flattenedUsers.filter(u =>
+        u.approvalStatus === 'REJECTED' &&
         (u.role === 'LAWYER' || u.role === 'NGO')
       );
-      const suspended = flattenedUsers.filter(u => 
-        u.approvalStatus === 'SUSPENDED' && 
+      const suspended = flattenedUsers.filter(u =>
+        u.approvalStatus === 'SUSPENDED' &&
         (u.role === 'LAWYER' || u.role === 'NGO')
       );
       setPendingUsers(pending);
@@ -123,15 +127,15 @@ function DashboardAdmin() {
     // Find the user to check their status
     const user = [...pendingUsers, ...approvedUsers].find(u => u.id === userId);
     const isPending = user?.approvalStatus === 'PENDING';
-    
-    const message = isPending 
+
+    const message = isPending
       ? `Are you sure you want to reject ${username}? Their status will be changed to REJECTED.`
       : `Reject profile changes for ${username}? Their profile will be reverted to the previously approved version.`;
-    
+
     if (!confirm(message)) {
       return;
     }
-    
+
     setActionLoading(userId);
     try {
       await authService.rejectUser(userId);
@@ -200,11 +204,11 @@ function DashboardAdmin() {
               // Start of day
               const startDate = new Date(searchDate);
               startDate.setHours(0, 0, 0, 0);
-              
+
               // End of day
               const endDate = new Date(searchDate);
               endDate.setHours(23, 59, 59, 999);
-              
+
               searchRequest.startDate = startDate.toISOString();
               searchRequest.endDate = endDate.toISOString();
             }
@@ -313,6 +317,212 @@ function DashboardAdmin() {
     u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Mock data for charts
+  const growthData = [
+    { name: 'Week 1', users: 40, cases: 24, matches: 20 },
+    { name: 'Week 2', users: 55, cases: 35, matches: 28 },
+    { name: 'Week 3', users: 70, cases: 48, matches: 40 },
+    { name: 'Week 4', users: 95, cases: 62, matches: 55 },
+    { name: 'Week 5', users: 120, cases: 88, matches: 75 },
+    { name: 'Week 6', users: 150, cases: 110, matches: 95 },
+  ];
+
+  const categoryData = [
+    { name: 'Civil', value: 120 },
+    { name: 'Criminal', value: 85 },
+    { name: 'Family', value: 65 },
+    { name: 'Property', value: 45 },
+    { name: 'Labor', value: 30 },
+    { name: 'Constitutional', value: 25 },
+    { name: 'Consumer Protection', value: 40 },
+    { name: 'Human Rights', value: 20 },
+    { name: 'Immigration', value: 35 },
+    { name: 'Tax', value: 15 },
+    { name: 'Environmental', value: 10 },
+    { name: 'Other', value: 22 },
+  ];
+
+  const roleData = [
+    { name: 'Citizens', value: 850 },
+    { name: 'Lawyers', value: 320 },
+    { name: 'NGOs', value: 145 },
+    { name: 'Admins', value: 15 },
+  ];
+
+  const ROLE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#dc2626'];
+
+  const renderDashboard = () => (
+    <div className="admin-dashboard-overview">
+      <div className="section-header-new">
+        <h2 className="section-title-new">Platform Overview</h2>
+        <p className="section-subtitle">Monitor platform growth and case distributions at a glance.</p>
+      </div>
+
+      <div className="charts-grid">
+        {/* Growth Trends Line Chart */}
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Growth Trends</h3>
+            <p>Users, Cases, and Successful Matches over time</p>
+          </div>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={growthData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                  dy={10}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#6b7280', fontSize: 12 }}
+                  dx={-10}
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+                <Legend verticalAlign="top" height={36} iconType="circle" />
+                <Line
+                  type="monotone"
+                  dataKey="users"
+                  name="New Users"
+                  stroke="#3b82f6"
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="cases"
+                  name="New Cases"
+                  stroke="#10b981"
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="matches"
+                  name="Matches"
+                  stroke="#8b5cf6"
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Case Categories Bar Chart */}
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Case Categories</h3>
+            <p>Distribution of legal issues across categories</p>
+          </div>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart
+                data={categoryData}
+                layout={window.innerWidth < 768 ? 'vertical' : 'horizontal'}
+                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                {window.innerWidth < 768 ? (
+                  <>
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={80} />
+                  </>
+                ) : (
+                  <>
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} />
+                  </>
+                )}
+                <Tooltip
+                  cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+                <Bar dataKey="value" name="Number of Cases" radius={[4, 4, 0, 0]}>
+                  {categoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#dc2626', '#8b5cf6', '#ec4899', '#f97316', '#06b6d4', '#84cc16', '#a855f7', '#6366f1', '#64748b'][index % 12]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Role Distribution Pie Chart */}
+        <div className="chart-card">
+          <div className="chart-header">
+            <h3>Role Distribution</h3>
+            <p>Platform user base composition by role</p>
+          </div>
+          <div className="chart-container pie-chart-container">
+            <ResponsiveContainer width="100%" height={350}>
+              <PieChart>
+                <Pie
+                  data={roleData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {roleData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={ROLE_COLORS[index % ROLE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  formatter={(value, name) => [value, name]}
+                />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div className="quick-stats-row">
+        <div className="quick-stat-card">
+          <div className="stat-info">
+            <span className="label">System Health</span>
+            <span className="value">98.2%</span>
+          </div>
+          <div className="stat-progress-bg">
+            <div className="stat-progress-fill" style={{ width: '98.2%', background: '#10b981' }}></div>
+          </div>
+        </div>
+        <div className="quick-stat-card">
+          <div className="stat-info">
+            <span className="label">Verification Rate</span>
+            <span className="value">85.4%</span>
+          </div>
+          <div className="stat-progress-bg">
+            <div className="stat-progress-fill" style={{ width: '85.4%', background: '#3b82f6' }}></div>
+          </div>
+        </div>
+        <div className="quick-stat-card">
+          <div className="stat-info">
+            <span className="label">Avg Match Time</span>
+            <span className="value">2.4 Days</span>
+          </div>
+          <div className="stat-progress-bg">
+            <div className="stat-progress-fill" style={{ width: '70%', background: '#8b5cf6' }}></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="admin-dashboard-layout">
       {/* Mobile Menu Button */}
@@ -321,19 +531,24 @@ function DashboardAdmin() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </button>
-      
+
       {/* Mobile Overlay */}
       <div className={`mobile-overlay ${mobileMenuOpen ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}></div>
-      
+
       {/* Sidebar */}
       <div className={`admin-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-        <div className="admin-logo">
-          <div className="logo-icon">⚖️</div>
-          <span className="logo-text">LegalMatch Pro</span>
-        </div>
-        
         <nav className="admin-nav">
-          <button 
+          <button
+            className={`admin-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setActiveTab('dashboard')}
+          >
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+            </svg>
+            <span>Dashboard</span>
+          </button>
+
+          <button
             className={`admin-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
             onClick={() => setActiveTab('profile')}
           >
@@ -343,7 +558,7 @@ function DashboardAdmin() {
             <span>Profile Management</span>
           </button>
 
-          <button 
+          <button
             className={`admin-nav-item ${activeTab === 'directory' ? 'active' : ''}`}
             onClick={() => setActiveTab('directory')}
           >
@@ -353,7 +568,7 @@ function DashboardAdmin() {
             <span>Directory</span>
           </button>
 
-          <button 
+          <button
             className={`admin-nav-item ${activeTab === 'user-verification' ? 'active' : ''}`}
             onClick={() => setActiveTab('user-verification')}
           >
@@ -364,7 +579,7 @@ function DashboardAdmin() {
             <span>Admin Panel</span>
           </button>
 
-          <button 
+          <button
             className={`admin-nav-item ${activeTab === 'logs' ? 'active' : ''}`}
             onClick={() => setActiveTab('logs')}
           >
@@ -374,9 +589,9 @@ function DashboardAdmin() {
             <span>Application Logs</span>
           </button>
 
-          <button 
-            className="admin-nav-item"
-            onClick={() => navigate('/analytics')}
+          <button
+            className={`admin-nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
           >
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -391,7 +606,7 @@ function DashboardAdmin() {
         <div className="admin-top-bar">
           <h1 className="admin-page-title">Admin Panel</h1>
           <div className="admin-top-actions">
-            <button 
+            <button
               className="refresh-btn"
               onClick={fetchUsers}
               title="Refresh user list"
@@ -402,8 +617,8 @@ function DashboardAdmin() {
               Refresh
             </button>
             <div className="profile-dropdown">
-              <button 
-                className="profile-button" 
+              <button
+                className="profile-button"
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
                 <div className="profile-avatar">{user?.username?.charAt(0).toUpperCase() || 'A'}</div>
@@ -431,7 +646,9 @@ function DashboardAdmin() {
           </div>
         </div>
 
-        {activeTab === 'user-verification' ? (
+        {activeTab === 'dashboard' ? (
+          renderDashboard()
+        ) : activeTab === 'user-verification' ? (
           <div className="admin-content-section">
             <div className="admin-panel-header">
               <p className="admin-panel-subtitle">
@@ -440,7 +657,7 @@ function DashboardAdmin() {
             </div>
 
             <div className="admin-tabs-container">
-              <button 
+              <button
                 className={`admin-tab-btn ${activeView === 'user-verification' ? 'active' : ''}`}
                 onClick={() => setActiveView('user-verification')}
               >
@@ -449,7 +666,7 @@ function DashboardAdmin() {
                 </svg>
                 User Verification
               </button>
-              <button 
+              <button
                 className={`admin-tab-btn ${activeView === 'directory' ? 'active' : ''}`}
                 onClick={() => setActiveView('directory')}
               >
@@ -458,7 +675,7 @@ function DashboardAdmin() {
                 </svg>
                 Directory Ingestion
               </button>
-              <button 
+              <button
                 className={`admin-tab-btn ${activeView === 'logs' ? 'active' : ''}`}
                 onClick={() => setActiveView('logs')}
               >
@@ -467,7 +684,7 @@ function DashboardAdmin() {
                 </svg>
                 System Logs
               </button>
-              <button 
+              <button
                 className={`admin-tab-btn ${activeView === 'settings' ? 'active' : ''}`}
                 onClick={() => setActiveView('settings')}
               >
@@ -529,7 +746,7 @@ function DashboardAdmin() {
                               </span>
                             </td>
                             <td className="actions-cell">
-                              <button 
+                              <button
                                 className="action-btn view-btn"
                                 onClick={() => handleViewDetails(u)}
                               >
@@ -567,18 +784,17 @@ function DashboardAdmin() {
                               {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
                             </td>
                             <td className="status-cell">
-                              <span className={`status-badge ${
-                                u.approvalStatus === 'APPROVED' ? 'status-approved' : 
-                                u.approvalStatus === 'SUSPENDED' ? 'status-suspended' : 
-                                'status-rejected'
-                              }`}>
-                                {u.approvalStatus === 'APPROVED' ? 'Approved' : 
-                                 u.approvalStatus === 'SUSPENDED' ? 'Suspended' : 
-                                 'Rejected'}
+                              <span className={`status-badge ${u.approvalStatus === 'APPROVED' ? 'status-approved' :
+                                u.approvalStatus === 'SUSPENDED' ? 'status-suspended' :
+                                  'status-rejected'
+                                }`}>
+                                {u.approvalStatus === 'APPROVED' ? 'Approved' :
+                                  u.approvalStatus === 'SUSPENDED' ? 'Suspended' :
+                                    'Rejected'}
                               </span>
                             </td>
                             <td className="actions-cell">
-                              <button 
+                              <button
                                 className="action-btn view-btn"
                                 onClick={() => handleViewDetails(u)}
                               >
@@ -1080,7 +1296,7 @@ function DashboardAdmin() {
                   <input
                     type="text"
                     value={profileData.username}
-                    onChange={(e) => setProfileData({...profileData, username: e.target.value})}
+                    onChange={(e) => setProfileData({ ...profileData, username: e.target.value })}
                     className="form-input"
                   />
                 </div>
@@ -1089,7 +1305,7 @@ function DashboardAdmin() {
                   <input
                     type="email"
                     value={profileData.email}
-                    onChange={(e) => setProfileData({...profileData, email: e.target.value})}
+                    onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
                     className="form-input"
                   />
                 </div>
@@ -1127,9 +1343,9 @@ function DashboardAdmin() {
                 </div>
 
                 <div className="details-grid">
-                <div className="detail-item">
-                  <label className="detail-label">Username</label>
-                  <p className="detail-value">{selectedUser.username || 'N/A'}</p>
+                  <div className="detail-item">
+                    <label className="detail-label">Username</label>
+                    <p className="detail-value">{selectedUser.username || 'N/A'}</p>
                   </div>
                   <div className="detail-item">
                     <label className="detail-label">Email</label>
@@ -1150,10 +1366,10 @@ function DashboardAdmin() {
                   <div className="detail-item">
                     <label className="detail-label">Registration Date</label>
                     <p className="detail-value">
-                      {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
+                      {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
                       }) : 'N/A'}
                     </p>
                   </div>
@@ -1205,8 +1421,8 @@ function DashboardAdmin() {
                 <button className="btn-cancel" onClick={() => setShowUserDetails(false)}>Close</button>
                 {(selectedUser.approvalStatus === 'PENDING' || selectedUser.approvalStatus === 'REAPPROVAL_PENDING') && (
                   <>
-                    <button 
-                      className="btn-reject" 
+                    <button
+                      className="btn-reject"
                       onClick={() => {
                         handleReject(selectedUser.id, selectedUser.username);
                         setShowUserDetails(false);
@@ -1214,8 +1430,8 @@ function DashboardAdmin() {
                     >
                       Reject
                     </button>
-                    <button 
-                      className="btn-save" 
+                    <button
+                      className="btn-save"
                       onClick={() => {
                         handleApprove(selectedUser.id, selectedUser.username);
                         setShowUserDetails(false);
@@ -1226,8 +1442,8 @@ function DashboardAdmin() {
                   </>
                 )}
                 {selectedUser.approvalStatus === 'APPROVED' && (
-                  <button 
-                    className="btn-suspend" 
+                  <button
+                    className="btn-suspend"
                     onClick={() => {
                       handleSuspend(selectedUser.id, selectedUser.username);
                       setShowUserDetails(false);
@@ -1237,8 +1453,8 @@ function DashboardAdmin() {
                   </button>
                 )}
                 {selectedUser.approvalStatus === 'SUSPENDED' && (
-                  <button 
-                    className="btn-save" 
+                  <button
+                    className="btn-save"
                     onClick={() => {
                       handleReactivate(selectedUser.id, selectedUser.username);
                       setShowUserDetails(false);

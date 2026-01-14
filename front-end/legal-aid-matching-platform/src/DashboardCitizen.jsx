@@ -310,6 +310,12 @@ function DashboardCitizen() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Dynamic Stats State
+  const [newMatchesCount, setNewMatchesCount] = useState(0);
+  const [totalCasesCount, setTotalCasesCount] = useState(0);
+  const [resolvedCasesCount, setResolvedCasesCount] = useState(0);
+
   // Mock Notification Data
   const [mockNotifications, setMockNotifications] = useState({
     messages: [
@@ -353,90 +359,11 @@ function DashboardCitizen() {
 
   // Mock Data for Dashboard
   const dashboardStats = {
-    newMatches: { value: 12, label: 'This week' },
+    newMatches: { value: newMatchesCount, label: 'This week' },
     activeConversations: { value: conversations.length || 0, label: 'With lawyers/NGOs' },
     scheduledCalls: { value: appointments.length, label: 'Upcoming sessions' },
-    resolvedCases: { value: 0, label: 'Total cases' }
+    resolvedCases: { value: resolvedCasesCount, label: `From total ${totalCasesCount} cases` }
   };
-
-  const recentMatches = [
-    {
-      id: 1,
-      name: 'Sarah Chen, Esq.',
-      role: 'Lawyer',
-      description: 'New match, specializes in Family Law',
-      time: '2 hours ago',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-      online: true,
-      rating: 4.8,
-      location: 'New York, NY',
-      email: 'sarah.chen@examplelaw.com',
-      phone: '+1 (212) 555-0188',
-      website: 'www.sarahchenlaw.com',
-      practiceAreas: ['Family Law', 'Immigration', 'Civil Rights', 'Housing Law', 'Employment Law'],
-      availability: 'Available for new consultations',
-      matchPercentage: 92,
-      recentActivity: [
-        'Responded to 3 inquiries this week.',
-        'Updated availability for April.',
-        'Featured in "Legal Aid Hero" article.',
-        'Completed "Advanced Immigration Law" training.',
-        'Resolved 2 pro bono cases last month.'
-      ],
-      caseHistory: 'Sarah Chen is an experienced attorney specializing in pro bono legal services, with a strong focus on family law and immigration cases for underserved communities. She has successfully represented clients in over 150 complex family disputes, including divorce, child custody, and adoption cases, ensuring fair outcomes and protecting client rights. Her immigration work spans asylum applications, visa petitions, and deportation defense, consistently achieving positive results for vulnerable individuals seeking legal residency.',
-      documents: [
-        { name: 'Firm Profile Brochure', type: 'pdf' },
-        { name: 'Licensing Information (NY Bar)', type: 'pdf' },
-        { name: 'Client Testimonials Summary', type: 'pdf' }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Justice Alliance',
-      role: 'NGO',
-      description: 'Responded to your inquiry',
-      time: 'Yesterday',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-      online: false,
-      rating: 4.9,
-      location: 'Washington, DC',
-      email: 'contact@justicealliance.org',
-      phone: '+1 (202) 555-0199',
-      website: 'www.justicealliance.org',
-      practiceAreas: ['Human Rights', 'Public Interest', 'Environmental Law'],
-      availability: 'Accepting new cases',
-      matchPercentage: 88,
-      recentActivity: [
-        'Organized a community legal clinic.',
-        'Published annual impact report.',
-        'Partnered with 5 new law firms.'
-      ],
-      caseHistory: null,
-      documents: null
-    },
-    {
-      id: 3,
-      name: 'Legal Aid Corps',
-      role: 'NGO',
-      description: 'Confirmed call for next Tuesday',
-      time: '2 days ago',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-      online: true,
-      rating: 4.7,
-      location: 'Chicago, IL',
-      email: 'info@legalaidcorps.org',
-      phone: '+1 (312) 555-0177',
-      website: 'www.legalaidcorps.org',
-      practiceAreas: ['Housing Law', 'Debt Relief', 'Veterans Rights'],
-      availability: 'Limited availability',
-      matchPercentage: 85,
-      recentActivity: [
-        'Provided aid to 500+ families this year.',
-        'launched a new legal helpline.'
-      ]
-    },
-
-  ];
 
   const [matchesOverTimeData, setMatchesOverTimeData] = useState([]);
 
@@ -504,17 +431,46 @@ function DashboardCitizen() {
         console.error('Error loading profile:', error);
       }
 
-      // Load Matches for Chart
+      // Load Matches for Chart and Count
       try {
         const matchesResult = await matchService.getMyMatches();
         if (matchesResult.matches) {
           const processedData = processMatchesForChart(matchesResult.matches);
           setMatchesOverTimeData(processedData);
+
+          // Calculate New Matches (last 7 days)
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+          const recentMatchesCount = matchesResult.matches.filter(match => {
+            const matchDate = new Date(match.createdAt);
+            return matchDate >= sevenDaysAgo;
+          }).length;
+
+          setNewMatchesCount(recentMatchesCount);
+
+          // Calculate Resolved Cases (cases with at least one accepted match)
+          const resolvedCasesIds = new Set(
+            matchesResult.matches
+              .filter(m => m.status === 'ACCEPTED_BY_PROVIDER')
+              .map(m => m.caseId)
+          );
+          setResolvedCasesCount(resolvedCasesIds.size);
         }
       } catch (error) {
-        console.error('Error loading matches for chart:', error);
-        // Fallback to empty chart or error state if needed
+        console.error('Error loading matches data:', error);
         setMatchesOverTimeData([]);
+        setNewMatchesCount(0);
+      }
+
+      // Load Cases for Total Count
+      try {
+        const casesResult = await apiClient.get('/cases/my');
+        if (casesResult.data) {
+          setTotalCasesCount(casesResult.data.length);
+        }
+      } catch (error) {
+        console.error('Error loading cases:', error);
       }
     };
 

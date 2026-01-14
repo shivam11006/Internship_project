@@ -319,6 +319,94 @@
   color: #111827;
 }
 
+/* Admin Dashboard Overview & Charts */
+.admin-dashboard-overview {
+  padding: 0;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.chart-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #f3f4f6;
+}
+
+.chart-header {
+  margin-bottom: 24px;
+}
+
+.chart-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 4px 0;
+}
+
+.chart-header p {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.chart-container {
+  width: 100%;
+}
+
+.quick-stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.quick-stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #f3f4f6;
+}
+
+.stat-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.stat-info .label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.stat-info .value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.stat-progress-bg {
+  height: 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stat-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s ease-out;
+}
+
 /* Content Section */
 .admin-content-section {
   background: white;
@@ -475,7 +563,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 17px 26px;
   border: none;
   border-radius: 8px;
   font-size: 13px;
@@ -798,7 +886,7 @@
 .view-btn {
   background: #6b7280;
   color: white;
-  padding: 8px 16px;
+  padding: 17px 29px;
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -839,7 +927,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Responsive */
@@ -996,7 +1086,7 @@
   .details-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .detail-item.full-width {
     grid-column: 1;
   }
