@@ -7,6 +7,7 @@ import DashboardLawyer from './DashboardLawyer.jsx';
 import DashboardNgo from './DashboardNgo.jsx';
 import DashboardAdmin from './DashboardAdmin.jsx';
 import MyAppointments from './MyAppointments.jsx';
+import AnalyticsDashboard from './AnalyticsDashboard.jsx';
 import authService from './services/authService';
 
 // Protected Route - redirects to signin if not authenticated
@@ -124,6 +125,14 @@ function App() {
           element={
             <ProtectedRoute>
               <MyAppointments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute>
+              <AnalyticsDashboard />
             </ProtectedRoute>
           }
         />
