@@ -40,6 +40,17 @@ function DashboardAdmin() {
   const [logPage, setLogPage] = useState(0);
   const [totalLogPages, setTotalLogPages] = useState(0);
 
+  // KPI Stats
+  const [kpiStats, setKpiStats] = useState({
+    totalUsers: 0,
+    totalLawyers: 0,
+    totalNgos: 0,
+    totalCases: 0,
+    totalMatches: 0,
+    activeAppointments: 0,
+    resolvedCases: 0
+  });
+
   useEffect(() => {
     // Initial fetch
     fetchUsers();
@@ -106,6 +117,21 @@ function DashboardAdmin() {
       );
       setPendingUsers(pending);
       setApprovedUsers([...approved, ...rejected, ...suspended]);
+
+      // Calculate KPI stats
+      const lawyers = flattenedUsers.filter(u => u.role === 'LAWYER').length;
+      const ngos = flattenedUsers.filter(u => u.role === 'NGO').length;
+      const citizens = flattenedUsers.filter(u => u.role === 'CITIZEN').length;
+      
+      setKpiStats({
+        totalUsers: flattenedUsers.length,
+        totalLawyers: lawyers,
+        totalNgos: ngos,
+        totalCases: 342, // Mock data - replace with actual API call
+        totalMatches: 1205, // Mock data - replace with actual API call
+        activeAppointments: 156, // Mock data - replace with actual API call
+        resolvedCases: 72 // Mock data - replace with actual API call
+      });
     } catch (error) {
       console.error('Error fetching users:', error);
     }
@@ -355,7 +381,114 @@ function DashboardAdmin() {
     <div className="admin-dashboard-overview">
       <div className="section-header-new">
         <h2 className="section-title-new">Platform Overview</h2>
-        <p className="section-subtitle">Monitor platform growth and case distributions at a glance.</p>
+        <p className="section-subtitle">Monitor platform metrics and performance at a glance.</p>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="kpi-cards-grid">
+        <div className="kpi-card">
+          <div className="kpi-icon-wrapper" style={{ background: '#dbeafe' }}>
+            <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <div className="kpi-content">
+            <h3 className="kpi-title">Total Users</h3>
+            <p className="kpi-value">{kpiStats.totalUsers}</p>
+            <p className="kpi-subtitle">All registered users</p>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-icon-wrapper" style={{ background: '#fef3c7' }}>
+            <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+            </svg>
+          </div>
+          <div className="kpi-content">
+            <h3 className="kpi-title">Total Lawyers</h3>
+            <p className="kpi-value">{kpiStats.totalLawyers}</p>
+            <p className="kpi-subtitle">Verified legal professionals</p>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
+            <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <div className="kpi-content">
+            <h3 className="kpi-title">Total NGOs</h3>
+            <p className="kpi-value">{kpiStats.totalNgos}</p>
+            <p className="kpi-subtitle">Registered organizations</p>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-icon-wrapper" style={{ background: '#e0e7ff' }}>
+            <svg width="24" height="24" fill="none" stroke="#6366f1" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <div className="kpi-content">
+            <h3 className="kpi-title">Total Cases</h3>
+            <p className="kpi-value">{kpiStats.totalCases}</p>
+            <p className="kpi-subtitle">Cases submitted</p>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-icon-wrapper" style={{ background: '#fce7f3' }}>
+            <svg width="24" height="24" fill="none" stroke="#ec4899" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <div className="kpi-content">
+            <h3 className="kpi-title">Total Matches</h3>
+            <p className="kpi-value">{kpiStats.totalMatches}</p>
+            <p className="kpi-subtitle">Successful connections</p>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-icon-wrapper" style={{ background: '#ddd6fe' }}>
+            <svg width="24" height="24" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div className="kpi-content">
+            <h3 className="kpi-title">Active Appointments</h3>
+            <p className="kpi-value">{kpiStats.activeAppointments}</p>
+            <p className="kpi-subtitle">Scheduled meetings</p>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
+            <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="kpi-content">
+            <h3 className="kpi-title">Resolved Cases</h3>
+            <p className="kpi-value">{kpiStats.resolvedCases}</p>
+            <p className="kpi-subtitle">Successfully closed</p>
+          </div>
+        </div>
+
+        <div className="kpi-card kpi-card-highlight">
+          <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
+            <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div className="kpi-content">
+            <h3 className="kpi-title">System Health</h3>
+            <p className="kpi-value">98.2%</p>
+            <p className="kpi-subtitle">Platform uptime</p>
+          </div>
+        </div>
       </div>
 
       <div className="charts-grid">
@@ -589,15 +722,6 @@ function DashboardAdmin() {
             <span>Application Logs</span>
           </button>
 
-          <button
-            className={`admin-nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analytics')}
-          >
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span>Impact Analytics</span>
-          </button>
         </nav>
       </div>
 

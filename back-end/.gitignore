@@ -1,13 +1,18 @@
 .idea/
 .vscode/
-target/# IntelliJ IDEA
-       .idea/
-       *.iml
+target/
 
-       # Maven
-       target/
+# IntelliJ IDEA
+.idea/
+*.iml
 
-       # Logs
-       logs/
-       *.log
-       *.gz
+# Maven
+target/
+
+# Logs
+logs/
+*.log
+*.gz
+
+# Application Properties (contains sensitive data)
+src/main/resources/application.properties
