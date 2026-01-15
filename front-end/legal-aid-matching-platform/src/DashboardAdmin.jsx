@@ -10,6 +10,7 @@ import analyticsService from './services/analyticsService';
 import DirectoryIngestion from './DirectoryIngestion';
 import Directory from './Directory';
 import './AdminDashboard.css';
+import MapVisualization from './MapVisualization';
 
 function DashboardAdmin() {
   const navigate = useNavigate();
@@ -130,7 +131,7 @@ function DashboardAdmin() {
       // Calculate KPI stats from users data
       const lawyers = flattenedUsers.filter(u => u.role === 'LAWYER').length;
       const ngos = flattenedUsers.filter(u => u.role === 'NGO').length;
-      
+
       // Update will be complete when analytics data is fetched
       setKpiStats(prev => ({
         ...prev,
@@ -148,10 +149,10 @@ function DashboardAdmin() {
     setAnalyticsLoading(true);
     try {
       const result = await analyticsService.getAllAnalytics();
-      
+
       if (result.success && result.data) {
         setAnalyticsData(result.data);
-        
+
         // Update KPI stats with real analytics data
         setKpiStats(prev => ({
           ...prev,
@@ -368,7 +369,7 @@ function DashboardAdmin() {
   };
 
   const filteredPending = pendingUsers.filter(u => {
-    const matchesSearch = 
+    const matchesSearch =
       u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = !filterRole || u.role === filterRole;
@@ -377,7 +378,7 @@ function DashboardAdmin() {
   });
 
   const filteredApproved = approvedUsers.filter(u => {
-    const matchesSearch = 
+    const matchesSearch =
       u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = !filterRole || u.role === filterRole;
@@ -391,7 +392,7 @@ function DashboardAdmin() {
       const userTrend = analyticsData.users.userGrowthTrend;
       const caseTrend = analyticsData.cases.casesCreatedTrend;
       const matchTrend = analyticsData.matches.matchesGeneratedTrend;
-      
+
       // Use the last 6 data points from the trends
       return userTrend.slice(-6).map((item, idx) => ({
         name: `Month ${idx + 1}`,
@@ -752,6 +753,7 @@ function DashboardAdmin() {
           </div>
         </div>
       </div>
+      <MapVisualization />
     </div>
   );
 
@@ -947,129 +949,129 @@ function DashboardAdmin() {
             </div>
 
             <div className="table-wrapper">
-                  {loading ? (
-                    <div className="loading-state">
-                      <div className="spinner"></div>
-                      <p>Loading...</p>
-                    </div>
-                  ) : (
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Role</th>
-                          <th>Email</th>
-                          <th>Submitted Date</th>
-                          <th>Status</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredPending.map((u) => (
-                          <tr key={u.id}>
-                            <td className="name-cell">{u.username}</td>
-                            <td className="role-cell">{u.role}</td>
-                            <td className="email-cell">{u.email}</td>
-                            <td className="date-cell">
-                              {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
-                            </td>
-                            <td className="status-cell">
-                              <span className="status-badge status-pending">
-                                {u.approvalStatus === 'REAPPROVAL_PENDING' ? 'Re-approval Pending' : 'Pending'}
-                              </span>
-                            </td>
-                            <td className="actions-cell">
-                              <button
-                                className="action-btn view-btn"
-                                onClick={() => handleViewDetails(u)}
-                              >
-                                View Details
-                              </button>
-                              <button
-                                className="action-btn approve-btn"
-                                onClick={() => handleApprove(u.id, u.username)}
-                                disabled={actionLoading === u.id}
-                              >
-                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                Approve
-                              </button>
-                              <button
-                                className="action-btn reject-btn"
-                                onClick={() => handleReject(u.id, u.username)}
-                                disabled={actionLoading === u.id}
-                              >
-                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                                Reject
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                        {filteredApproved.map((u) => (
-                          <tr key={u.id}>
-                            <td className="name-cell">{u.username}</td>
-                            <td className="role-cell">{u.role}</td>
-                            <td className="email-cell">{u.email}</td>
-                            <td className="date-cell">
-                              {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
-                            </td>
-                            <td className="status-cell">
-                              <span className={`status-badge ${u.approvalStatus === 'APPROVED' ? 'status-approved' :
-                                u.approvalStatus === 'SUSPENDED' ? 'status-suspended' :
-                                  'status-rejected'
-                                }`}>
-                                {u.approvalStatus === 'APPROVED' ? 'Approved' :
-                                  u.approvalStatus === 'SUSPENDED' ? 'Suspended' :
-                                    'Rejected'}
-                              </span>
-                            </td>
-                            <td className="actions-cell">
-                              <button
-                                className="action-btn view-btn"
-                                onClick={() => handleViewDetails(u)}
-                              >
-                                View Details
-                              </button>
-                              {u.approvalStatus === 'APPROVED' && (
-                                <button
-                                  className="action-btn suspend-btn"
-                                  onClick={() => handleSuspend(u.id, u.username)}
-                                  disabled={actionLoading === u.id}
-                                >
-                                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                  </svg>
-                                  Suspend
-                                </button>
-                              )}
-                              {u.approvalStatus === 'SUSPENDED' && (
-                                <button
-                                  className="action-btn approve-btn"
-                                  onClick={() => handleReactivate(u.id, u.username)}
-                                  disabled={actionLoading === u.id}
-                                >
-                                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                  Reactivate
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                        {filteredPending.length === 0 && filteredApproved.length === 0 && (
-                          <tr>
-                            <td colSpan="6" className="empty-cell">No users found</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  )}
+              {loading ? (
+                <div className="loading-state">
+                  <div className="spinner"></div>
+                  <p>Loading...</p>
                 </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Role</th>
+                      <th>Email</th>
+                      <th>Submitted Date</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPending.map((u) => (
+                      <tr key={u.id}>
+                        <td className="name-cell">{u.username}</td>
+                        <td className="role-cell">{u.role}</td>
+                        <td className="email-cell">{u.email}</td>
+                        <td className="date-cell">
+                          {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
+                        </td>
+                        <td className="status-cell">
+                          <span className="status-badge status-pending">
+                            {u.approvalStatus === 'REAPPROVAL_PENDING' ? 'Re-approval Pending' : 'Pending'}
+                          </span>
+                        </td>
+                        <td className="actions-cell">
+                          <button
+                            className="action-btn view-btn"
+                            onClick={() => handleViewDetails(u)}
+                          >
+                            View Details
+                          </button>
+                          <button
+                            className="action-btn approve-btn"
+                            onClick={() => handleApprove(u.id, u.username)}
+                            disabled={actionLoading === u.id}
+                          >
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Approve
+                          </button>
+                          <button
+                            className="action-btn reject-btn"
+                            onClick={() => handleReject(u.id, u.username)}
+                            disabled={actionLoading === u.id}
+                          >
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Reject
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredApproved.map((u) => (
+                      <tr key={u.id}>
+                        <td className="name-cell">{u.username}</td>
+                        <td className="role-cell">{u.role}</td>
+                        <td className="email-cell">{u.email}</td>
+                        <td className="date-cell">
+                          {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
+                        </td>
+                        <td className="status-cell">
+                          <span className={`status-badge ${u.approvalStatus === 'APPROVED' ? 'status-approved' :
+                            u.approvalStatus === 'SUSPENDED' ? 'status-suspended' :
+                              'status-rejected'
+                            }`}>
+                            {u.approvalStatus === 'APPROVED' ? 'Approved' :
+                              u.approvalStatus === 'SUSPENDED' ? 'Suspended' :
+                                'Rejected'}
+                          </span>
+                        </td>
+                        <td className="actions-cell">
+                          <button
+                            className="action-btn view-btn"
+                            onClick={() => handleViewDetails(u)}
+                          >
+                            View Details
+                          </button>
+                          {u.approvalStatus === 'APPROVED' && (
+                            <button
+                              className="action-btn suspend-btn"
+                              onClick={() => handleSuspend(u.id, u.username)}
+                              disabled={actionLoading === u.id}
+                            >
+                              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                              </svg>
+                              Suspend
+                            </button>
+                          )}
+                          {u.approvalStatus === 'SUSPENDED' && (
+                            <button
+                              className="action-btn approve-btn"
+                              onClick={() => handleReactivate(u.id, u.username)}
+                              disabled={actionLoading === u.id}
+                            >
+                              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Reactivate
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredPending.length === 0 && filteredApproved.length === 0 && (
+                      <tr>
+                        <td colSpan="6" className="empty-cell">No users found</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
+          </div>
         ) : activeTab === 'directory' ? (
           <DirectoryIngestion />
         ) : activeTab === 'lawyer-directory' ? (
@@ -1084,208 +1086,208 @@ function DashboardAdmin() {
             {/* Log Statistics */}
             {logStats && (
               <div className="stats-grid" style={{ marginBottom: '24px' }}>
-                    <div className="stat-card">
-                      <div className="stat-icon" style={{ background: '#dbeafe' }}>
-                        <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <div className="stat-content">
-                        <p className="stat-label">Total Logs</p>
-                        <p className="stat-value">{logStats.totalLogs || 0}</p>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <div className="stat-icon" style={{ background: '#fee2e2' }}>
-                        <svg width="24" height="24" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="stat-content">
-                        <p className="stat-label">Errors (24h)</p>
-                        <p className="stat-value" style={{ color: '#dc2626' }}>{logStats.errorCount || 0}</p>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <div className="stat-icon" style={{ background: '#fef3c7' }}>
-                        <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                      </div>
-                      <div className="stat-content">
-                        <p className="stat-label">Warnings (24h)</p>
-                        <p className="stat-value" style={{ color: '#f59e0b' }}>{logStats.warnCount || 0}</p>
-                      </div>
-                    </div>
-                    <div className="stat-card">
-                      <div className="stat-icon" style={{ background: '#dbeafe' }}>
-                        <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="stat-content">
-                        <p className="stat-label">Info Logs (24h)</p>
-                        <p className="stat-value">{logStats.infoCount || 0}</p>
-                      </div>
-                    </div>
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ background: '#dbeafe' }}>
+                    <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
                   </div>
-                )}
-
-                {/* Log Filters */}
-                <div className="log-filters" style={{ marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input
-                    type="text"
-                    placeholder={getSearchPlaceholder()}
-                    className="search-input-new"
-                    style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '300px', flex: '1' }}
-                    value={logSearchTerm}
-                    onChange={(e) => setLogSearchTerm(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleLogSearch()}
-                  />
-                  <select
-                    className="filter-select"
-                    style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                    value={logSortBy}
-                    onChange={(e) => setLogSortBy(e.target.value)}
-                    title="Sort By"
-                  >
-                    <option value="timestamp">Sort: Timestamp</option>
-                    <option value="level">Sort: Level</option>
-                    <option value="endpoint">Sort: Endpoint</option>
-                    <option value="username">Sort: Username</option>
-                  </select>
-                  <select
-                    className="filter-select"
-                    style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                    value={logSortOrder}
-                    onChange={(e) => setLogSortOrder(e.target.value)}
-                    title="Sort Order"
-                  >
-                    <option value="desc">↓ Newest First</option>
-                    <option value="asc">↑ Oldest First</option>
-                  </select>
-                  <select
-                    className="filter-select"
-                    style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                    value={logPageSize}
-                    onChange={(e) => { setLogPageSize(Number(e.target.value)); setLogPage(0); }}
-                    title="Page Size"
-                  >
-                    <option value="10">10 per page</option>
-                    <option value="20">20 per page</option>
-                    <option value="50">50 per page</option>
-                    <option value="100">100 per page</option>
-                  </select>
-                  <button
-                    className="btn-primary"
-                    onClick={handleLogSearch}
-                    style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}
-                  >
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    Search
-                  </button>
-                  <button
-                    className="btn-secondary"
-                    onClick={handleClearFilters}
-                    style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}
-                  >
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Clear
-                  </button>
+                  <div className="stat-content">
+                    <p className="stat-label">Total Logs</p>
+                    <p className="stat-value">{logStats.totalLogs || 0}</p>
+                  </div>
                 </div>
-
-                {/* Logs Table */}
-                <div className="table-wrapper">
-                  {logsLoading ? (
-                    <div className="loading-state">
-                      <div className="spinner"></div>
-                      <p>Loading logs...</p>
-                    </div>
-                  ) : logs.length === 0 ? (
-                    <div className="empty-state">
-                      <svg width="80" height="80" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <h3>No Logs Found</h3>
-                      <p>No logs match your search criteria</p>
-                    </div>
-                  ) : (
-                    <>
-                      <table className="data-table">
-                        <thead>
-                          <tr>
-                            <th>Timestamp</th>
-                            <th>Level</th>
-                            <th>Logger</th>
-                            <th>Endpoint</th>
-                            <th>Message</th>
-                            <th>Username</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {logs.map((log) => (
-                            <tr key={log.id}>
-                              <td style={{ fontSize: '0.875rem' }}>{formatLogTimestamp(log.timestamp)}</td>
-                              <td>
-                                <span
-                                  style={{
-                                    display: 'inline-block',
-                                    padding: '4px 12px',
-                                    borderRadius: '12px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: '600',
-                                    color: '#fff',
-                                    backgroundColor: getLogLevelColor(log.level)
-                                  }}
-                                >
-                                  {log.level}
-                                </span>
-                              </td>
-                              <td style={{ fontSize: '0.875rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {log.logger || 'N/A'}
-                              </td>
-                              <td style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}>{log.endpoint || '-'}</td>
-                              <td style={{ fontSize: '0.875rem', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {log.message}
-                              </td>
-                              <td style={{ fontSize: '0.875rem' }}>{log.username || '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-
-                      {/* Pagination */}
-                      {totalLogPages > 1 && (
-                        <div className="pagination" style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                          <button
-                            className="btn-secondary"
-                            onClick={() => setLogPage(Math.max(0, logPage - 1))}
-                            disabled={logPage === 0}
-                            style={{ padding: '8px 16px' }}
-                          >
-                            Previous
-                          </button>
-                          <span style={{ padding: '8px 16px', display: 'flex', alignItems: 'center' }}>
-                            Page {logPage + 1} of {totalLogPages}
-                          </span>
-                          <button
-                            className="btn-secondary"
-                            onClick={() => setLogPage(Math.min(totalLogPages - 1, logPage + 1))}
-                            disabled={logPage >= totalLogPages - 1}
-                            style={{ padding: '8px 16px' }}
-                          >
-                            Next
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ background: '#fee2e2' }}>
+                    <svg width="24" height="24" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="stat-content">
+                    <p className="stat-label">Errors (24h)</p>
+                    <p className="stat-value" style={{ color: '#dc2626' }}>{logStats.errorCount || 0}</p>
+                  </div>
                 </div>
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ background: '#fef3c7' }}>
+                    <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="stat-content">
+                    <p className="stat-label">Warnings (24h)</p>
+                    <p className="stat-value" style={{ color: '#f59e0b' }}>{logStats.warnCount || 0}</p>
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-icon" style={{ background: '#dbeafe' }}>
+                    <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="stat-content">
+                    <p className="stat-label">Info Logs (24h)</p>
+                    <p className="stat-value">{logStats.infoCount || 0}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Log Filters */}
+            <div className="log-filters" style={{ marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder={getSearchPlaceholder()}
+                className="search-input-new"
+                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '300px', flex: '1' }}
+                value={logSearchTerm}
+                onChange={(e) => setLogSearchTerm(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogSearch()}
+              />
+              <select
+                className="filter-select"
+                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                value={logSortBy}
+                onChange={(e) => setLogSortBy(e.target.value)}
+                title="Sort By"
+              >
+                <option value="timestamp">Sort: Timestamp</option>
+                <option value="level">Sort: Level</option>
+                <option value="endpoint">Sort: Endpoint</option>
+                <option value="username">Sort: Username</option>
+              </select>
+              <select
+                className="filter-select"
+                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                value={logSortOrder}
+                onChange={(e) => setLogSortOrder(e.target.value)}
+                title="Sort Order"
+              >
+                <option value="desc">↓ Newest First</option>
+                <option value="asc">↑ Oldest First</option>
+              </select>
+              <select
+                className="filter-select"
+                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                value={logPageSize}
+                onChange={(e) => { setLogPageSize(Number(e.target.value)); setLogPage(0); }}
+                title="Page Size"
+              >
+                <option value="10">10 per page</option>
+                <option value="20">20 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+              </select>
+              <button
+                className="btn-primary"
+                onClick={handleLogSearch}
+                style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Search
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={handleClearFilters}
+                style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear
+              </button>
             </div>
+
+            {/* Logs Table */}
+            <div className="table-wrapper">
+              {logsLoading ? (
+                <div className="loading-state">
+                  <div className="spinner"></div>
+                  <p>Loading logs...</p>
+                </div>
+              ) : logs.length === 0 ? (
+                <div className="empty-state">
+                  <svg width="80" height="80" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <h3>No Logs Found</h3>
+                  <p>No logs match your search criteria</p>
+                </div>
+              ) : (
+                <>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>Level</th>
+                        <th>Logger</th>
+                        <th>Endpoint</th>
+                        <th>Message</th>
+                        <th>Username</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logs.map((log) => (
+                        <tr key={log.id}>
+                          <td style={{ fontSize: '0.875rem' }}>{formatLogTimestamp(log.timestamp)}</td>
+                          <td>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '4px 12px',
+                                borderRadius: '12px',
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                color: '#fff',
+                                backgroundColor: getLogLevelColor(log.level)
+                              }}
+                            >
+                              {log.level}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '0.875rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {log.logger || 'N/A'}
+                          </td>
+                          <td style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}>{log.endpoint || '-'}</td>
+                          <td style={{ fontSize: '0.875rem', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {log.message}
+                          </td>
+                          <td style={{ fontSize: '0.875rem' }}>{log.username || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Pagination */}
+                  {totalLogPages > 1 && (
+                    <div className="pagination" style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => setLogPage(Math.max(0, logPage - 1))}
+                        disabled={logPage === 0}
+                        style={{ padding: '8px 16px' }}
+                      >
+                        Previous
+                      </button>
+                      <span style={{ padding: '8px 16px', display: 'flex', alignItems: 'center' }}>
+                        Page {logPage + 1} of {totalLogPages}
+                      </span>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => setLogPage(Math.min(totalLogPages - 1, logPage + 1))}
+                        disabled={logPage >= totalLogPages - 1}
+                        style={{ padding: '8px 16px' }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
         ) : activeTab === 'logs' ? (
           <div className="admin-content-section">
             <div className="admin-panel-header">
