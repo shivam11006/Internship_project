@@ -164,6 +164,7 @@ public class UserService {
         profile.setUser(user);
         profile.setSpecialization(request.getSpecialization());
         profile.setBarNumber(request.getBarNumber());
+        profile.setYearsOfExperience(request.getYearsOfExperience());
 
         return lawyerProfileRepository.save(profile);
     }

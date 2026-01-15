@@ -30,6 +30,9 @@ public class LawyerProfile {
     // ⭐ CRUCIAL: Changes require re-approval
     private String specialization;
 
+    // Professional experience
+    private Integer yearsOfExperience;
+
     // ⭐ NEW: Track last approved values for crucial fields
     private String lastApprovedBarNumber;
     private String lastApprovedSpecialization;

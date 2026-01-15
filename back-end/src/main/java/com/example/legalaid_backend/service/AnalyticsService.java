@@ -534,6 +534,8 @@ public class AnalyticsService {
 
     private <T> List<AnalyticsTrendDTO> generateMonthlyTrends(List<T> items, java.util.function.Function<T, LocalDateTime> dateExtractor) {
         List<AnalyticsTrendDTO> trends = new ArrayList<>();
+        
+        Long previousCount = null;
 
         for (int i = 11; i >= 0; i--) {
             LocalDateTime monthStart = LocalDateTime.now().minusMonths(i).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
@@ -546,10 +548,36 @@ public class AnalyticsService {
                     })
                     .count();
 
+            // Calculate percentage change and trend
+            Double percentageChange = null;
+            String trend = null;
+            
+            if (previousCount != null && previousCount > 0) {
+                // Calculate percentage change: ((current - previous) / previous) * 100
+                percentageChange = ((double) (count - previousCount) / previousCount) * 100.0;
+                
+                // Determine trend: UP if > 1%, DOWN if < -1%, STABLE otherwise
+                if (percentageChange > 1) {
+                    trend = "UP";
+                } else if (percentageChange < -1) {
+                    trend = "DOWN";
+                } else {
+                    trend = "STABLE";
+                }
+            } else if (previousCount == null && count > 0) {
+                // First period with data
+                percentageChange = 0.0;
+                trend = "STABLE";
+            }
+            
+            previousCount = count;
+
             trends.add(AnalyticsTrendDTO.builder()
                     .period("Monthly")
                     .timestamp(monthStart)
                     .count(count)
+                    .percentageChange(percentageChange)
+                    .trend(trend)
                     .build());
         }
 

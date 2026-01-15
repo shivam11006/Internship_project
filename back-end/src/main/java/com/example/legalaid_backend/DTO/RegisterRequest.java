@@ -29,6 +29,7 @@ public class RegisterRequest {
     // Lawyer-specific fields (optional, used only if role is LAWYER)
     private String specialization;
     private String barNumber;
+    private Integer yearsOfExperience;
     private String address;
     private String languages;
 

@@ -6,14 +6,15 @@ import {
 } from 'recharts';
 import authService from './services/authService';
 import logService from './services/logService';
+import analyticsService from './services/analyticsService';
 import DirectoryIngestion from './DirectoryIngestion';
+import Directory from './Directory';
 import './AdminDashboard.css';
 
 function DashboardAdmin() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [activeView, setActiveView] = useState('pending');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pendingUsers, setPendingUsers] = useState([]);
   const [approvedUsers, setApprovedUsers] = useState([]);
@@ -28,6 +29,8 @@ function DashboardAdmin() {
   });
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [filterRole, setFilterRole] = useState(''); // Filter for user roles
+  const [filterStatus, setFilterStatus] = useState(''); // Filter for approval status
 
   // Logs state
   const [logs, setLogs] = useState([]);
@@ -51,9 +54,14 @@ function DashboardAdmin() {
     resolvedCases: 0
   });
 
+  // Analytics Data
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
   useEffect(() => {
     // Initial fetch
     fetchUsers();
+    fetchAnalyticsData();
 
     // Auto-refresh when window/tab gets focus
     const handleFocus = () => {
@@ -70,11 +78,11 @@ function DashboardAdmin() {
   }, []);
 
   useEffect(() => {
-    if (activeView === 'logs') {
+    if (activeTab === 'logs') {
       fetchLogs();
       fetchLogStats();
     }
-  }, [activeView, logPage, logPageSize, logSortBy, logSortOrder]);
+  }, [activeTab, logPage, logPageSize, logSortBy, logSortOrder]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -89,6 +97,7 @@ function DashboardAdmin() {
           if (user.role === 'LAWYER') {
             flatUser.specialization = user.profile.specialization;
             flatUser.barNumber = user.profile.barNumber;
+            flatUser.yearsOfExperience = user.profile.yearsOfExperience;
           } else if (user.role === 'NGO') {
             flatUser.organizationName = user.profile.organizationName;
             flatUser.registrationNumber = user.profile.registrationNumber;
@@ -118,24 +127,49 @@ function DashboardAdmin() {
       setPendingUsers(pending);
       setApprovedUsers([...approved, ...rejected, ...suspended]);
 
-      // Calculate KPI stats
+      // Calculate KPI stats from users data
       const lawyers = flattenedUsers.filter(u => u.role === 'LAWYER').length;
       const ngos = flattenedUsers.filter(u => u.role === 'NGO').length;
-      const citizens = flattenedUsers.filter(u => u.role === 'CITIZEN').length;
       
-      setKpiStats({
+      // Update will be complete when analytics data is fetched
+      setKpiStats(prev => ({
+        ...prev,
         totalUsers: flattenedUsers.length,
         totalLawyers: lawyers,
         totalNgos: ngos,
-        totalCases: 342, // Mock data - replace with actual API call
-        totalMatches: 1205, // Mock data - replace with actual API call
-        activeAppointments: 156, // Mock data - replace with actual API call
-        resolvedCases: 72 // Mock data - replace with actual API call
-      });
+      }));
     } catch (error) {
       console.error('Error fetching users:', error);
     }
     setLoading(false);
+  };
+
+  const fetchAnalyticsData = async () => {
+    setAnalyticsLoading(true);
+    try {
+      const result = await analyticsService.getAllAnalytics();
+      
+      if (result.success && result.data) {
+        setAnalyticsData(result.data);
+        
+        // Update KPI stats with real analytics data
+        setKpiStats(prev => ({
+          ...prev,
+          totalUsers: result.data.overview?.totalUsers || 0,
+          totalLawyers: result.data.users?.totalLawyers || 0,
+          totalNgos: result.data.users?.totalNgos || 0,
+          totalCases: result.data.overview?.totalCases || 0,
+          totalMatches: result.data.overview?.totalMatches || 0,
+          activeAppointments: result.data.activity?.appointmentsThisMonth || 0,
+          resolvedCases: result.data.cases?.closedCases || 0
+        }));
+      } else {
+        console.error('Failed to fetch analytics:', result.error);
+      }
+    } catch (error) {
+      console.error('Error fetching analytics data:', error);
+    }
+    setAnalyticsLoading(false);
   };
 
   const handleApprove = async (userId, username) => {
@@ -333,48 +367,98 @@ function DashboardAdmin() {
     setShowUserDetails(true);
   };
 
-  const filteredPending = pendingUsers.filter(u =>
-    u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPending = pendingUsers.filter(u => {
+    const matchesSearch = 
+      u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = !filterRole || u.role === filterRole;
+    const matchesStatus = !filterStatus || u.approvalStatus === filterStatus;
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 
-  const filteredApproved = approvedUsers.filter(u =>
-    u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredApproved = approvedUsers.filter(u => {
+    const matchesSearch = 
+      u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = !filterRole || u.role === filterRole;
+    const matchesStatus = !filterStatus || u.approvalStatus === filterStatus;
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 
-  // Mock data for charts
-  const growthData = [
-    { name: 'Week 1', users: 40, cases: 24, matches: 20 },
-    { name: 'Week 2', users: 55, cases: 35, matches: 28 },
-    { name: 'Week 3', users: 70, cases: 48, matches: 40 },
-    { name: 'Week 4', users: 95, cases: 62, matches: 55 },
-    { name: 'Week 5', users: 120, cases: 88, matches: 75 },
-    { name: 'Week 6', users: 150, cases: 110, matches: 95 },
-  ];
+  // Get growth data from analytics or use fallback
+  const getGrowthData = () => {
+    if (analyticsData?.users?.userGrowthTrend && analyticsData?.cases?.casesCreatedTrend && analyticsData?.matches?.matchesGeneratedTrend) {
+      const userTrend = analyticsData.users.userGrowthTrend;
+      const caseTrend = analyticsData.cases.casesCreatedTrend;
+      const matchTrend = analyticsData.matches.matchesGeneratedTrend;
+      
+      // Use the last 6 data points from the trends
+      return userTrend.slice(-6).map((item, idx) => ({
+        name: `Month ${idx + 1}`,
+        users: item.count || 0,
+        cases: caseTrend[userTrend.length - 6 + idx]?.count || 0,
+        matches: matchTrend[userTrend.length - 6 + idx]?.count || 0,
+      }));
+    }
+    // Fallback mock data
+    return [
+      { name: 'Week 1', users: 40, cases: 24, matches: 20 },
+      { name: 'Week 2', users: 55, cases: 35, matches: 28 },
+      { name: 'Week 3', users: 70, cases: 48, matches: 40 },
+      { name: 'Week 4', users: 95, cases: 62, matches: 55 },
+      { name: 'Week 5', users: 120, cases: 88, matches: 75 },
+      { name: 'Week 6', users: 150, cases: 110, matches: 95 },
+    ];
+  };
 
-  const categoryData = [
-    { name: 'Civil', value: 120 },
-    { name: 'Criminal', value: 85 },
-    { name: 'Family', value: 65 },
-    { name: 'Property', value: 45 },
-    { name: 'Labor', value: 30 },
-    { name: 'Constitutional', value: 25 },
-    { name: 'Consumer Protection', value: 40 },
-    { name: 'Human Rights', value: 20 },
-    { name: 'Immigration', value: 35 },
-    { name: 'Tax', value: 15 },
-    { name: 'Environmental', value: 10 },
-    { name: 'Other', value: 22 },
-  ];
+  // Get case categories from analytics or use fallback
+  const getCategoryData = () => {
+    if (analyticsData?.cases?.casesByType) {
+      return Object.entries(analyticsData.cases.casesByType).map(([name, value]) => ({
+        name,
+        value
+      }));
+    }
+    // Fallback mock data
+    return [
+      { name: 'Civil', value: 120 },
+      { name: 'Criminal', value: 85 },
+      { name: 'Family', value: 65 },
+      { name: 'Property', value: 45 },
+      { name: 'Labor', value: 30 },
+      { name: 'Constitutional', value: 25 },
+      { name: 'Consumer Protection', value: 40 },
+      { name: 'Human Rights', value: 20 },
+      { name: 'Immigration', value: 35 },
+      { name: 'Tax', value: 15 },
+      { name: 'Environmental', value: 10 },
+      { name: 'Other', value: 22 },
+    ];
+  };
 
-  const roleData = [
-    { name: 'Citizens', value: 850 },
-    { name: 'Lawyers', value: 320 },
-    { name: 'NGOs', value: 145 },
-    { name: 'Admins', value: 15 },
-  ];
+  // Get role data from analytics or use fallback
+  const getRoleData = () => {
+    if (analyticsData?.overview?.usersByRole) {
+      const roles = analyticsData.overview.usersByRole;
+      return [
+        { name: 'Citizens', value: roles.CITIZEN || 0 },
+        { name: 'Lawyers', value: roles.LAWYER || 0 },
+        { name: 'NGOs', value: roles.NGO || 0 },
+        { name: 'Admins', value: roles.ADMIN || 0 },
+      ];
+    }
+    // Fallback mock data
+    return [
+      { name: 'Citizens', value: 850 },
+      { name: 'Lawyers', value: 320 },
+      { name: 'NGOs', value: 145 },
+      { name: 'Admins', value: 15 },
+    ];
+  };
 
+  const growthData = getGrowthData();
+  const categoryData = getCategoryData();
+  const roleData = getRoleData();
   const ROLE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#dc2626'];
 
   const renderDashboard = () => (
@@ -495,8 +579,13 @@ function DashboardAdmin() {
         {/* Growth Trends Line Chart */}
         <div className="chart-card">
           <div className="chart-header">
-            <h3>Growth Trends</h3>
-            <p>Users, Cases, and Successful Matches over time</p>
+            <div>
+              <h3>Growth Trends</h3>
+              <p>Users, Cases, and Successful Matches over time</p>
+            </div>
+            {analyticsData?.users?.userGrowthTrend && (
+              <span className="data-badge" style={{ background: '#d1fae5', color: '#059669' }}>📊 Live Data</span>
+            )}
           </div>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={350}>
@@ -554,8 +643,13 @@ function DashboardAdmin() {
         {/* Case Categories Bar Chart */}
         <div className="chart-card">
           <div className="chart-header">
-            <h3>Case Categories</h3>
-            <p>Distribution of legal issues across categories</p>
+            <div>
+              <h3>Case Categories</h3>
+              <p>Distribution of legal issues across categories</p>
+            </div>
+            {analyticsData?.cases?.casesByType && (
+              <span className="data-badge" style={{ background: '#d1fae5', color: '#059669' }}>📊 Live Data</span>
+            )}
           </div>
           <div className="chart-container">
             <ResponsiveContainer width="100%" height={350}>
@@ -593,8 +687,13 @@ function DashboardAdmin() {
         {/* Role Distribution Pie Chart */}
         <div className="chart-card">
           <div className="chart-header">
-            <h3>Role Distribution</h3>
-            <p>Platform user base composition by role</p>
+            <div>
+              <h3>Role Distribution</h3>
+              <p>Platform user base composition by role</p>
+            </div>
+            {analyticsData?.overview?.usersByRole && (
+              <span className="data-badge" style={{ background: '#d1fae5', color: '#059669' }}>📊 Live Data</span>
+            )}
           </div>
           <div className="chart-container pie-chart-container">
             <ResponsiveContainer width="100%" height={350}>
@@ -682,8 +781,8 @@ function DashboardAdmin() {
           </button>
 
           <button
-            className={`admin-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setActiveTab('profile')}
+            className={`admin-nav-item ${activeTab === 'profile-management' ? 'active' : ''}`}
+            onClick={() => setActiveTab('profile-management')}
           >
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -696,20 +795,19 @@ function DashboardAdmin() {
             onClick={() => setActiveTab('directory')}
           >
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span>Directory</span>
+            <span>Directory Ingestion</span>
           </button>
 
           <button
-            className={`admin-nav-item ${activeTab === 'user-verification' ? 'active' : ''}`}
-            onClick={() => setActiveTab('user-verification')}
+            className={`admin-nav-item ${activeTab === 'lawyer-directory' ? 'active' : ''}`}
+            onClick={() => setActiveTab('lawyer-directory')}
           >
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <span>Admin Panel</span>
+            <span>Lawyer/NGO Directory</span>
           </button>
 
           <button
@@ -772,72 +870,83 @@ function DashboardAdmin() {
 
         {activeTab === 'dashboard' ? (
           renderDashboard()
-        ) : activeTab === 'user-verification' ? (
+        ) : activeTab === 'profile-management' ? (
           <div className="admin-content-section">
-            <div className="admin-panel-header">
-              <p className="admin-panel-subtitle">
-                Manage platform users, data ingestion, system health, and application settings.
+            <div className="section-header-new">
+              <h2 className="section-title-new">User Verification Queue</h2>
+              <p className="section-subtitle">Review and approve/reject profiles for Lawyers and NGOs.</p>
+            </div>
+
+            <div className="search-filter-container">
+              <div className="search-container">
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  className="search-input-new"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              <div className="filters-row">
+                <div className="filter-group">
+                  <label className="filter-label">Filter by Role:</label>
+                  <select
+                    className="filter-select"
+                    value={filterRole}
+                    onChange={(e) => setFilterRole(e.target.value)}
+                  >
+                    <option value="">All Roles</option>
+                    <option value="LAWYER">Lawyer</option>
+                    <option value="NGO">NGO</option>
+                    <option value="CITIZEN">Citizen</option>
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label className="filter-label">Filter by Status:</label>
+                  <select
+                    className="filter-select"
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="REAPPROVAL_PENDING">Re-approval Pending</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="REJECTED">Rejected</option>
+                    <option value="SUSPENDED">Suspended</option>
+                  </select>
+                </div>
+
+                <button
+                  className="reset-filters-btn"
+                  onClick={() => {
+                    setFilterRole('');
+                    setFilterStatus('');
+                    setSearchTerm('');
+                  }}
+                >
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Reset Filters
+                </button>
+              </div>
+            </div>
+
+            <div className="table-results-summary">
+              <p className="results-text">
+                Showing <strong>{filteredPending.length + filteredApproved.length}</strong> result{(filteredPending.length + filteredApproved.length) !== 1 ? 's' : ''}
+                {(filterRole || filterStatus) && (
+                  <span className="filter-applied">
+                    {' '}with filters applied
+                  </span>
+                )}
               </p>
             </div>
 
-            <div className="admin-tabs-container">
-              <button
-                className={`admin-tab-btn ${activeView === 'user-verification' ? 'active' : ''}`}
-                onClick={() => setActiveView('user-verification')}
-              >
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                User Verification
-              </button>
-              <button
-                className={`admin-tab-btn ${activeView === 'directory' ? 'active' : ''}`}
-                onClick={() => setActiveView('directory')}
-              >
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                Directory Ingestion
-              </button>
-              <button
-                className={`admin-tab-btn ${activeView === 'logs' ? 'active' : ''}`}
-                onClick={() => setActiveView('logs')}
-              >
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                System Logs
-              </button>
-              <button
-                className={`admin-tab-btn ${activeView === 'settings' ? 'active' : ''}`}
-                onClick={() => setActiveView('settings')}
-              >
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                App Settings
-              </button>
-            </div>
-
-            {activeView === 'user-verification' && (
-              <>
-                <div className="section-header-new">
-                  <h2 className="section-title-new">User Verification Queue</h2>
-                  <p className="section-subtitle">Review and approve/reject profiles for Lawyers and NGOs.</p>
-                </div>
-
-                <div className="search-container">
-                  <input
-                    type="text"
-                    placeholder="Search users..."
-                    className="search-input-new"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-
-                <div className="table-wrapper">
+            <div className="table-wrapper">
                   {loading ? (
                     <div className="loading-state">
                       <div className="spinner"></div>
@@ -960,23 +1069,21 @@ function DashboardAdmin() {
                     </table>
                   )}
                 </div>
-              </>
-            )}
+            </div>
+        ) : activeTab === 'directory' ? (
+          <DirectoryIngestion />
+        ) : activeTab === 'lawyer-directory' ? (
+          <Directory />
+        ) : activeTab === 'logs' ? (
+          <div className="admin-content-section">
+            <div className="section-header-new">
+              <h2 className="section-title-new">Application Logs</h2>
+              <p className="section-subtitle">Monitor system activity and troubleshoot issues</p>
+            </div>
 
-            {activeView === 'directory' && (
-              <DirectoryIngestion />
-            )}
-
-            {activeView === 'logs' && (
-              <>
-                <div className="section-header-new">
-                  <h2 className="section-title-new">Application Logs</h2>
-                  <p className="section-subtitle">Monitor system activity and troubleshoot issues</p>
-                </div>
-
-                {/* Log Statistics */}
-                {logStats && (
-                  <div className="stats-grid" style={{ marginBottom: '24px' }}>
+            {/* Log Statistics */}
+            {logStats && (
+              <div className="stats-grid" style={{ marginBottom: '24px' }}>
                     <div className="stat-card">
                       <div className="stat-icon" style={{ background: '#dbeafe' }}>
                         <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
@@ -1178,9 +1285,7 @@ function DashboardAdmin() {
                     </>
                   )}
                 </div>
-              </>
-            )}
-          </div>
+            </div>
         ) : activeTab === 'logs' ? (
           <div className="admin-content-section">
             <div className="admin-panel-header">
@@ -1519,6 +1624,12 @@ function DashboardAdmin() {
                     <div className="detail-item">
                       <label className="detail-label">Bar Number</label>
                       <p className="detail-value">{selectedUser.barNumber}</p>
+                    </div>
+                  )}
+                  {selectedUser.yearsOfExperience && (
+                    <div className="detail-item">
+                      <label className="detail-label">Years of Experience</label>
+                      <p className="detail-value">{selectedUser.yearsOfExperience} years</p>
                     </div>
                   )}
                   {selectedUser.organizationName && (

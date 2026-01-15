@@ -276,6 +276,7 @@ public class DirectoryService {
                 .address(user.getLawyerProfile().getAddress())
                 .barNumber(user.getLawyerProfile().getBarNumber())
                 .specialization(user.getLawyerProfile().getSpecialization())
+                .yearsOfExperience(user.getLawyerProfile().getYearsOfExperience())
                 .languages(user.getLawyerProfile().getLanguages())
                 .verified(user.getApprovalStatus() == ApprovalStatus.APPROVED)
                 .build();
