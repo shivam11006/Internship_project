@@ -15,7 +15,7 @@ const AnalyticsDashboard = () => {
     setLoading(true);
     setError(null);
     const result = await analyticsService.getAllAnalytics();
-    
+
     if (result.success && result.data) {
       setData(result.data);
     } else {
@@ -205,7 +205,7 @@ const AnalyticsDashboard = () => {
       <div className="analytics-section">
         <h2 className="section-title">Key Metrics</h2>
         <div className="metrics-grid">
-          
+
           <div className="metric-card">
             <h4>User Distribution</h4>
             <div className="metric-value">

@@ -1545,3 +1545,112 @@
     padding: 12px;
   }
 }
+
+/* Map Visualization */
+.map-visualization-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-top: 32px;
+}
+
+.map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.map-filters {
+  display: flex;
+  gap: 12px;
+}
+
+.map-filter-btn {
+  padding: 8px 16px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.map-filter-btn:hover {
+  background: #e5e7eb;
+}
+
+.map-filter-btn.active {
+  background: #1e40af;
+  color: white;
+  border-color: #1e40af;
+}
+
+.map-container-wrapper {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  z-index: 1;
+  /* Ensure map stays below modals if any */
+}
+
+/* Leaflet Popup Customization */
+.custom-popup .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.custom-popup .leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+}
+
+.popup-content {
+  padding: 16px;
+  min-width: 200px;
+}
+
+.popup-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.popup-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.popup-label {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.popup-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.popup-mini-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.popup-mini-stats small {
+  font-size: 12px;
+  color: #4b5563;
+  display: flex;
+  justify-content: space-between;
+}

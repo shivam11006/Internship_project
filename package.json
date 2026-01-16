@@ -1,0 +1,11 @@
+{
+  "name": "legal-aid-matching-platform-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "npm run dev --prefix front-end/legal-aid-matching-platform",
+    "dev:backend": "mvn spring-boot:run -f back-end/pom.xml",
+    "start": "npm run dev:frontend",
+    "install:frontend": "npm install --prefix front-end/legal-aid-matching-platform"
+  }
+}
