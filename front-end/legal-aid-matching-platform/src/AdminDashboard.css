@@ -1654,3 +1654,277 @@
   display: flex;
   justify-content: space-between;
 }
+
+/* Case Management Styles */
+.category-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #e0e7ff;
+  color: #3730a3;
+  border-radius: 6px;
+  text-transform: capitalize;
+}
+
+/* Case Status Badges */
+.status-submitted {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.status-pending-approval {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-accepted {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-in-progress {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-under-review {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.status-resolved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-closed {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.status-cancelled {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+/* Priority Badges */
+.priority-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.priority-high {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.priority-medium {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.priority-low {
+  background: #d1fae5;
+  color: #059669;
+}
+
+/* User Cell in Table */
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #6366f1;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.user-email {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.user-role-small {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: capitalize;
+}
+
+/* View Button */
+.btn-view {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-view:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+/* Large Modal */
+.modal-large {
+  max-width: 800px;
+  width: 95%;
+}
+
+/* Case Detail Grid */
+.case-detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.detail-section {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.detail-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.description-text {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+/* User Info Card */
+.user-info-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: white;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+.user-avatar-medium {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #6366f1;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.user-info-details {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.provider-card .user-avatar-medium {
+  background: #10b981;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+/* No Provider Message */
+.no-provider-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: white;
+  border: 2px dashed #e5e7eb;
+  border-radius: 10px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.no-provider-message p {
+  margin: 12px 0 0 0;
+  font-size: 14px;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.empty-state p {
+  margin: 16px 0 0 0;
+  font-size: 15px;
+}
+
+@media (max-width: 768px) {
+  .user-info-details {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-large {
+    max-width: 100%;
+    margin: 10px;
+  }
+}
