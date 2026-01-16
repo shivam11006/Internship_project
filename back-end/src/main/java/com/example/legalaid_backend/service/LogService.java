@@ -109,18 +109,25 @@ public class LogService {
 
     /**
      * Delete old logs (for maintenance)
+     * Uses native SQL DELETE query for better performance
      */
-    public void deleteLogsOlderThan(LocalDateTime date) {
-        // You'll need to add this method to repository:
-        // @Query("DELETE FROM ApplicationLog l WHERE l.timestamp < :date")
-        // void deleteByTimestampBefore(LocalDateTime date);
+    public long deleteLogsOlderThan(LocalDateTime date) {
+        try {
+            if (date == null) {
+                throw new RuntimeException("Date parameter cannot be null");
+            }
+            int deletedCount = logRepository.deleteByTimestampBefore(date);
+            return (long) deletedCount;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to delete old logs: " + e.getMessage(), e);
+        }
+    }
 
-        // For now, manual deletion:
-        List<ApplicationLog> oldLogs = logRepository.findAll().stream()
-                .filter(log -> log.getTimestamp().isBefore(date))
-                .collect(Collectors.toList());
-
-        logRepository.deleteAll(oldLogs);
+    /**
+     * Get total count of logs
+     */
+    public long getLogCount() {
+        return logRepository.count();
     }
 
     // ==================== CONVERSION METHOD ====================

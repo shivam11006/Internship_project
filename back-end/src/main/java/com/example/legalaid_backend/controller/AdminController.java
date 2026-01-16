@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDateTime;
 
 @Slf4j
 @RestController
@@ -448,6 +449,56 @@ public class AdminController {
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());
             return ResponseEntity.badRequest().body(error);
+        } finally {
+            MDC.clear();
+        }
+    }
+
+    /**
+     * DELETE LOGS OLDER THAN 7 DAYS
+     * DELETE /api/admin/logs/cleanup
+     * Clears application logs older than 7 days to free up storage
+     */
+    @DeleteMapping("/logs/cleanup")
+    public ResponseEntity<Map<String, Object>> clearOldLogs(Authentication auth) {
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/admin/logs/cleanup");
+
+        try {
+            log.info("Admin action: Initiating log cleanup (removing logs older than 7 days)");
+            
+            if (logService == null) {
+                throw new RuntimeException("LogService not initialized");
+            }
+            
+            LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+            log.info("Cleaning logs older than: {}", sevenDaysAgo);
+            
+            // Get count before deletion
+            long countBefore = logService.getLogCount();
+            log.info("Total logs before cleanup: {}", countBefore);
+            
+            // Delete old logs using native query (more efficient)
+            long deletedCount = logService.deleteLogsOlderThan(sevenDaysAgo);
+            
+            // Get count after deletion
+            long countAfter = logService.getLogCount();
+            
+            log.info("Log cleanup completed: Deleted {} logs, {} remaining", deletedCount, countAfter);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Logs older than 7 days have been successfully deleted");
+            response.put("deletedCount", deletedCount);
+            response.put("remainingLogs", countAfter);
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to cleanup old logs: {}", e.getMessage(), e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Failed to cleanup logs: " + e.getMessage());
+            error.put("details", e.getClass().getSimpleName());
+            return ResponseEntity.status(500).body(error);
         } finally {
             MDC.clear();
         }

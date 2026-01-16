@@ -34,7 +34,7 @@ public class DirectoryController {
         MDC.put("endpoint", "/api/directory/lawyers/search");
 
         try {
-            log.info("Lawyer search request from user {}: specialization={},location{}, keyword={}, page={}",
+            log.debug("Lawyer search request from user {}: specialization={}, keyword={}, location={}, page={}",
                     auth.getName(),
                     request.getExpertise(),
                     request.getKeyword(),
@@ -43,7 +43,7 @@ public class DirectoryController {
 
             Page<LawyerDirectoryResponse> results = directoryService.searchLawyers(request);
 
-            log.info("Lawyer search completed: {} results found (page {} of {})",
+            log.info("Lawyer search completed: {} total results (page {} of {})",
                     results.getTotalElements(),
                     results.getNumber() + 1,
                     results.getTotalPages());
@@ -71,13 +71,11 @@ public class DirectoryController {
         MDC.put("endpoint", "/api/directory/lawyers/" + userId);
 
         try {
-            log.info("User {} requested lawyer profile: ID {}", auth.getName(), userId);
+            log.debug("User {} requested lawyer profile: ID {}", auth.getName(), userId);
 
             LawyerDirectoryResponse lawyer = directoryService.getLawyerById(userId);
 
-            log.info("Lawyer profile retrieved: ID {}, specialization: {}",
-                    userId,
-                    lawyer.getSpecialization());
+            log.info("Lawyer profile retrieved: ID {}", userId);
 
             return ResponseEntity.ok(lawyer);
 
@@ -103,7 +101,7 @@ public class DirectoryController {
         MDC.put("endpoint", "/api/directory/ngos/search");
 
         try {
-            log.info("NGO search request from user {}: focusArea={}, keyword={}, page={}",
+            log.debug("NGO search request from user {}: focusArea={}, keyword={}, page={}",
                     auth.getName(),
                     request.getExpertise(),
                     request.getKeyword(),
@@ -111,7 +109,7 @@ public class DirectoryController {
 
             Page<NgoDirectoryResponse> results = directoryService.searchNgos(request);
 
-            log.info("NGO search completed: {} results found (page {} of {})",
+            log.info("NGO search completed: {} total results (page {} of {})",
                     results.getTotalElements(),
                     results.getNumber() + 1,
                     results.getTotalPages());
@@ -139,13 +137,11 @@ public class DirectoryController {
         MDC.put("endpoint", "/api/directory/ngos/" + userId);
 
         try {
-            log.info("User {} requested NGO profile: ID {}", auth.getName(), userId);
+            log.debug("User {} requested NGO profile: ID {}", auth.getName(), userId);
 
             NgoDirectoryResponse ngo = directoryService.getNgoById(userId);
 
-            log.info("NGO profile retrieved: ID {}, focusArea: {}",
-                    userId,
-                    ngo.getFocusArea());
+            log.info("NGO profile retrieved: ID {}", userId);
 
             return ResponseEntity.ok(ngo);
 

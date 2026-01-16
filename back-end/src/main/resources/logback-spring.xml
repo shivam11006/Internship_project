@@ -44,10 +44,26 @@
     </root>
 
     <!-- Package-specific log levels -->
-    <logger name="com.example.legalaid_backend" level="DEBUG" additivity="false">
+    <logger name="com.example.legalaid_backend" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE" />
         <appender-ref ref="FILE" />
         <appender-ref ref="ASYNC_DATABASE" />
+    </logger>
+
+    <!-- Reduce verbose loggers -->
+    <logger name="com.example.legalaid_backend.service.DirectoryService" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </logger>
+
+    <logger name="com.example.legalaid_backend.controller.DirectoryController" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </logger>
+
+    <!-- Set DEBUG level for detailed service methods (conversion, DTO mapping) -->
+    <logger name="com.example.legalaid_backend.DTO" level="WARN" additivity="false">
+        <appender-ref ref="CONSOLE" />
     </logger>
 
     <!-- SQL logging (disabled in production/development - uncomment DEBUG for troubleshooting) -->

@@ -46,6 +46,8 @@ function DashboardAdmin() {
   const [totalLogPages, setTotalLogPages] = useState(0);
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [cleanupMessage, setCleanupMessage] = useState('');
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [showLogModal, setShowLogModal] = useState(false);
 
   // Cases state
   const [cases, setCases] = useState([]);
@@ -70,11 +72,13 @@ function DashboardAdmin() {
   // Analytics Data
   const [analyticsData, setAnalyticsData] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [overviewData, setOverviewData] = useState(null);
-  const [usersData, setUsersData] = useState(null);
-  const [casesData, setCasesData] = useState(null);
-  const [matchesData, setMatchesData] = useState(null);
-  const [activityData, setActivityData] = useState(null);
+  const [analyticsTabsData, setAnalyticsTabsData] = useState({
+    overview: null,
+    users: null,
+    cases: null,
+    matches: null,
+    activity: null
+  });
 
   useEffect(() => {
     // Initial fetch
@@ -114,24 +118,30 @@ function DashboardAdmin() {
     }
   }, [activeTab, analyticsTab]);
 
+  // Handle Escape key to close log modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && showLogModal) {
+        handleCloseLogModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showLogModal]);
+
   const fetchAnalyticsTabData = async () => {
     setAnalyticsLoading(true);
     try {
-      if (analyticsTab === 'overview' && !overviewData) {
-        const response = await analyticsService.getOverview();
-        setOverviewData(response);
-      } else if (analyticsTab === 'users' && !usersData) {
-        const response = await analyticsService.getUsers();
-        setUsersData(response);
-      } else if (analyticsTab === 'cases' && !casesData) {
-        const response = await analyticsService.getCases();
-        setCasesData(response);
-      } else if (analyticsTab === 'matches' && !matchesData) {
-        const response = await analyticsService.getMatches();
-        setMatchesData(response);
-      } else if (analyticsTab === 'activity' && !activityData) {
-        const response = await analyticsService.getActivity();
-        setActivityData(response);
+      if (!analyticsTabsData[analyticsTab]) {
+        const fetchMap = {
+          overview: analyticsService.getOverview,
+          users: analyticsService.getUsers,
+          cases: analyticsService.getCases,
+          matches: analyticsService.getMatches,
+          activity: analyticsService.getActivity
+        };
+        const response = await fetchMap[analyticsTab]();
+        setAnalyticsTabsData(prev => ({ ...prev, [analyticsTab]: response }));
       }
     } catch (error) {
       console.error('Error fetching analytics data:', error);
@@ -433,6 +443,16 @@ function DashboardAdmin() {
     }
   };
 
+  const handleLogRowClick = (log) => {
+    setSelectedLog(log);
+    setShowLogModal(true);
+  };
+
+  const handleCloseLogModal = () => {
+    setShowLogModal(false);
+    setTimeout(() => setSelectedLog(null), 300); // Clear after animation
+  };
+
   const formatLogTimestamp = (timestamp) => {
     if (!timestamp) return 'N/A';
     const date = new Date(timestamp);
@@ -478,7 +498,7 @@ function DashboardAdmin() {
     setShowUserDetails(true);
   };
 
-  const filteredPending = pendingUsers.filter(u => {
+  const filterUsers = (users) => users.filter(u => {
     const matchesSearch =
       u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -487,14 +507,8 @@ function DashboardAdmin() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const filteredApproved = approvedUsers.filter(u => {
-    const matchesSearch =
-      u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = !filterRole || u.role === filterRole;
-    const matchesStatus = !filterStatus || u.approvalStatus === filterStatus;
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  const filteredPending = filterUsers(pendingUsers);
+  const filteredApproved = filterUsers(approvedUsers);
 
   // Get growth data from analytics or use fallback
   const getGrowthData = () => {
@@ -585,6 +599,9 @@ function DashboardAdmin() {
   const categoryData = getCategoryData();
   const roleData = getRoleData();
   const ROLE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#dc2626'];
+  
+  // Helper to access current analytics tab data
+  const currentTabData = analyticsTabsData[analyticsTab];
 
   const renderDashboard = () => (
     <div className="admin-dashboard-overview">
@@ -936,8 +953,8 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Total Users</p>
-                  <p className="kpi-value">{overviewData?.totalUsers || 0}</p>
-                  <p className="kpi-subtitle">{overviewData?.newUsersThisMonth || 0} new this month</p>
+                  <p className="kpi-value">{analyticsTabsData.overview?.totalUsers || 0}</p>
+                  <p className="kpi-subtitle">{analyticsTabsData.overview?.newUsersThisMonth || 0} new this month</p>
                 </div>
               </div>
 
@@ -949,8 +966,8 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Total Cases</p>
-                  <p className="kpi-value">{overviewData?.totalCases || 0}</p>
-                  <p className="kpi-subtitle">{overviewData?.newCasesThisMonth || 0} new this month</p>
+                  <p className="kpi-value">{analyticsTabsData.overview?.totalCases || 0}</p>
+                  <p className="kpi-subtitle">{analyticsTabsData.overview?.newCasesThisMonth || 0} new this month</p>
                 </div>
               </div>
 
@@ -962,8 +979,8 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Total Matches</p>
-                  <p className="kpi-value">{overviewData?.totalMatches || 0}</p>
-                  <p className="kpi-subtitle">{overviewData?.newMatchesThisMonth || 0} new this month</p>
+                  <p className="kpi-value">{analyticsTabsData.overview?.totalMatches || 0}</p>
+                  <p className="kpi-subtitle">{analyticsTabsData.overview?.newMatchesThisMonth || 0} new this month</p>
                 </div>
               </div>
 
@@ -975,7 +992,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Total Appointments</p>
-                  <p className="kpi-value">{overviewData?.totalAppointments || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.overview?.totalAppointments || 0}</p>
                   <p className="kpi-subtitle">Active bookings</p>
                 </div>
               </div>
@@ -987,9 +1004,9 @@ function DashboardAdmin() {
               <h3 className="chart-title">Users by Role</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={[
-                  { name: 'LAWYER', value: overviewData?.usersByRole?.LAWYER || 0 },
-                  { name: 'NGO', value: overviewData?.usersByRole?.NGO || 0 },
-                  { name: 'CITIZEN', value: overviewData?.usersByRole?.CITIZEN || 0 }
+                  { name: 'LAWYER', value: analyticsTabsData.overview?.usersByRole?.LAWYER || 0 },
+                  { name: 'NGO', value: analyticsTabsData.overview?.usersByRole?.NGO || 0 },
+                  { name: 'CITIZEN', value: analyticsTabsData.overview?.usersByRole?.CITIZEN || 0 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" />
@@ -1005,9 +1022,9 @@ function DashboardAdmin() {
               <h3 className="chart-title">Users by Status</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={[
-                  { name: 'PENDING', value: overviewData?.usersByApprovalStatus?.PENDING || 0 },
-                  { name: 'APPROVED', value: overviewData?.usersByApprovalStatus?.APPROVED || 0 },
-                  { name: 'REJECTED', value: overviewData?.usersByApprovalStatus?.REJECTED || 0 }
+                  { name: 'PENDING', value: analyticsTabsData.overview?.usersByApprovalStatus?.PENDING || 0 },
+                  { name: 'APPROVED', value: analyticsTabsData.overview?.usersByApprovalStatus?.APPROVED || 0 },
+                  { name: 'REJECTED', value: analyticsTabsData.overview?.usersByApprovalStatus?.REJECTED || 0 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" />
@@ -1023,9 +1040,9 @@ function DashboardAdmin() {
               <h3 className="chart-title">Cases by Status</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={[
-                  { name: 'OPEN', value: overviewData?.casesByStatus?.OPEN || 0 },
-                  { name: 'ASSIGNED', value: overviewData?.casesByStatus?.ASSIGNED || 0 },
-                  { name: 'CLOSED', value: overviewData?.casesByStatus?.CLOSED || 0 }
+                  { name: 'OPEN', value: analyticsTabsData.overview?.casesByStatus?.OPEN || 0 },
+                  { name: 'ASSIGNED', value: analyticsTabsData.overview?.casesByStatus?.ASSIGNED || 0 },
+                  { name: 'CLOSED', value: analyticsTabsData.overview?.casesByStatus?.CLOSED || 0 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" />
@@ -1041,9 +1058,9 @@ function DashboardAdmin() {
               <h3 className="chart-title">Cases by Priority</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={[
-                  { name: 'HIGH', value: overviewData?.casesByPriority?.HIGH || 0 },
-                  { name: 'MEDIUM', value: overviewData?.casesByPriority?.MEDIUM || 0 },
-                  { name: 'LOW', value: overviewData?.casesByPriority?.LOW || 0 }
+                  { name: 'HIGH', value: analyticsTabsData.overview?.casesByPriority?.HIGH || 0 },
+                  { name: 'MEDIUM', value: analyticsTabsData.overview?.casesByPriority?.MEDIUM || 0 },
+                  { name: 'LOW', value: analyticsTabsData.overview?.casesByPriority?.LOW || 0 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" />
@@ -1070,7 +1087,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Total Lawyers</p>
-                  <p className="kpi-value">{usersData?.totalLawyers || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.users?.totalLawyers || 0}</p>
                   <p className="kpi-subtitle">Registered lawyers</p>
                 </div>
               </div>
@@ -1083,7 +1100,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Total NGOs</p>
-                  <p className="kpi-value">{usersData?.totalNgos || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.users?.totalNgos || 0}</p>
                   <p className="kpi-subtitle">Registered organizations</p>
                 </div>
               </div>
@@ -1096,7 +1113,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Total Citizens</p>
-                  <p className="kpi-value">{usersData?.totalCitizens || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.users?.totalCitizens || 0}</p>
                   <p className="kpi-subtitle">Seeking help</p>
                 </div>
               </div>
@@ -1109,7 +1126,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Pending Approvals</p>
-                  <p className="kpi-value">{usersData?.pendingApprovals || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.users?.pendingApprovals || 0}</p>
                   <p className="kpi-subtitle">Awaiting review</p>
                 </div>
               </div>
@@ -1122,8 +1139,8 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Active Users Today</p>
-                  <p className="kpi-value">{usersData?.activeUsersToday || 0}</p>
-                  <p className="kpi-subtitle">{usersData?.activeUsersThisWeek || 0} this week</p>
+                  <p className="kpi-value">{analyticsTabsData.users?.activeUsersToday || 0}</p>
+                  <p className="kpi-subtitle">{analyticsTabsData.users?.activeUsersThisWeek || 0} this week</p>
                 </div>
               </div>
 
@@ -1135,7 +1152,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Retention Rate</p>
-                  <p className="kpi-value">{usersData?.userRetentionRate?.toFixed(1) || 0}%</p>
+                  <p className="kpi-value">{analyticsTabsData.users?.userRetentionRate?.toFixed(1) || 0}%</p>
                   <p className="kpi-subtitle">User engagement</p>
                 </div>
               </div>
@@ -1148,8 +1165,8 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Approval Rate</p>
-                  <p className="kpi-value">{usersData?.approvalRate?.toFixed(1) || 0}%</p>
-                  <p className="kpi-subtitle">Avg {usersData?.averageApprovalTime || 0} days</p>
+                  <p className="kpi-value">{analyticsTabsData.users?.approvalRate?.toFixed(1) || 0}%</p>
+                  <p className="kpi-subtitle">Avg {analyticsTabsData.users?.averageApprovalTime || 0} days</p>
                 </div>
               </div>
             </div>
@@ -1160,9 +1177,9 @@ function DashboardAdmin() {
               <h3 className="chart-title">Users by Role</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[
-                  { name: 'LAWYER', value: overviewData?.usersByRole?.LAWYER || 0 },
-                  { name: 'NGO', value: overviewData?.usersByRole?.NGO || 0 },
-                  { name: 'CITIZEN', value: overviewData?.usersByRole?.CITIZEN || 0 }
+                  { name: 'LAWYER', value: analyticsTabsData.overview?.usersByRole?.LAWYER || 0 },
+                  { name: 'NGO', value: analyticsTabsData.overview?.usersByRole?.NGO || 0 },
+                  { name: 'CITIZEN', value: analyticsTabsData.overview?.usersByRole?.CITIZEN || 0 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" />
@@ -1178,9 +1195,9 @@ function DashboardAdmin() {
               <h3 className="chart-title">Users by Status</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[
-                  { name: 'PENDING', value: overviewData?.usersByApprovalStatus?.PENDING || 0 },
-                  { name: 'APPROVED', value: overviewData?.usersByApprovalStatus?.APPROVED || 0 },
-                  { name: 'REJECTED', value: overviewData?.usersByApprovalStatus?.REJECTED || 0 }
+                  { name: 'PENDING', value: analyticsTabsData.overview?.usersByApprovalStatus?.PENDING || 0 },
+                  { name: 'APPROVED', value: analyticsTabsData.overview?.usersByApprovalStatus?.APPROVED || 0 },
+                  { name: 'REJECTED', value: analyticsTabsData.overview?.usersByApprovalStatus?.REJECTED || 0 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" />
@@ -1207,7 +1224,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Open Cases</p>
-                  <p className="kpi-value">{casesData?.openCases || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.cases?.openCases || 0}</p>
                   <p className="kpi-subtitle">Awaiting assignment</p>
                 </div>
               </div>
@@ -1220,7 +1237,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Assigned Cases</p>
-                  <p className="kpi-value">{casesData?.assignedCases || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.cases?.assignedCases || 0}</p>
                   <p className="kpi-subtitle">In progress</p>
                 </div>
               </div>
@@ -1233,7 +1250,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Closed Cases</p>
-                  <p className="kpi-value">{casesData?.closedCases || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.cases?.closedCases || 0}</p>
                   <p className="kpi-subtitle">Resolved</p>
                 </div>
               </div>
@@ -1246,7 +1263,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">High Priority</p>
-                  <p className="kpi-value">{casesData?.casesByPriority?.HIGH || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.cases?.casesByPriority?.HIGH || 0}</p>
                   <p className="kpi-subtitle">Urgent attention needed</p>
                 </div>
               </div>
@@ -1259,7 +1276,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Avg Case Age</p>
-                  <p className="kpi-value">{casesData?.averageCaseAge || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.cases?.averageCaseAge || 0}</p>
                   <p className="kpi-subtitle">Days open</p>
                 </div>
               </div>
@@ -1272,8 +1289,8 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Resolution Rate</p>
-                  <p className="kpi-value">{casesData?.caseResolutionRate?.toFixed(1) || 0}%</p>
-                  <p className="kpi-subtitle">{casesData?.averageResolutionTime || 0} days avg</p>
+                  <p className="kpi-value">{analyticsTabsData.cases?.caseResolutionRate?.toFixed(1) || 0}%</p>
+                  <p className="kpi-subtitle">{analyticsTabsData.cases?.averageResolutionTime || 0} days avg</p>
                 </div>
               </div>
             </div>
@@ -1284,9 +1301,9 @@ function DashboardAdmin() {
               <h3 className="chart-title">Cases by Status</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[
-                  { name: 'OPEN', value: overviewData?.casesByStatus?.OPEN || 0 },
-                  { name: 'ASSIGNED', value: overviewData?.casesByStatus?.ASSIGNED || 0 },
-                  { name: 'CLOSED', value: overviewData?.casesByStatus?.CLOSED || 0 }
+                  { name: 'OPEN', value: analyticsTabsData.overview?.casesByStatus?.OPEN || 0 },
+                  { name: 'ASSIGNED', value: analyticsTabsData.overview?.casesByStatus?.ASSIGNED || 0 },
+                  { name: 'CLOSED', value: analyticsTabsData.overview?.casesByStatus?.CLOSED || 0 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" />
@@ -1302,9 +1319,9 @@ function DashboardAdmin() {
               <h3 className="chart-title">Cases by Priority</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[
-                  { name: 'HIGH', value: overviewData?.casesByPriority?.HIGH || 0 },
-                  { name: 'MEDIUM', value: overviewData?.casesByPriority?.MEDIUM || 0 },
-                  { name: 'LOW', value: overviewData?.casesByPriority?.LOW || 0 }
+                  { name: 'HIGH', value: analyticsTabsData.overview?.casesByPriority?.HIGH || 0 },
+                  { name: 'MEDIUM', value: analyticsTabsData.overview?.casesByPriority?.MEDIUM || 0 },
+                  { name: 'LOW', value: analyticsTabsData.overview?.casesByPriority?.LOW || 0 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" />
@@ -1331,7 +1348,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Pending Matches</p>
-                  <p className="kpi-value">{matchesData?.pendingMatches || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.matches?.pendingMatches || 0}</p>
                   <p className="kpi-subtitle">Awaiting decision</p>
                 </div>
               </div>
@@ -1344,8 +1361,8 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Accepted Matches</p>
-                  <p className="kpi-value">{matchesData?.acceptedMatches || 0}</p>
-                  <p className="kpi-subtitle">{matchesData?.acceptanceRate?.toFixed(1) || 0}% rate</p>
+                  <p className="kpi-value">{analyticsTabsData.matches?.acceptedMatches || 0}</p>
+                  <p className="kpi-subtitle">{analyticsTabsData.matches?.acceptanceRate?.toFixed(1) || 0}% rate</p>
                 </div>
               </div>
 
@@ -1357,8 +1374,8 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Rejected Matches</p>
-                  <p className="kpi-value">{matchesData?.rejectedMatches || 0}</p>
-                  <p className="kpi-subtitle">{matchesData?.rejectionRate?.toFixed(1) || 0}% rate</p>
+                  <p className="kpi-value">{analyticsTabsData.matches?.rejectedMatches || 0}</p>
+                  <p className="kpi-subtitle">{analyticsTabsData.matches?.rejectionRate?.toFixed(1) || 0}% rate</p>
                 </div>
               </div>
 
@@ -1370,7 +1387,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Avg Match Score</p>
-                  <p className="kpi-value">{matchesData?.averageMatchScore?.toFixed(1) || 0}%</p>
+                  <p className="kpi-value">{analyticsTabsData.matches?.averageMatchScore?.toFixed(1) || 0}%</p>
                   <p className="kpi-subtitle">Quality metric</p>
                 </div>
               </div>
@@ -1383,7 +1400,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">High Quality</p>
-                  <p className="kpi-value">{matchesData?.highQualityMatchesPercentage?.toFixed(1) || 0}%</p>
+                  <p className="kpi-value">{analyticsTabsData.matches?.highQualityMatchesPercentage?.toFixed(1) || 0}%</p>
                   <p className="kpi-subtitle">&gt;70% score</p>
                 </div>
               </div>
@@ -1396,7 +1413,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Avg Response Time</p>
-                  <p className="kpi-value">{matchesData?.averageTimeToAcceptance || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.matches?.averageTimeToAcceptance || 0}</p>
                   <p className="kpi-subtitle">Days to decision</p>
                 </div>
               </div>
@@ -1409,7 +1426,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Match Ratio</p>
-                  <p className="kpi-value">{matchesData?.matchRatioPerCase?.toFixed(1) || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.matches?.matchRatioPerCase?.toFixed(1) || 0}</p>
                   <p className="kpi-subtitle">Matches per case</p>
                 </div>
               </div>
@@ -1420,9 +1437,9 @@ function DashboardAdmin() {
               <h3 className="chart-title">Match Statistics</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[
-                  { name: 'Total Matches', value: overviewData?.totalMatches || 0 },
-                  { name: 'Successful', value: overviewData?.successfulMatches || 0 },
-                  { name: 'Pending', value: overviewData?.pendingMatches || 0 }
+                  { name: 'Total Matches', value: analyticsTabsData.overview?.totalMatches || 0 },
+                  { name: 'Successful', value: analyticsTabsData.overview?.successfulMatches || 0 },
+                  { name: 'Pending', value: analyticsTabsData.overview?.pendingMatches || 0 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" />
@@ -1449,8 +1466,8 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Appointments Today</p>
-                  <p className="kpi-value">{activityData?.appointmentsToday || 0}</p>
-                  <p className="kpi-subtitle">{activityData?.appointmentsThisWeek || 0} this week</p>
+                  <p className="kpi-value">{analyticsTabsData.activity?.appointmentsToday || 0}</p>
+                  <p className="kpi-subtitle">{analyticsTabsData.activity?.appointmentsThisWeek || 0} this week</p>
                 </div>
               </div>
 
@@ -1462,7 +1479,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Completed</p>
-                  <p className="kpi-value">{activityData?.completedAppointments || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.activity?.completedAppointments || 0}</p>
                   <p className="kpi-subtitle">Total appointments</p>
                 </div>
               </div>
@@ -1475,7 +1492,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Chat Messages</p>
-                  <p className="kpi-value">{activityData?.messagesThisMonth || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.activity?.messagesThisMonth || 0}</p>
                   <p className="kpi-subtitle">This month</p>
                 </div>
               </div>
@@ -1488,7 +1505,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Active Conversations</p>
-                  <p className="kpi-value">{activityData?.activeConversations || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.activity?.activeConversations || 0}</p>
                   <p className="kpi-subtitle">Ongoing chats</p>
                 </div>
               </div>
@@ -1501,7 +1518,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Notifications Sent</p>
-                  <p className="kpi-value">{activityData?.notificationsThisMonth || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.activity?.notificationsThisMonth || 0}</p>
                   <p className="kpi-subtitle">This month</p>
                 </div>
               </div>
@@ -1514,7 +1531,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Avg Response Time</p>
-                  <p className="kpi-value">{activityData?.averageResponseTime || 0}</p>
+                  <p className="kpi-value">{analyticsTabsData.activity?.averageResponseTime || 0}</p>
                   <p className="kpi-subtitle">Minutes</p>
                 </div>
               </div>
@@ -1527,7 +1544,7 @@ function DashboardAdmin() {
                 </div>
                 <div className="kpi-content">
                   <p className="kpi-title">Lawyer Engagement</p>
-                  <p className="kpi-value">{activityData?.lawyerEngagementRate?.toFixed(1) || 0}%</p>
+                  <p className="kpi-value">{analyticsTabsData.activity?.lawyerEngagementRate?.toFixed(1) || 0}%</p>
                   <p className="kpi-subtitle">Activity rate</p>
                 </div>
               </div>
@@ -1538,9 +1555,9 @@ function DashboardAdmin() {
               <h3 className="chart-title">Platform Activity</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[
-                  { name: 'New Users', value: overviewData?.newUsers || 0 },
-                  { name: 'New Cases', value: overviewData?.newCases || 0 },
-                  { name: 'Active Sessions', value: overviewData?.activeSessions || 0 }
+                  { name: 'New Users', value: analyticsTabsData.overview?.newUsers || 0 },
+                  { name: 'New Cases', value: analyticsTabsData.overview?.newCases || 0 },
+                  { name: 'Active Sessions', value: analyticsTabsData.overview?.activeSessions || 0 }
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="name" />
@@ -2018,7 +2035,33 @@ function DashboardAdmin() {
                 </svg>
                 Clear
               </button>
+              <button
+                className="btn-danger"
+                onClick={handleCleanupOldLogs}
+                disabled={cleanupLoading}
+                style={{ padding: '10px 20px', whiteSpace: 'nowrap', backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', cursor: cleanupLoading ? 'not-allowed' : 'pointer', opacity: cleanupLoading ? 0.6 : 1 }}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                {cleanupLoading ? 'Cleaning...' : 'Cleanup Logs (7+ days)'}
+              </button>
             </div>
+
+            {/* Cleanup Status Message */}
+            {cleanupMessage && (
+              <div style={{
+                marginTop: '16px',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                backgroundColor: cleanupMessage.includes('✓') ? '#d1fae5' : '#fee2e2',
+                color: cleanupMessage.includes('✓') ? '#065f46' : '#7f1d1d',
+                border: `1px solid ${cleanupMessage.includes('✓') ? '#6ee7b7' : '#fecaca'}`,
+                fontSize: '0.875rem'
+              }}>
+                {cleanupMessage}
+              </div>
+            )}
 
             {/* Logs Table */}
             <div className="table-wrapper">
@@ -2050,7 +2093,16 @@ function DashboardAdmin() {
                     </thead>
                     <tbody>
                       {logs.map((log) => (
-                        <tr key={log.id}>
+                        <tr 
+                          key={log.id}
+                          onClick={() => handleLogRowClick(log)}
+                          style={{
+                            cursor: 'pointer',
+                            transition: 'background-color 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
                           <td style={{ fontSize: '0.875rem' }}>{formatLogTimestamp(log.timestamp)}</td>
                           <td>
                             <span
@@ -2080,217 +2132,277 @@ function DashboardAdmin() {
                     </tbody>
                   </table>
 
-                  {/* Pagination */}
-                  {totalLogPages > 1 && (
-                    <div className="pagination" style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                      <button
-                        className="btn-secondary"
-                        onClick={() => setLogPage(Math.max(0, logPage - 1))}
-                        disabled={logPage === 0}
-                        style={{ padding: '8px 16px' }}
+                  {/* Log Detail Modal */}
+                  {showLogModal && selectedLog && (
+                    <div 
+                      style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        animation: 'fadeIn 0.2s ease'
+                      }}
+                      onClick={handleCloseLogModal}
+                    >
+                      <div 
+                        style={{
+                          backgroundColor: '#fff',
+                          borderRadius: '12px',
+                          padding: '24px',
+                          maxWidth: '900px',
+                          width: '95%',
+                          maxHeight: '85vh',
+                          overflowY: 'auto',
+                          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+                          animation: 'slideUp 0.3s ease'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        Previous
-                      </button>
-                      <span style={{ padding: '8px 16px', display: 'flex', alignItems: 'center' }}>
-                        Page {logPage + 1} of {totalLogPages}
-                      </span>
-                      <button
-                        className="btn-secondary"
-                        onClick={() => setLogPage(Math.min(totalLogPages - 1, logPage + 1))}
-                        disabled={logPage >= totalLogPages - 1}
-                        style={{ padding: '8px 16px' }}
-                      >
-                        Next
-                      </button>
+                        {/* Modal Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #e5e7eb', paddingBottom: '16px' }}>
+                          <div>
+                            <h2 style={{ margin: '0 0 8px 0', fontSize: '1.5rem', fontWeight: '700', color: '#1f2937' }}>
+                              Log Details
+                            </h2>
+                            <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
+                              Logged at {formatLogTimestamp(selectedLog.timestamp)}
+                            </p>
+                          </div>
+                          <button
+                            onClick={handleCloseLogModal}
+                            style={{
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              fontSize: '24px',
+                              cursor: 'pointer',
+                              color: '#6b7280',
+                              transition: 'color 0.2s ease',
+                              padding: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '40px',
+                              height: '40px'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = '#1f2937'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = '#6b7280'}
+                            title="Close modal (Esc)"
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px' }}>
+                          {/* Left Column - Metadata */}
+                          <div>
+                            <div style={{ marginBottom: '20px' }}>
+                              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                                Level
+                              </label>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  padding: '6px 16px',
+                                  borderRadius: '12px',
+                                  fontSize: '0.875rem',
+                                  fontWeight: '600',
+                                  color: '#fff',
+                                  backgroundColor: getLogLevelColor(selectedLog.level)
+                                }}
+                              >
+                                {selectedLog.level}
+                              </span>
+                            </div>
+
+                            <div style={{ marginBottom: '20px' }}>
+                              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                                Logger
+                              </label>
+                              <p style={{ 
+                                margin: 0, 
+                                fontSize: '0.875rem', 
+                                color: '#6b7280',
+                                backgroundColor: '#f9fafb',
+                                padding: '8px 12px',
+                                borderRadius: '6px',
+                                fontFamily: 'monospace',
+                                wordBreak: 'break-all'
+                              }}>
+                                {selectedLog.logger || 'N/A'}
+                              </p>
+                            </div>
+
+                            <div style={{ marginBottom: '20px' }}>
+                              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                                Endpoint
+                              </label>
+                              <p style={{ 
+                                margin: 0, 
+                                fontSize: '0.875rem', 
+                                color: '#6b7280',
+                                backgroundColor: '#f9fafb',
+                                padding: '8px 12px',
+                                borderRadius: '6px',
+                                fontFamily: 'monospace',
+                                wordBreak: 'break-all'
+                              }}>
+                                {selectedLog.endpoint || '-'}
+                              </p>
+                            </div>
+
+                            <div style={{ marginBottom: '20px' }}>
+                              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                                Username
+                              </label>
+                              <p style={{ 
+                                margin: 0, 
+                                fontSize: '0.875rem', 
+                                color: '#6b7280',
+                                backgroundColor: '#f9fafb',
+                                padding: '8px 12px',
+                                borderRadius: '6px'
+                              }}>
+                                {selectedLog.username || '-'}
+                              </p>
+                            </div>
+
+                            <div style={{ marginBottom: '20px' }}>
+                              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                                Thread Name
+                              </label>
+                              <p style={{ 
+                                margin: 0, 
+                                fontSize: '0.875rem', 
+                                color: '#6b7280',
+                                backgroundColor: '#f9fafb',
+                                padding: '8px 12px',
+                                borderRadius: '6px',
+                                fontFamily: 'monospace'
+                              }}>
+                                {selectedLog.threadName || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Right Column - Message and Exception */}
+                          <div style={{ gridColumn: 'auto', minWidth: '0' }}>
+                            <div style={{ marginBottom: '20px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>
+                                  Message
+                                </label>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(selectedLog.message);
+                                    alert('Message copied to clipboard!');
+                                  }}
+                                  style={{
+                                    backgroundColor: '#e5e7eb',
+                                    border: 'none',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                    color: '#374151',
+                                    fontWeight: '500',
+                                    transition: 'background-color 0.2s ease'
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d1d5db'}
+                                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                              <p style={{ 
+                                margin: 0, 
+                                fontSize: '0.875rem', 
+                                color: '#1f2937',
+                                backgroundColor: '#f9fafb',
+                                padding: '12px',
+                                borderRadius: '6px',
+                                border: '1px solid #e5e7eb',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                maxHeight: '300px',
+                                overflowY: 'auto',
+                                fontFamily: 'monospace'
+                              }}>
+                                {selectedLog.message}
+                              </p>
+                            </div>
+
+                            {selectedLog.exception && (
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                  <label style={{ fontSize: '0.875rem', fontWeight: '600', color: '#374151' }}>
+                                    Exception / Stack Trace
+                                  </label>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(selectedLog.exception);
+                                      alert('Stack trace copied to clipboard!');
+                                    }}
+                                    style={{
+                                      backgroundColor: '#e5e7eb',
+                                      border: 'none',
+                                      padding: '4px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '0.75rem',
+                                      cursor: 'pointer',
+                                      color: '#374151',
+                                      fontWeight: '500',
+                                      transition: 'background-color 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d1d5db'}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+                                  >
+                                    Copy
+                                  </button>
+                                </div>
+                                <pre style={{ 
+                                  margin: 0, 
+                                  fontSize: '0.75rem', 
+                                  color: '#b91c1c',
+                                  backgroundColor: '#fef2f2',
+                                  padding: '12px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #fecaca',
+                                  overflowX: 'auto',
+                                  maxHeight: '400px',
+                                  overflowY: 'auto',
+                                  fontFamily: 'monospace'
+                                }}>
+                                  {selectedLog.exception}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div style={{ marginTop: '24px', borderTop: '1px solid #e5e7eb', paddingTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                          <button
+                            onClick={handleCloseLogModal}
+                            className="btn-secondary"
+                            style={{
+                              padding: '8px 16px',
+                              fontSize: '0.875rem',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
-                </>
-              )}
-            </div>
-          </div>
-        ) : activeTab === 'logs' ? (
-          <div className="admin-content-section">
-            <div className="admin-panel-header">
-              <h2 className="section-title-new">Application Logs</h2>
-              <p className="section-subtitle">Monitor system activity and troubleshoot issues</p>
-            </div>
-
-            {/* Log Statistics */}
-            {logStats && (
-              <div className="stats-grid" style={{ marginBottom: '24px' }}>
-                <div className="stat-card">
-                  <div className="stat-icon" style={{ background: '#dbeafe' }}>
-                    <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <p className="stat-label">Total Logs</p>
-                    <p className="stat-value">{logStats.totalLogs || 0}</p>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon" style={{ background: '#fee2e2' }}>
-                    <svg width="24" height="24" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <p className="stat-label">Errors (24h)</p>
-                    <p className="stat-value" style={{ color: '#dc2626' }}>{logStats.errorCount || 0}</p>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon" style={{ background: '#fef3c7' }}>
-                    <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <p className="stat-label">Warnings (24h)</p>
-                    <p className="stat-value" style={{ color: '#f59e0b' }}>{logStats.warnCount || 0}</p>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon" style={{ background: '#dbeafe' }}>
-                    <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="stat-content">
-                    <p className="stat-label">Info Logs (24h)</p>
-                    <p className="stat-value">{logStats.infoCount || 0}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Log Filters */}
-            <div className="log-filters" style={{ marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <input
-                type="text"
-                placeholder={getSearchPlaceholder()}
-                className="search-input-new"
-                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '300px', flex: '1' }}
-                value={logSearchTerm}
-                onChange={(e) => setLogSearchTerm(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleLogSearch()}
-              />
-              <select
-                className="filter-select"
-                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                value={logSortBy}
-                onChange={(e) => setLogSortBy(e.target.value)}
-                title="Sort By"
-              >
-                <option value="timestamp">Sort: Timestamp</option>
-                <option value="level">Sort: Level</option>
-                <option value="endpoint">Sort: Endpoint</option>
-                <option value="username">Sort: Username</option>
-              </select>
-              <select
-                className="filter-select"
-                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                value={logSortOrder}
-                onChange={(e) => setLogSortOrder(e.target.value)}
-                title="Sort Order"
-              >
-                <option value="desc">↓ Newest First</option>
-                <option value="asc">↑ Oldest First</option>
-              </select>
-              <select
-                className="filter-select"
-                style={{ padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                value={logPageSize}
-                onChange={(e) => { setLogPageSize(Number(e.target.value)); setLogPage(0); }}
-                title="Page Size"
-              >
-                <option value="10">10 per page</option>
-                <option value="20">20 per page</option>
-                <option value="50">50 per page</option>
-                <option value="100">100 per page</option>
-              </select>
-              <button
-                className="btn-primary"
-                onClick={handleLogSearch}
-                style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}
-              >
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                Search
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={handleClearFilters}
-                style={{ padding: '10px 20px', whiteSpace: 'nowrap' }}
-              >
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Clear
-              </button>
-            </div>
-
-            {/* Logs Table */}
-            <div className="table-wrapper">
-              {logsLoading ? (
-                <div className="loading-state">
-                  <div className="spinner"></div>
-                  <p>Loading logs...</p>
-                </div>
-              ) : logs.length === 0 ? (
-                <div className="empty-state">
-                  <svg width="80" height="80" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <h3>No Logs Found</h3>
-                  <p>No logs match your search criteria</p>
-                </div>
-              ) : (
-                <>
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Timestamp</th>
-                        <th>Level</th>
-                        <th>Logger</th>
-                        <th>Endpoint</th>
-                        <th>Message</th>
-                        <th>Username</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {logs.map((log) => (
-                        <tr key={log.id}>
-                          <td data-label="Timestamp" style={{ fontSize: '0.875rem' }}>{formatLogTimestamp(log.timestamp)}</td>
-                          <td data-label="Level">
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                padding: '4px 12px',
-                                borderRadius: '12px',
-                                fontSize: '0.75rem',
-                                fontWeight: '600',
-                                color: '#fff',
-                                backgroundColor: getLogLevelColor(log.level)
-                              }}
-                            >
-                              {log.level}
-                            </span>
-                          </td>
-                          <td data-label="Logger" style={{ fontSize: '0.875rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {log.logger || 'N/A'}
-                          </td>
-                          <td data-label="Endpoint" style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}>{log.endpoint || '-'}</td>
-                          <td data-label="Message" style={{ fontSize: '0.875rem', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {log.message}
-                          </td>
-                          <td data-label="Username" style={{ fontSize: '0.875rem' }}>{log.username || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
 
                   {/* Pagination */}
                   {totalLogPages > 1 && (
