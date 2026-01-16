@@ -29,6 +29,7 @@ const Directory = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
     fetchProfiles();
@@ -45,17 +46,17 @@ const Directory = () => {
       const endpoint = role === 'Lawyer' ? '/directory/lawyers/search' : '/directory/ngos/search';
 
       // Use practiceAreaSearch text if no areas are explicitly selected
-      const expertiseValue = overrideParams.expertise !== undefined 
-        ? overrideParams.expertise 
-        : (selectedPracticeAreas.length > 0 
-            ? selectedPracticeAreas.join(',') 
-            : (practiceAreaSearch.trim() || ''));
+      const expertiseValue = overrideParams.expertise !== undefined
+        ? overrideParams.expertise
+        : (selectedPracticeAreas.length > 0
+          ? selectedPracticeAreas.join(',')
+          : (practiceAreaSearch.trim() || ''));
 
-      const languagesValue = overrideParams.languages !== undefined 
-        ? overrideParams.languages 
-        : (selectedLanguages.length > 0 
-            ? selectedLanguages.join(',') 
-            : '');
+      const languagesValue = overrideParams.languages !== undefined
+        ? overrideParams.languages
+        : (selectedLanguages.length > 0
+          ? selectedLanguages.join(',')
+          : '');
 
       const requestBody = {
         expertise: expertiseValue,
@@ -173,10 +174,22 @@ const Directory = () => {
 
   return (
     <div className="directory-container">
+      {/* Mobile Filter Toggle */}
+      <button
+        className="mobile-filter-toggle"
+        onClick={() => setShowMobileFilters(!showMobileFilters)}
+      >
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        </svg>
+        {showMobileFilters ? 'Hide Filters' : 'Show Filters'}
+      </button>
+
       {/* Sidebar Filters */}
-      <aside className="directory-sidebar">
-        <div className="sidebar-section">
+      <aside className={`directory-sidebar ${showMobileFilters ? 'mobile-show' : ''}`}>
+        <div className="sidebar-header-mobile">
           <h3>Filters</h3>
+          <button className="close-filters-btn" onClick={() => setShowMobileFilters(false)}>×</button>
         </div>
 
         {/* Role Selection */}
@@ -234,10 +247,10 @@ const Directory = () => {
                 </button>
               ))
             ) : (
-              PRACTICE_AREAS.filter(area => 
+              PRACTICE_AREAS.filter(area =>
                 area.toLowerCase().includes(practiceAreaSearch.toLowerCase())
               ).length > 0 ? (
-                PRACTICE_AREAS.filter(area => 
+                PRACTICE_AREAS.filter(area =>
                   area.toLowerCase().includes(practiceAreaSearch.toLowerCase())
                 ).map(area => (
                   <button
@@ -320,10 +333,10 @@ const Directory = () => {
                 </button>
               ))
             ) : (
-              LANGUAGES.filter(lang => 
+              LANGUAGES.filter(lang =>
                 lang.toLowerCase().includes(languageSearch.toLowerCase())
               ).length > 0 ? (
-                LANGUAGES.filter(lang => 
+                LANGUAGES.filter(lang =>
                   lang.toLowerCase().includes(languageSearch.toLowerCase())
                 ).map(lang => (
                   <button

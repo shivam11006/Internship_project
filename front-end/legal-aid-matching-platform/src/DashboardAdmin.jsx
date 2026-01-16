@@ -108,7 +108,7 @@ function DashboardAdmin() {
       // Use noPagination=true to get all cases as an array
       const response = await apiClient.get('/admin/cases?noPagination=true');
       console.log('Cases API response:', response.data);
-      
+
       // Handle both paginated response (with content) and direct array (noPagination=true)
       if (response.data && Array.isArray(response.data)) {
         setCases(response.data);
@@ -195,7 +195,7 @@ function DashboardAdmin() {
 
         // Update KPI stats with real analytics data from all endpoints
         const { overview, users, cases, matches, activity } = result.data;
-        
+
         setKpiStats(prev => ({
           ...prev,
           totalUsers: overview?.totalUsers || 0,
@@ -365,7 +365,7 @@ function DashboardAdmin() {
 
     try {
       const result = await logService.deleteLogsOlderThanSevenDays();
-      
+
       if (result.success) {
         setCleanupMessage(`✓ Successfully deleted ${result.data.deletedCount} old log entries. Logs from the past 7 days have been preserved.`);
         // Refresh log stats
@@ -473,10 +473,10 @@ function DashboardAdmin() {
       return userTrend.slice(startIdx, startIdx + maxLen).map((userItem, idx) => {
         const caseItem = caseTrend[startIdx + idx];
         const matchItem = matchTrend[startIdx + idx];
-        
+
         // Extract timestamp and format as month/week label
         const timestamp = userItem.timestamp ? new Date(userItem.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : `Period ${idx + 1}`;
-        
+
         return {
           name: timestamp,
           users: userItem.count || 0,
@@ -1065,18 +1065,18 @@ function DashboardAdmin() {
                   <tbody>
                     {filteredPending.map((u) => (
                       <tr key={u.id}>
-                        <td className="name-cell">{u.username}</td>
-                        <td className="role-cell">{u.role}</td>
-                        <td className="email-cell">{u.email}</td>
-                        <td className="date-cell">
+                        <td className="name-cell" data-label="Name">{u.username}</td>
+                        <td className="role-cell" data-label="Role">{u.role}</td>
+                        <td className="email-cell" data-label="Email">{u.email}</td>
+                        <td className="date-cell" data-label="Submitted Date">
                           {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
                         </td>
-                        <td className="status-cell">
+                        <td className="status-cell" data-label="Status">
                           <span className="status-badge status-pending">
                             {u.approvalStatus === 'REAPPROVAL_PENDING' ? 'Re-approval Pending' : 'Pending'}
                           </span>
                         </td>
-                        <td className="actions-cell">
+                        <td className="actions-cell" data-label="Actions">
                           <button
                             className="action-btn view-btn"
                             onClick={() => handleViewDetails(u)}
@@ -1108,13 +1108,13 @@ function DashboardAdmin() {
                     ))}
                     {filteredApproved.map((u) => (
                       <tr key={u.id}>
-                        <td className="name-cell">{u.username}</td>
-                        <td className="role-cell">{u.role}</td>
-                        <td className="email-cell">{u.email}</td>
-                        <td className="date-cell">
+                        <td className="name-cell" data-label="Name">{u.username}</td>
+                        <td className="role-cell" data-label="Role">{u.role}</td>
+                        <td className="email-cell" data-label="Email">{u.email}</td>
+                        <td className="date-cell" data-label="Submitted Date">
                           {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
                         </td>
-                        <td className="status-cell">
+                        <td className="status-cell" data-label="Status">
                           <span className={`status-badge ${u.approvalStatus === 'APPROVED' ? 'status-approved' :
                             u.approvalStatus === 'SUSPENDED' ? 'status-suspended' :
                               'status-rejected'
@@ -1124,7 +1124,7 @@ function DashboardAdmin() {
                                 'Rejected'}
                           </span>
                         </td>
-                        <td className="actions-cell">
+                        <td className="actions-cell" data-label="Actions">
                           <button
                             className="action-btn view-btn"
                             onClick={() => handleViewDetails(u)}
@@ -1539,8 +1539,8 @@ function DashboardAdmin() {
                     <tbody>
                       {logs.map((log) => (
                         <tr key={log.id}>
-                          <td style={{ fontSize: '0.875rem' }}>{formatLogTimestamp(log.timestamp)}</td>
-                          <td>
+                          <td data-label="Timestamp" style={{ fontSize: '0.875rem' }}>{formatLogTimestamp(log.timestamp)}</td>
+                          <td data-label="Level">
                             <span
                               style={{
                                 display: 'inline-block',
@@ -1555,14 +1555,14 @@ function DashboardAdmin() {
                               {log.level}
                             </span>
                           </td>
-                          <td style={{ fontSize: '0.875rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <td data-label="Logger" style={{ fontSize: '0.875rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {log.logger || 'N/A'}
                           </td>
-                          <td style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}>{log.endpoint || '-'}</td>
-                          <td style={{ fontSize: '0.875rem', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <td data-label="Endpoint" style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}>{log.endpoint || '-'}</td>
+                          <td data-label="Message" style={{ fontSize: '0.875rem', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {log.message}
                           </td>
-                          <td style={{ fontSize: '0.875rem' }}>{log.username || '-'}</td>
+                          <td data-label="Username" style={{ fontSize: '0.875rem' }}>{log.username || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1669,7 +1669,7 @@ function DashboardAdmin() {
               <p className="results-text">
                 Showing <strong>{
                   cases.filter(c => {
-                    const matchesSearch = !caseSearchTerm || 
+                    const matchesSearch = !caseSearchTerm ||
                       c.title?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
                       c.caseType?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
                       c.createdByUsername?.toLowerCase().includes(caseSearchTerm.toLowerCase());
@@ -1678,7 +1678,7 @@ function DashboardAdmin() {
                     return matchesSearch && matchesStatus && matchesPriority;
                   }).length
                 }</strong> case{cases.filter(c => {
-                  const matchesSearch = !caseSearchTerm || 
+                  const matchesSearch = !caseSearchTerm ||
                     c.title?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
                     c.caseType?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
                     c.createdByUsername?.toLowerCase().includes(caseSearchTerm.toLowerCase());
@@ -1725,7 +1725,7 @@ function DashboardAdmin() {
                   <tbody>
                     {cases
                       .filter(c => {
-                        const matchesSearch = !caseSearchTerm || 
+                        const matchesSearch = !caseSearchTerm ||
                           c.title?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
                           c.caseType?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
                           c.createdByUsername?.toLowerCase().includes(caseSearchTerm.toLowerCase());
@@ -1735,32 +1735,32 @@ function DashboardAdmin() {
                       })
                       .map(caseItem => (
                         <tr key={caseItem.id}>
-                          <td>
+                          <td data-label="Case ID">
                             <span style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
                               #{caseItem.id}
                             </span>
                           </td>
-                          <td>
+                          <td data-label="Title">
                             <div style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {caseItem.title || 'Untitled'}
                             </div>
                           </td>
-                          <td>
+                          <td data-label="Category">
                             <span className="category-badge">
                               {caseItem.caseType || 'N/A'}
                             </span>
                           </td>
-                          <td>
+                          <td data-label="Status">
                             <span className={`status-badge status-${caseItem.status?.toLowerCase().replace('_', '-') || 'unknown'}`}>
                               {caseItem.status?.replace('_', ' ') || 'Unknown'}
                             </span>
                           </td>
-                          <td>
+                          <td data-label="Priority">
                             <span className={`priority-badge priority-${caseItem.priority?.toLowerCase() || 'medium'}`}>
                               {caseItem.priority || 'Medium'}
                             </span>
                           </td>
-                          <td>
+                          <td data-label="Submitted By">
                             <div className="user-cell">
                               <div className="user-avatar-small">
                                 {caseItem.createdByUsername?.charAt(0).toUpperCase() || 'U'}
@@ -1771,7 +1771,7 @@ function DashboardAdmin() {
                               </div>
                             </div>
                           </td>
-                          <td>
+                          <td data-label="Assigned To">
                             {caseItem.assignedProviderUsername ? (
                               <div className="user-cell">
                                 <div className="user-avatar-small" style={{ backgroundColor: '#10b981' }}>
@@ -1786,12 +1786,12 @@ function DashboardAdmin() {
                               <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Not assigned</span>
                             )}
                           </td>
-                          <td>
+                          <td data-label="Created">
                             <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
                               {caseItem.createdAt ? new Date(caseItem.createdAt).toLocaleDateString() : 'N/A'}
                             </span>
                           </td>
-                          <td>
+                          <td data-label="Actions">
                             <button
                               className="btn-view"
                               onClick={() => {
@@ -2074,8 +2074,8 @@ function DashboardAdmin() {
                       <div className="detail-item">
                         <label className="detail-label">Created Date</label>
                         <p className="detail-value">
-                          {selectedCaseDetail.createdAt 
-                            ? new Date(selectedCaseDetail.createdAt).toLocaleString() 
+                          {selectedCaseDetail.createdAt
+                            ? new Date(selectedCaseDetail.createdAt).toLocaleString()
                             : 'N/A'}
                         </p>
                       </div>
@@ -2148,8 +2148,8 @@ function DashboardAdmin() {
                           <div className="detail-item">
                             <label className="detail-label">Assigned Date</label>
                             <p className="detail-value">
-                              {selectedCaseDetail.assignedAt 
-                                ? new Date(selectedCaseDetail.assignedAt).toLocaleString() 
+                              {selectedCaseDetail.assignedAt
+                                ? new Date(selectedCaseDetail.assignedAt).toLocaleString()
                                 : 'N/A'}
                             </p>
                           </div>
