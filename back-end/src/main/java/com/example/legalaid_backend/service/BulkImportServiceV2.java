@@ -85,6 +85,11 @@ public class BulkImportServiceV2 {
                 String specialization = getMappedValue(row, mapping, "specialization", true);
                 String location = getMappedValue(row, mapping, "location", false);
                 String email = getMappedValue(row, mapping, "email", false);
+                
+                // Optional fields for LawyerProfile
+                String yearsOfExperienceStr = getMappedValue(row, mapping, "yearsOfExperience", false);
+                String address = getMappedValue(row, mapping, "address", false);
+                String languages = getMappedValue(row, mapping, "languages", false);
 
                 // Generate email if not provided
                 if (email == null || email.isBlank()) {
@@ -117,6 +122,21 @@ public class BulkImportServiceV2 {
                 profile.setUser(user);
                 profile.setBarNumber(barNumber);
                 profile.setSpecialization(specialization);
+                
+                // Set optional fields if provided
+                if (address != null && !address.isBlank()) {
+                    profile.setAddress(address);
+                }
+                if (languages != null && !languages.isBlank()) {
+                    profile.setLanguages(languages);
+                }
+                if (yearsOfExperienceStr != null && !yearsOfExperienceStr.isBlank()) {
+                    try {
+                        profile.setYearsOfExperience(Integer.parseInt(yearsOfExperienceStr.trim()));
+                    } catch (NumberFormatException e) {
+                        log.warn("Invalid years of experience value: {}", yearsOfExperienceStr);
+                    }
+                }
 
                 if (request.isAutoApprove()) {
                     profile.setLastApprovedBarNumber(barNumber);
@@ -187,6 +207,10 @@ public class BulkImportServiceV2 {
                 String location = getMappedValue(row, mapping, "location", false);
                 String email = getMappedValue(row, mapping, "email", false);
                 
+                // Optional fields for NgoProfile
+                String address = getMappedValue(row, mapping, "address", false);
+                String languages = getMappedValue(row, mapping, "languages", false);
+                
                 // For NGOs, username is optional and defaults to organizationName
                 String username = getMappedValue(row, mapping, "username", false);
                 if (username == null || username.isBlank()) {
@@ -224,6 +248,14 @@ public class BulkImportServiceV2 {
                 profile.setOrganizationName(organizationName);
                 profile.setRegistrationNumber(registrationNumber);
                 profile.setFocusArea(focusArea);
+                
+                // Set optional fields if provided
+                if (address != null && !address.isBlank()) {
+                    profile.setAddress(address);
+                }
+                if (languages != null && !languages.isBlank()) {
+                    profile.setLanguages(languages);
+                }
 
                 if (request.isAutoApprove()) {
                     profile.setLastApprovedOrganizationName(organizationName);

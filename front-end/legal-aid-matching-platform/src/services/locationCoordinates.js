@@ -68,14 +68,20 @@ const LOCATION_COORDINATES = {
 export const getLocationCoordinates = (locationName) => {
   if (!locationName) return LOCATION_COORDINATES['Default'];
   
+  // Extract city name if location is in "city,state" format
+  let searchName = locationName;
+  if (locationName.includes(',')) {
+    searchName = locationName.split(',')[0].trim();
+  }
+  
   // Try exact match first
-  if (LOCATION_COORDINATES[locationName]) {
-    return LOCATION_COORDINATES[locationName];
+  if (LOCATION_COORDINATES[searchName]) {
+    return LOCATION_COORDINATES[searchName];
   }
 
   // Try case-insensitive match
   const key = Object.keys(LOCATION_COORDINATES).find(
-    k => k.toLowerCase() === locationName.toLowerCase()
+    k => k.toLowerCase() === searchName.toLowerCase()
   );
   
   return key ? LOCATION_COORDINATES[key] : LOCATION_COORDINATES['Default'];

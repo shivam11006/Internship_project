@@ -43,6 +43,8 @@ function DashboardAdmin() {
   const [logPageSize, setLogPageSize] = useState(20);
   const [logPage, setLogPage] = useState(0);
   const [totalLogPages, setTotalLogPages] = useState(0);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupMessage, setCleanupMessage] = useState('');
 
   // Cases state
   const [cases, setCases] = useState([]);
@@ -351,6 +353,36 @@ function DashboardAdmin() {
     setLogSearchTerm('');
     setLogPage(0);
     setTimeout(fetchLogs, 100);
+  };
+
+  const handleCleanupOldLogs = async () => {
+    if (!window.confirm('Are you sure you want to delete logs older than 7 days? This action cannot be undone.')) {
+      return;
+    }
+
+    setCleanupLoading(true);
+    setCleanupMessage('');
+
+    try {
+      const result = await logService.deleteLogsOlderThanSevenDays();
+      
+      if (result.success) {
+        setCleanupMessage(`✓ Successfully deleted ${result.data.deletedCount} old log entries. Logs from the past 7 days have been preserved.`);
+        // Refresh log stats
+        setTimeout(() => {
+          fetchLogStats();
+          fetchLogs();
+        }, 500);
+      } else {
+        setCleanupMessage(`✗ Error: ${result.error}`);
+      }
+    } catch (error) {
+      setCleanupMessage('✗ Failed to cleanup logs. Please try again.');
+    } finally {
+      setCleanupLoading(false);
+      // Clear the message after 5 seconds
+      setTimeout(() => setCleanupMessage(''), 5000);
+    }
   };
 
   const getSearchPlaceholder = () => {

@@ -108,16 +108,50 @@ function DirectoryIngestion() {
             return;
           }
 
+          // Parse CSV properly handling quoted fields with commas
+          const parseCSVLine = (line) => {
+            const result = [];
+            let current = '';
+            let insideQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              const nextChar = line[i + 1];
+              
+              if (char === '"') {
+                // Handle escaped quotes
+                if (insideQuotes && nextChar === '"') {
+                  current += '"';
+                  i++; // Skip next quote
+                } else {
+                  insideQuotes = !insideQuotes;
+                }
+              } else if (char === ',' && !insideQuotes) {
+                result.push(current.trim());
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+            result.push(current.trim());
+            return result;
+          };
+
           // Parse headers from first line
-          const headers = lines[0].split(',').map(h => h.trim());
+          const headers = parseCSVLine(lines[0]);
 
           // Parse data rows
           const data = [];
           for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(',').map(v => v.trim());
+            const values = parseCSVLine(lines[i]);
             const row = {};
             for (let j = 0; j < headers.length && j < values.length; j++) {
-              row[headers[j]] = values[j];
+              // Remove surrounding quotes if present
+              let value = values[j];
+              if (value.startsWith('"') && value.endsWith('"')) {
+                value = value.slice(1, -1);
+              }
+              row[headers[j]] = value;
             }
             data.push(row);
           }
@@ -178,6 +212,38 @@ function DirectoryIngestion() {
     }));
   };
 
+  // Validate that all required fields are mapped
+  const validateRequiredFieldsMapping = () => {
+    const requiredFields = importType === 'lawyers'
+      ? ['username', 'specialization', 'barNumber', 'location']
+      : ['organizationName', 'registrationNumber', 'focusArea', 'location'];
+
+    let mappedValues = Object.values(fieldMapping).filter(val => val); // Get all mapped values
+    
+    // For NGOs, username can substitute for organizationName (they're the same)
+    if (importType === 'ngos') {
+      // If username is mapped, treat it as organizationName for validation purposes
+      if (mappedValues.includes('username') && !mappedValues.includes('organizationName')) {
+        mappedValues = [...mappedValues, 'organizationName'];
+      }
+      // If organizationName is mapped, treat it as username for validation purposes
+      if (mappedValues.includes('organizationName') && !mappedValues.includes('username')) {
+        mappedValues = [...mappedValues, 'username'];
+      }
+    }
+
+    const missingFields = requiredFields.filter(field => !mappedValues.includes(field));
+
+    if (missingFields.length > 0) {
+      return {
+        valid: false,
+        missingFields: missingFields
+      };
+    }
+
+    return { valid: true, missingFields: [] };
+  };
+
   const handleAdvancedImport = async () => {
     if (!csvData.length) {
       setAdvancedError('No CSV data to import');
@@ -189,13 +255,39 @@ function DirectoryIngestion() {
       return;
     }
 
+    // Validate required fields are mapped
+    const validation = validateRequiredFieldsMapping();
+    if (!validation.valid) {
+      const fieldNames = validation.missingFields
+        .map(f => f === 'username' ? 'Username' : 
+                  f === 'email' ? 'Email' : 
+                  f === 'specialization' ? 'Specialization' :
+                  f === 'barNumber' ? 'Bar Number' :
+                  f === 'organizationName' ? 'Organization Name' :
+                  f === 'registrationNumber' ? 'Registration Number' :
+                  f === 'focusArea' ? 'Focus Area' :
+                  f === 'location' ? 'Location' : f)
+        .join(', ');
+      setAdvancedError(`Missing required field mappings: ${fieldNames}`);
+      return;
+    }
+
     // Ensure mapping is not empty - filter out skipped columns
+    // Invert mapping: from {csvColumn: systemField} to {systemField: csvColumn}
     const validMapping = Object.keys(fieldMapping)
       .filter(key => fieldMapping[key]) // Only include mapped fields
-      .reduce((acc, key) => {
-        acc[key] = fieldMapping[key];
+      .reduce((acc, csvColumn) => {
+        const systemField = fieldMapping[csvColumn];
+        acc[systemField] = csvColumn;  // Invert: systemField -> csvColumn
         return acc;
       }, {});
+
+    // For NGOs, username maps to organizationName
+    if (importType === 'ngos' && validMapping.username) {
+      // If user mapped to "Username", treat it as organizationName for the backend
+      validMapping.organizationName = validMapping.username;
+      delete validMapping.username;
+    }
 
     setAdvancedLoading(true);
     setAdvancedError('');
@@ -525,6 +617,60 @@ function DirectoryIngestion() {
                   <label className="form-label">Field Mapping Configuration</label>
                   <p className="mapping-help">Map your CSV columns to system fields. Choose the appropriate system field for each CSV column.</p>
                   
+                  {/* Required Fields Status */}
+                  {(() => {
+                    const validation = validateRequiredFieldsMapping();
+                    const requiredFields = importType === 'lawyers'
+                      ? ['username', 'specialization', 'barNumber', 'location']
+                      : ['organizationName', 'registrationNumber', 'focusArea', 'location'];
+                    let mappedFields = Object.values(fieldMapping).filter(val => val);
+                    
+                    // For NGOs, username and organizationName are interchangeable
+                    if (importType === 'ngos') {
+                      if (mappedFields.includes('username') && !mappedFields.includes('organizationName')) {
+                        mappedFields = [...mappedFields, 'organizationName'];
+                      }
+                      if (mappedFields.includes('organizationName') && !mappedFields.includes('username')) {
+                        mappedFields = [...mappedFields, 'username'];
+                      }
+                    }
+                    
+                    const mappedCount = requiredFields.filter(field => mappedFields.includes(field)).length;
+                    
+                    return (
+                      <div style={{
+                        marginBottom: '16px',
+                        padding: '12px 14px',
+                        borderRadius: '8px',
+                        background: validation.valid ? '#d1fae5' : '#fef3c7',
+                        border: `1px solid ${validation.valid ? '#a7f3d0' : '#fcd34d'}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        {validation.valid ? (
+                          <>
+                            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24" style={{ color: '#059669' }}>
+                              <path d="M10 15.172l9.192-9.193a1 1 0 111.415 1.415l-10.6 10.6a1 1 0 01-1.415 0l-4.242-4.243a1 1 0 111.415-1.415l3.03 3.031z" />
+                            </svg>
+                            <span style={{ color: '#059669', fontSize: '14px', fontWeight: '500' }}>
+                              All required fields mapped ({mappedCount}/{requiredFields.length}) ✓
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24" style={{ color: '#d97706' }}>
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                            </svg>
+                            <span style={{ color: '#d97706', fontSize: '14px', fontWeight: '500' }}>
+                              Missing {requiredFields.length - mappedCount} required field{requiredFields.length - mappedCount !== 1 ? 's' : ''} ({mappedCount}/{requiredFields.length}) mapped
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  
                   <div className="mapping-grid">
                     {csvHeaders.map(csvHeader => (
                       <div key={csvHeader} className="mapping-item">
@@ -548,6 +694,8 @@ function DirectoryIngestion() {
                                 <option value="specialization">Specialization *</option>
                                 <option value="barNumber">Bar Number *</option>
                                 <option value="location">Location *</option>
+                                <option value="yearsOfExperience">Years of Experience (Optional)</option>
+                                <option value="languages">Languages (Optional)</option>
                                 <option value="phone">Phone (Optional)</option>
                                 <option value="address">Address (Optional)</option>
                               </>
@@ -558,6 +706,7 @@ function DirectoryIngestion() {
                                 <option value="registrationNumber">Registration Number *</option>
                                 <option value="focusArea">Focus Area *</option>
                                 <option value="location">Location *</option>
+                                <option value="languages">Languages (Optional)</option>
                                 <option value="phone">Phone (Optional)</option>
                                 <option value="address">Address (Optional)</option>
                               </>
