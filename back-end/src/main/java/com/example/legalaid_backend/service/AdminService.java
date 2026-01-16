@@ -604,13 +604,30 @@ public class AdminService {
 
     private AdminCaseResponse convertToAdminCaseResponse(Case legalCase) {
         int matchCount = 0;
+        com.example.legalaid_backend.entity.User assignedProvider = null;
+        java.time.LocalDateTime assignedAt = null;
+        
         try {
-            matchCount = matchRepository.findByLegalCaseId(legalCase.getId()).size();
+            java.util.List<com.example.legalaid_backend.entity.Match> matches = matchRepository.findByLegalCaseId(legalCase.getId());
+            matchCount = matches.size();
+            
+            // Find accepted match to get assigned provider
+            for (com.example.legalaid_backend.entity.Match match : matches) {
+                if (match.getStatus() == com.example.legalaid_backend.util.MatchStatus.ACCEPTED_BY_PROVIDER) {
+                    if (match.getLawyer() != null) {
+                        assignedProvider = match.getLawyer();
+                    } else if (match.getNgo() != null) {
+                        assignedProvider = match.getNgo();
+                    }
+                    assignedAt = match.getAcceptedAt();
+                    break;
+                }
+            }
         } catch (Exception e) {
             logger.warn("Could not fetch match count for case {}", legalCase.getId());
         }
 
-        return AdminCaseResponse.builder()
+        AdminCaseResponse.AdminCaseResponseBuilder builder = AdminCaseResponse.builder()
                 .id(legalCase.getId())
                 .caseNumber(legalCase.getCaseNumber())
                 .title(legalCase.getTitle())
@@ -627,7 +644,17 @@ public class AdminService {
                 .createdAt(legalCase.getCreatedAt())
                 .updatedAt(legalCase.getUpdatedAt())
                 .attachmentCount(legalCase.getAttachments() != null ? legalCase.getAttachments().size() : 0)
-                .matchCount(matchCount)
-                .build();
+                .matchCount(matchCount);
+        
+        // Add assigned provider info if exists
+        if (assignedProvider != null) {
+            builder.assignedProviderId(assignedProvider.getId())
+                   .assignedProviderUsername(assignedProvider.getUsername())
+                   .assignedProviderEmail(assignedProvider.getEmail())
+                   .assignedProviderRole(assignedProvider.getRole().name())
+                   .assignedAt(assignedAt);
+        }
+        
+        return builder.build();
     }
 }

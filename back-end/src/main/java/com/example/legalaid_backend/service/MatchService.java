@@ -199,6 +199,11 @@ public class MatchService {
         match.setStatus(MatchStatus.SELECTED_BY_CITIZEN);
 
         Match updatedMatch = matchRepository.save(match);
+        
+        // Update case status to PENDING_APPROVAL
+        Case legalCase = match.getLegalCase();
+        legalCase.setStatus("PENDING_APPROVAL");
+        caseRepository.save(legalCase);
 
         // Notify the provider that they were selected
         User provider = match.getLawyer() != null ? match.getLawyer() : match.getNgo();
@@ -356,6 +361,11 @@ public class MatchService {
         match.setAcceptedAt(LocalDateTime.now());
 
         Match updatedMatch = matchRepository.save(match);
+        
+        // Update case status to ACCEPTED
+        Case legalCase = match.getLegalCase();
+        legalCase.setStatus("ACCEPTED");
+        caseRepository.save(legalCase);
 
         // Notify the citizen that their selected match has been accepted
         User citizen = match.getLegalCase().getCreatedBy();
@@ -419,6 +429,25 @@ public class MatchService {
         match.setRejectionReason(reason != null ? reason : "Unable to take this case");
 
         Match updatedMatch = matchRepository.save(match);
+        
+        // Update case status to REJECTED since provider declined
+        Case legalCase = match.getLegalCase();
+        legalCase.setStatus("REJECTED");
+        caseRepository.save(legalCase);
+
+        // Notify the citizen that their selected match was rejected
+        User citizen = match.getLegalCase().getCreatedBy();
+        String providerRole = match.getLawyer() != null ? "Lawyer" : "NGO";
+        String providerName = match.getLawyer() != null ? match.getLawyer().getUsername() : match.getNgo().getUsername();
+        String title = "Case Rejected - Find Another Match";
+        String message = "Your case \"" + legalCase.getTitle() + "\" was rejected by " + providerRole + " \"" + providerName + "\". " +
+                        "Reason: " + (reason != null ? reason : "Unable to take this case") + ". " +
+                        "Please go to your cases and select another legal professional from your available matches.";
+        notificationService.createNotificationWithMetadata(
+                citizen, NotificationType.MATCH_REJECTED, title, message,
+                updatedMatch.getId(), null, match.getLegalCase().getId(), null, currentUser.getId(),
+                "/dashboard/cases"
+        );
 
         log.info("Case assignment {} declined by provider {}", matchId, currentUser.getEmail());
 

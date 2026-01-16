@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import authService from './services/authService';
+import authService, { apiClient } from './services/authService';
 import chatService from './services/chatService';
 import appointmentService from './services/appointmentService';
 import * as matchService from './services/matchService';

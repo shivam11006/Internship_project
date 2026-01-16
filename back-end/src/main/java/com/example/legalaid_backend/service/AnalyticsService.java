@@ -77,12 +77,25 @@ public class AnalyticsService {
         usersByApprovalStatus.put("REJECTED", (long) userRepository.findByApprovalStatusIn(
                 List.of(ApprovalStatus.REJECTED)).size());
 
-        // Cases by status
+        // Cases by status - using updated CaseStatus enum values
         Map<String, Long> casesByStatus = new HashMap<>();
         List<Case> allCases = caseRepository.findAll();
-        casesByStatus.put("OPEN", allCases.stream().filter(c -> "OPEN".equals(c.getStatus())).count());
-        casesByStatus.put("ASSIGNED", allCases.stream().filter(c -> "ASSIGNED".equals(c.getStatus())).count());
-        casesByStatus.put("CLOSED", allCases.stream().filter(c -> "CLOSED".equals(c.getStatus())).count());
+        long openCases = allCases.stream().filter(c -> 
+            "SUBMITTED".equals(c.getStatus()) || 
+            "PENDING_APPROVAL".equals(c.getStatus())).count();
+        long assignedCases = allCases.stream().filter(c -> 
+            "ACCEPTED".equals(c.getStatus()) || 
+            "IN_PROGRESS".equals(c.getStatus()) || 
+            "UNDER_REVIEW".equals(c.getStatus())).count();
+        long closedCases = allCases.stream().filter(c -> 
+            "RESOLVED".equals(c.getStatus()) || 
+            "CLOSED".equals(c.getStatus())).count();
+        casesByStatus.put("OPEN", openCases);
+        casesByStatus.put("ASSIGNED", assignedCases);
+        casesByStatus.put("CLOSED", closedCases);
+        casesByStatus.put("SUBMITTED", allCases.stream().filter(c -> "SUBMITTED".equals(c.getStatus())).count());
+        casesByStatus.put("RESOLVED", allCases.stream().filter(c -> "RESOLVED".equals(c.getStatus())).count());
+        casesByStatus.put("REJECTED", allCases.stream().filter(c -> "REJECTED".equals(c.getStatus())).count());
 
         // Cases by priority
         Map<String, Long> casesByPriority = new HashMap<>();
@@ -222,15 +235,36 @@ public class AnalyticsService {
         List<Case> allCases = caseRepository.findAll();
         long totalCases = allCases.size();
 
-        long openCases = allCases.stream().filter(c -> "OPEN".equals(c.getStatus())).count();
-        long assignedCases = allCases.stream().filter(c -> "ASSIGNED".equals(c.getStatus())).count();
-        long closedCases = allCases.stream().filter(c -> "CLOSED".equals(c.getStatus())).count();
+        // Updated to use new CaseStatus enum values stored as strings
+        long openCases = allCases.stream().filter(c -> 
+            "SUBMITTED".equals(c.getStatus()) || 
+            "PENDING_APPROVAL".equals(c.getStatus())).count();
+        long assignedCases = allCases.stream().filter(c -> 
+            "ACCEPTED".equals(c.getStatus()) || 
+            "IN_PROGRESS".equals(c.getStatus()) || 
+            "UNDER_REVIEW".equals(c.getStatus())).count();
+        long closedCases = allCases.stream().filter(c -> 
+            "RESOLVED".equals(c.getStatus()) || 
+            "CLOSED".equals(c.getStatus())).count();
+        long rejectedCases = allCases.stream().filter(c -> 
+            "REJECTED".equals(c.getStatus())).count();
+        long cancelledCases = allCases.stream().filter(c -> 
+            "CANCELLED".equals(c.getStatus())).count();
 
-        // Status distribution
+        // Status distribution - use all the new status values
         Map<String, Long> casesByStatus = new HashMap<>();
+        casesByStatus.put("SUBMITTED", allCases.stream().filter(c -> "SUBMITTED".equals(c.getStatus())).count());
+        casesByStatus.put("PENDING_APPROVAL", allCases.stream().filter(c -> "PENDING_APPROVAL".equals(c.getStatus())).count());
+        casesByStatus.put("ACCEPTED", allCases.stream().filter(c -> "ACCEPTED".equals(c.getStatus())).count());
+        casesByStatus.put("IN_PROGRESS", allCases.stream().filter(c -> "IN_PROGRESS".equals(c.getStatus())).count());
+        casesByStatus.put("UNDER_REVIEW", allCases.stream().filter(c -> "UNDER_REVIEW".equals(c.getStatus())).count());
+        casesByStatus.put("RESOLVED", allCases.stream().filter(c -> "RESOLVED".equals(c.getStatus())).count());
+        casesByStatus.put("CLOSED", allCases.stream().filter(c -> "CLOSED".equals(c.getStatus())).count());
+        casesByStatus.put("REJECTED", rejectedCases);
+        casesByStatus.put("CANCELLED", cancelledCases);
+        // Keep legacy mappings for backwards compatibility
         casesByStatus.put("OPEN", openCases);
         casesByStatus.put("ASSIGNED", assignedCases);
-        casesByStatus.put("CLOSED", closedCases);
 
         // Priority distribution
         Map<String, Long> casesByPriority = new HashMap<>();
@@ -275,7 +309,7 @@ public class AnalyticsService {
         // Trends
         List<AnalyticsTrendDTO> casesCreatedTrend = generateMonthlyTrends(allCases, Case::getCreatedAt);
         List<AnalyticsTrendDTO> casesClosedTrend = generateMonthlyTrends(
-                allCases.stream().filter(c -> "CLOSED".equals(c.getStatus())).collect(Collectors.toList()),
+                allCases.stream().filter(c -> "CLOSED".equals(c.getStatus()) || "RESOLVED".equals(c.getStatus())).collect(Collectors.toList()),
                 Case::getUpdatedAt
         );
 
@@ -283,7 +317,7 @@ public class AnalyticsService {
         long averageCaseAge = calculateAverageCaseAge(allCases);
         long medianCaseAge = calculateMedianCaseAge(allCases);
         long averageResolutionTime = calculateAverageResolutionTime(
-                allCases.stream().filter(c -> "CLOSED".equals(c.getStatus())).collect(Collectors.toList())
+                allCases.stream().filter(c -> "CLOSED".equals(c.getStatus()) || "RESOLVED".equals(c.getStatus())).collect(Collectors.toList())
         );
 
         double caseResolutionRate = totalCases > 0 ? (closedCases * 100.0 / totalCases) : 0;

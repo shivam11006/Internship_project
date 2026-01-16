@@ -30,6 +30,13 @@ public class AdminCaseResponse {
     private String createdByUsername;
     private String createdByEmail;
 
+    // Assigned Provider information (Lawyer/NGO who accepted the case)
+    private Long assignedProviderId;
+    private String assignedProviderUsername;
+    private String assignedProviderEmail;
+    private String assignedProviderRole; // LAWYER or NGO
+    private LocalDateTime assignedAt;
+
     // Timestamps
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

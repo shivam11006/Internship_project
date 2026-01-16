@@ -4,7 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
-import authService from './services/authService';
+import authService, { apiClient } from './services/authService';
 import logService from './services/logService';
 import analyticsService from './services/analyticsService';
 import DirectoryIngestion from './DirectoryIngestion';
@@ -43,6 +43,15 @@ function DashboardAdmin() {
   const [logPageSize, setLogPageSize] = useState(20);
   const [logPage, setLogPage] = useState(0);
   const [totalLogPages, setTotalLogPages] = useState(0);
+
+  // Cases state
+  const [cases, setCases] = useState([]);
+  const [casesLoading, setCasesLoading] = useState(false);
+  const [caseSearchTerm, setCaseSearchTerm] = useState('');
+  const [caseFilterStatus, setCaseFilterStatus] = useState('');
+  const [caseFilterPriority, setCaseFilterPriority] = useState('');
+  const [selectedCaseDetail, setSelectedCaseDetail] = useState(null);
+  const [showCaseDetailModal, setShowCaseDetailModal] = useState(false);
 
   // KPI Stats
   const [kpiStats, setKpiStats] = useState({
@@ -84,6 +93,35 @@ function DashboardAdmin() {
       fetchLogStats();
     }
   }, [activeTab, logPage, logPageSize, logSortBy, logSortOrder]);
+
+  useEffect(() => {
+    if (activeTab === 'cases') {
+      fetchCases();
+    }
+  }, [activeTab]);
+
+  const fetchCases = async () => {
+    setCasesLoading(true);
+    try {
+      // Use noPagination=true to get all cases as an array
+      const response = await apiClient.get('/admin/cases?noPagination=true');
+      console.log('Cases API response:', response.data);
+      
+      // Handle both paginated response (with content) and direct array (noPagination=true)
+      if (response.data && Array.isArray(response.data)) {
+        setCases(response.data);
+      } else if (response.data && response.data.content && Array.isArray(response.data.content)) {
+        setCases(response.data.content);
+      } else {
+        console.error('Unexpected response format:', response.data);
+        setCases([]);
+      }
+    } catch (error) {
+      console.error('Error fetching cases:', error);
+      setCases([]);
+    }
+    setCasesLoading(false);
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -822,6 +860,16 @@ function DashboardAdmin() {
             <span>Application Logs</span>
           </button>
 
+          <button
+            className={`admin-nav-item ${activeTab === 'cases' ? 'active' : ''}`}
+            onClick={() => setActiveTab('cases')}
+          >
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <span>Case Management</span>
+          </button>
+
         </nav>
       </div>
 
@@ -1500,6 +1548,223 @@ function DashboardAdmin() {
               )}
             </div>
           </div>
+        ) : activeTab === 'cases' ? (
+          <div className="admin-content-section">
+            <div className="section-header-new">
+              <h2 className="section-title-new">Case Management</h2>
+              <p className="section-subtitle">View and manage all submitted cases in the system</p>
+            </div>
+
+            <div className="search-filter-container">
+              <div className="search-container">
+                <input
+                  type="text"
+                  placeholder="Search cases by title, category, or submitter..."
+                  className="search-input-new"
+                  value={caseSearchTerm}
+                  onChange={(e) => setCaseSearchTerm(e.target.value)}
+                />
+              </div>
+
+              <div className="filters-row">
+                <div className="filter-group">
+                  <label className="filter-label">Filter by Status:</label>
+                  <select
+                    className="filter-select"
+                    value={caseFilterStatus}
+                    onChange={(e) => setCaseFilterStatus(e.target.value)}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="SUBMITTED">Submitted</option>
+                    <option value="PENDING_APPROVAL">Pending Approval</option>
+                    <option value="ACCEPTED">Accepted</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="UNDER_REVIEW">Under Review</option>
+                    <option value="RESOLVED">Resolved</option>
+                    <option value="CLOSED">Closed</option>
+                    <option value="REJECTED">Rejected</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label className="filter-label">Filter by Priority:</label>
+                  <select
+                    className="filter-select"
+                    value={caseFilterPriority}
+                    onChange={(e) => setCaseFilterPriority(e.target.value)}
+                  >
+                    <option value="">All Priorities</option>
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
+                  </select>
+                </div>
+
+                <button
+                  className="reset-filters-btn"
+                  onClick={() => {
+                    setCaseSearchTerm('');
+                    setCaseFilterStatus('');
+                    setCaseFilterPriority('');
+                  }}
+                >
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Reset Filters
+                </button>
+              </div>
+            </div>
+
+            <div className="table-results-summary">
+              <p className="results-text">
+                Showing <strong>{
+                  cases.filter(c => {
+                    const matchesSearch = !caseSearchTerm || 
+                      c.title?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
+                      c.caseType?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
+                      c.createdByUsername?.toLowerCase().includes(caseSearchTerm.toLowerCase());
+                    const matchesStatus = !caseFilterStatus || c.status === caseFilterStatus;
+                    const matchesPriority = !caseFilterPriority || c.priority === caseFilterPriority;
+                    return matchesSearch && matchesStatus && matchesPriority;
+                  }).length
+                }</strong> case{cases.filter(c => {
+                  const matchesSearch = !caseSearchTerm || 
+                    c.title?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
+                    c.caseType?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
+                    c.createdByUsername?.toLowerCase().includes(caseSearchTerm.toLowerCase());
+                  const matchesStatus = !caseFilterStatus || c.status === caseFilterStatus;
+                  const matchesPriority = !caseFilterPriority || c.priority === caseFilterPriority;
+                  return matchesSearch && matchesStatus && matchesPriority;
+                }).length !== 1 ? 's' : ''}
+                {(caseFilterStatus || caseFilterPriority || caseSearchTerm) && (
+                  <span className="filter-applied">
+                    {' '}with filters applied
+                  </span>
+                )}
+              </p>
+            </div>
+
+            <div className="table-wrapper">
+              {casesLoading ? (
+                <div className="loading-state">
+                  <div className="spinner"></div>
+                  <p>Loading cases...</p>
+                </div>
+              ) : cases.length === 0 ? (
+                <div className="empty-state">
+                  <svg width="64" height="64" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p>No cases found in the system</p>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Case ID</th>
+                      <th>Title</th>
+                      <th>Category</th>
+                      <th>Status</th>
+                      <th>Priority</th>
+                      <th>Submitted By</th>
+                      <th>Assigned To</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cases
+                      .filter(c => {
+                        const matchesSearch = !caseSearchTerm || 
+                          c.title?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
+                          c.caseType?.toLowerCase().includes(caseSearchTerm.toLowerCase()) ||
+                          c.createdByUsername?.toLowerCase().includes(caseSearchTerm.toLowerCase());
+                        const matchesStatus = !caseFilterStatus || c.status === caseFilterStatus;
+                        const matchesPriority = !caseFilterPriority || c.priority === caseFilterPriority;
+                        return matchesSearch && matchesStatus && matchesPriority;
+                      })
+                      .map(caseItem => (
+                        <tr key={caseItem.id}>
+                          <td>
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                              #{caseItem.id}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {caseItem.title || 'Untitled'}
+                            </div>
+                          </td>
+                          <td>
+                            <span className="category-badge">
+                              {caseItem.caseType || 'N/A'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`status-badge status-${caseItem.status?.toLowerCase().replace('_', '-') || 'unknown'}`}>
+                              {caseItem.status?.replace('_', ' ') || 'Unknown'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`priority-badge priority-${caseItem.priority?.toLowerCase() || 'medium'}`}>
+                              {caseItem.priority || 'Medium'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="user-cell">
+                              <div className="user-avatar-small">
+                                {caseItem.createdByUsername?.charAt(0).toUpperCase() || 'U'}
+                              </div>
+                              <div>
+                                <div className="user-name">{caseItem.createdByUsername || 'Unknown'}</div>
+                                <div className="user-email">{caseItem.createdByEmail || ''}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            {caseItem.assignedProviderUsername ? (
+                              <div className="user-cell">
+                                <div className="user-avatar-small" style={{ backgroundColor: '#10b981' }}>
+                                  {caseItem.assignedProviderUsername?.charAt(0).toUpperCase() || 'P'}
+                                </div>
+                                <div>
+                                  <div className="user-name">{caseItem.assignedProviderUsername}</div>
+                                  <div className="user-role-small">{caseItem.assignedProviderRole || ''}</div>
+                                </div>
+                              </div>
+                            ) : (
+                              <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Not assigned</span>
+                            )}
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                              {caseItem.createdAt ? new Date(caseItem.createdAt).toLocaleDateString() : 'N/A'}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              className="btn-view"
+                              onClick={() => {
+                                setSelectedCaseDetail(caseItem);
+                                setShowCaseDetailModal(true);
+                              }}
+                              title="View Details"
+                            >
+                              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="empty-section">
             <svg width="80" height="80" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
@@ -1700,6 +1965,161 @@ function DashboardAdmin() {
                     Reactivate User
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Case Detail Modal */}
+        {showCaseDetailModal && selectedCaseDetail && (
+          <div className="modal-overlay" onClick={() => setShowCaseDetailModal(false)}>
+            <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Case Details - #{selectedCaseDetail.id}</h3>
+                <button className="modal-close" onClick={() => setShowCaseDetailModal(false)}>
+                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="case-detail-grid">
+                  {/* Case Information Section */}
+                  <div className="detail-section">
+                    <h4 className="detail-section-title">
+                      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Case Information
+                    </h4>
+                    <div className="details-grid">
+                      <div className="detail-item">
+                        <label className="detail-label">Title</label>
+                        <p className="detail-value">{selectedCaseDetail.title || 'N/A'}</p>
+                      </div>
+                      <div className="detail-item">
+                        <label className="detail-label">Category</label>
+                        <p className="detail-value">
+                          <span className="category-badge">{selectedCaseDetail.caseType || 'N/A'}</span>
+                        </p>
+                      </div>
+                      <div className="detail-item">
+                        <label className="detail-label">Status</label>
+                        <p className="detail-value">
+                          <span className={`status-badge status-${selectedCaseDetail.status?.toLowerCase().replace('_', '-') || 'unknown'}`}>
+                            {selectedCaseDetail.status?.replace('_', ' ') || 'Unknown'}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="detail-item">
+                        <label className="detail-label">Priority</label>
+                        <p className="detail-value">
+                          <span className={`priority-badge priority-${selectedCaseDetail.priority?.toLowerCase() || 'medium'}`}>
+                            {selectedCaseDetail.priority || 'Medium'}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="detail-item">
+                        <label className="detail-label">Location</label>
+                        <p className="detail-value">{selectedCaseDetail.location || 'N/A'}</p>
+                      </div>
+                      <div className="detail-item">
+                        <label className="detail-label">Created Date</label>
+                        <p className="detail-value">
+                          {selectedCaseDetail.createdAt 
+                            ? new Date(selectedCaseDetail.createdAt).toLocaleString() 
+                            : 'N/A'}
+                        </p>
+                      </div>
+                      <div className="detail-item full-width">
+                        <label className="detail-label">Description</label>
+                        <p className="detail-value description-text">
+                          {selectedCaseDetail.description || 'No description provided'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Submitter Information Section */}
+                  <div className="detail-section">
+                    <h4 className="detail-section-title">
+                      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Submitted By
+                    </h4>
+                    <div className="user-info-card">
+                      <div className="user-avatar-medium">
+                        {selectedCaseDetail.createdByUsername?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <div className="user-info-details">
+                        <div className="detail-item">
+                          <label className="detail-label">Username</label>
+                          <p className="detail-value">{selectedCaseDetail.createdByUsername || 'N/A'}</p>
+                        </div>
+                        <div className="detail-item">
+                          <label className="detail-label">Email</label>
+                          <p className="detail-value">{selectedCaseDetail.createdByEmail || 'N/A'}</p>
+                        </div>
+                        <div className="detail-item">
+                          <label className="detail-label">User ID</label>
+                          <p className="detail-value">#{selectedCaseDetail.createdById || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Assigned Provider Section */}
+                  <div className="detail-section">
+                    <h4 className="detail-section-title">
+                      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      Assigned Provider
+                    </h4>
+                    {selectedCaseDetail.assignedProviderUsername ? (
+                      <div className="user-info-card provider-card">
+                        <div className="user-avatar-medium" style={{ backgroundColor: '#10b981' }}>
+                          {selectedCaseDetail.assignedProviderUsername?.charAt(0).toUpperCase() || 'P'}
+                        </div>
+                        <div className="user-info-details">
+                          <div className="detail-item">
+                            <label className="detail-label">Provider Name</label>
+                            <p className="detail-value">{selectedCaseDetail.assignedProviderUsername}</p>
+                          </div>
+                          <div className="detail-item">
+                            <label className="detail-label">Email</label>
+                            <p className="detail-value">{selectedCaseDetail.assignedProviderEmail || 'N/A'}</p>
+                          </div>
+                          <div className="detail-item">
+                            <label className="detail-label">Role</label>
+                            <p className="detail-value">
+                              <span className="role-badge">{selectedCaseDetail.assignedProviderRole || 'N/A'}</span>
+                            </p>
+                          </div>
+                          <div className="detail-item">
+                            <label className="detail-label">Assigned Date</label>
+                            <p className="detail-value">
+                              {selectedCaseDetail.assignedAt 
+                                ? new Date(selectedCaseDetail.assignedAt).toLocaleString() 
+                                : 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="no-provider-message">
+                        <svg width="40" height="40" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p>No provider has been assigned to this case yet</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn-cancel" onClick={() => setShowCaseDetailModal(false)}>Close</button>
               </div>
             </div>
           </div>

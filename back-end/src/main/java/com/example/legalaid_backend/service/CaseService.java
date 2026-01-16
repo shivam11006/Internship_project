@@ -169,6 +169,94 @@ public class CaseService {
     }
 
     // =========================
+    // UPDATE CASE STATUS (LAWYER/NGO/CITIZEN)
+    // =========================
+    @Transactional
+    public CaseResponse updateCaseStatus(Long id, String newStatus) {
+
+        User currentUser = getCurrentUser();
+
+        Case legalCase = caseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Case not found"));
+
+        // Citizens can only resolve their own cases
+        if (currentUser.getRole() == Role.CITIZEN) {
+            // Check if the citizen owns this case
+            if (!legalCase.getCreatedBy().getId().equals(currentUser.getId())) {
+                throw new RuntimeException("Access denied: You can only update your own cases");
+            }
+            
+            // Citizens can only mark cases as RESOLVED
+            if (!newStatus.equals("RESOLVED")) {
+                throw new RuntimeException("Citizens can only mark cases as RESOLVED");
+            }
+            
+            // Citizens can only resolve cases that are ACCEPTED, IN_PROGRESS, or UNDER_REVIEW
+            String currentStatus = legalCase.getStatus();
+            if (!currentStatus.equals("ACCEPTED") && !currentStatus.equals("IN_PROGRESS") && !currentStatus.equals("UNDER_REVIEW")) {
+                throw new RuntimeException("Can only resolve cases that are ACCEPTED, IN_PROGRESS, or UNDER_REVIEW. Current status: " + currentStatus);
+            }
+            
+            legalCase.setStatus(newStatus);
+            log.info("Case ID {} status updated to RESOLVED by citizen {}",
+                    id, currentUser.getEmail());
+            
+            return toResponse(caseRepository.save(legalCase));
+        }
+
+        // Only lawyers and NGOs can update case status to other values
+        if (currentUser.getRole() != Role.LAWYER && currentUser.getRole() != Role.NGO) {
+            throw new RuntimeException("Only lawyers, NGOs, or case owners (citizens) can update case status");
+        }
+
+        // Verify that the user is assigned to this case (has an accepted match)
+        boolean hasAcceptedMatch = matchRepository.findByLegalCaseId(id).stream()
+                .anyMatch(m -> m.getStatus() == com.example.legalaid_backend.util.MatchStatus.ACCEPTED_BY_PROVIDER &&
+                        ((m.getLawyer() != null && m.getLawyer().getId().equals(currentUser.getId())) ||
+                         (m.getNgo() != null && m.getNgo().getId().equals(currentUser.getId()))));
+
+        if (!hasAcceptedMatch) {
+            throw new RuntimeException("Access denied: You are not assigned to this case");
+        }
+
+        // Validate status transition
+        String currentStatus = legalCase.getStatus();
+        if (!isValidStatusTransition(currentStatus, newStatus)) {
+            throw new RuntimeException("Invalid status transition from " + currentStatus + " to " + newStatus);
+        }
+
+        legalCase.setStatus(newStatus);
+
+        log.info("Case ID {} status updated from {} to {} by user {}",
+                id, currentStatus, newStatus, currentUser.getEmail());
+
+        return toResponse(caseRepository.save(legalCase));
+    }
+
+    // =========================
+    // VALIDATE STATUS TRANSITION
+    // =========================
+    private boolean isValidStatusTransition(String currentStatus, String newStatus) {
+        // Define valid transitions
+        if (currentStatus.equals("ACCEPTED") && 
+            (newStatus.equals("IN_PROGRESS") || newStatus.equals("UNDER_REVIEW"))) {
+            return true;
+        }
+        if (currentStatus.equals("IN_PROGRESS") && 
+            (newStatus.equals("UNDER_REVIEW") || newStatus.equals("RESOLVED"))) {
+            return true;
+        }
+        if (currentStatus.equals("UNDER_REVIEW") && 
+            (newStatus.equals("IN_PROGRESS") || newStatus.equals("RESOLVED"))) {
+            return true;
+        }
+        if (currentStatus.equals("RESOLVED") && newStatus.equals("CLOSED")) {
+            return true;
+        }
+        return false;
+    }
+
+    // =========================
     // HELPERS
     // =========================
     private User getCurrentUser() {
