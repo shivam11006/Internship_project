@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import './AdminDashboard.css'; // Ensure we can use dashboard styles if needed
+import './AdminDashboard.css';
+import analyticsService from './services/analyticsService';
+import { getLocationCoordinates } from './services/locationCoordinates';
 
 // Fix for default marker icon in React-Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -12,33 +14,138 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-const locationData = [
-    { id: 1, name: "New Delhi", position: [28.6139, 77.2090], cases: 1450, lawyers: 320, ngos: 45 },
-    { id: 2, name: "Mumbai", position: [19.0760, 72.8777], cases: 1200, lawyers: 450, ngos: 60 },
-    { id: 3, name: "Bangalore", position: [12.9716, 77.5946], cases: 980, lawyers: 280, ngos: 35 },
-    { id: 4, name: "Chennai", position: [13.0827, 80.2707], cases: 850, lawyers: 210, ngos: 25 },
-    { id: 5, name: "Kolkata", position: [22.5726, 88.3639], cases: 780, lawyers: 190, ngos: 30 },
-    { id: 6, name: "Hyderabad", position: [17.3850, 78.4867], cases: 720, lawyers: 200, ngos: 28 },
-    { id: 7, name: "Pune", position: [18.5204, 73.8567], cases: 650, lawyers: 180, ngos: 20 },
-    { id: 8, name: "Ahmedabad", position: [23.0225, 72.5714], cases: 590, lawyers: 150, ngos: 15 },
-    { id: 9, name: "Jaipur", position: [26.9124, 75.7873], cases: 480, lawyers: 120, ngos: 18 },
-    { id: 10, name: "Lucknow", position: [26.8467, 80.9462], cases: 420, lawyers: 110, ngos: 12 },
-];
+// Fallback mock data for location analytics
+const MOCK_LOCATION_DATA = {
+    cases: {
+        "New Delhi": 1450, "Mumbai": 1200, "Bangalore": 980, "Chennai": 850,
+        "Kolkata": 780, "Hyderabad": 720, "Pune": 650, "Ahmedabad": 590,
+        "Jaipur": 480, "Lucknow": 420
+    },
+    lawyers: {
+        "New Delhi": 85, "Mumbai": 120, "Bangalore": 95, "Chennai": 65,
+        "Kolkata": 55, "Hyderabad": 72, "Pune": 48, "Ahmedabad": 40,
+        "Jaipur": 35, "Lucknow": 28
+    },
+    ngo: {
+        "New Delhi": 45, "Mumbai": 60, "Bangalore": 35, "Chennai": 25,
+        "Kolkata": 30, "Hyderabad": 28, "Pune": 20, "Ahmedabad": 15,
+        "Jaipur": 18, "Lucknow": 12
+    }
+};
 
 const MapVisualization = () => {
-    const [filter, setFilter] = useState('cases'); // cases, lawyers, ngos
+    const [filter, setFilter] = useState('cases'); // cases, lawyers, ngo
+    const [locationData, setLocationData] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [realDataLoaded, setRealDataLoaded] = useState(false);
+    const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]); // Default: center of India
+
+    useEffect(() => {
+        fetchLocationData();
+    }, []);
+
+    const fetchLocationData = async () => {
+        setLoading(true);
+        try {
+            const result = await analyticsService.getLocationAnalytics();
+
+            if (result.success && result.data) {
+                // Set location data with role-distributed users
+                const combinedData = {
+                    cases: result.data.cases || {},
+                    lawyers: result.data.lawyers || {},   // Lawyers from role distribution
+                    ngo: result.data.ngos || {}           // NGOs from role distribution
+                };
+
+                setLocationData(combinedData);
+                setRealDataLoaded(true);
+
+                // Set map center to the first top location if available
+                if (result.data.topLocations && result.data.topLocations.length > 0) {
+                    const centerCoords = getLocationCoordinates(result.data.topLocations[0]);
+                    setMapCenter(centerCoords);
+                }
+            } else {
+                console.warn('Failed to fetch location analytics, using mock data');
+                setLocationData({
+                    cases: MOCK_LOCATION_DATA.cases,
+                    lawyers: MOCK_LOCATION_DATA.lawyers,
+                    ngo: MOCK_LOCATION_DATA.ngo
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching location analytics:', error);
+            setLocationData({
+                cases: MOCK_LOCATION_DATA.cases,
+                lawyers: MOCK_LOCATION_DATA.lawyers,
+                ngo: MOCK_LOCATION_DATA.ngo
+            });
+        }
+        setLoading(false);
+    };
 
     const getMetricLabel = () => {
         switch (filter) {
-            case 'cases': return 'Active Cases';
-            case 'lawyers': return 'Available Lawyers';
-            case 'ngos': return 'Active NGOs';
+            case 'cases': return 'Cases';
+            case 'lawyers': return 'Lawyers';
+            case 'ngo': return 'NGOs';
             default: return '';
         }
     };
 
-    const getMetricValue = (city) => {
-        return city[filter];
+    const getMetricColor = () => {
+        switch (filter) {
+            case 'cases': return '#ec4899'; // Pink
+            case 'lawyers': return '#f59e0b'; // Amber
+            case 'ngo': return '#10b981'; // Green
+            default: return '#6b7280';
+        }
+    };
+
+    const getCurrentMetricData = () => {
+        if (!locationData[filter]) {
+            return {};
+        }
+        return locationData[filter];
+    };
+
+    const getMarkers = () => {
+        const currentData = getCurrentMetricData();
+        
+        return Object.entries(currentData).map(([locationName, value], idx) => {
+            const position = getLocationCoordinates(locationName);
+            
+            return (
+                <Marker key={`${locationName}-${idx}`} position={position}>
+                    <Popup className="custom-popup">
+                        <div className="popup-content">
+                            <h3>{locationName}</h3>
+                            <div className="popup-stat">
+                                <span className="popup-label">{getMetricLabel()}:</span>
+                                <span className="popup-value" style={{ color: getMetricColor() }}>
+                                    {value}
+                                </span>
+                            </div>
+                            {locationData.cases && locationData.cases[locationName] && (
+                                <div className="popup-mini-stats">
+                                    <small>Cases: {locationData.cases[locationName]}</small>
+                                </div>
+                            )}
+                            {locationData.users && locationData.users[locationName] && (
+                                <div className="popup-mini-stats">
+                                    <small>Users: {locationData.users[locationName]}</small>
+                                </div>
+                            )}
+                            {locationData.matches && locationData.matches[locationName] && (
+                                <div className="popup-mini-stats">
+                                    <small>Matches: {locationData.matches[locationName]}</small>
+                                </div>
+                            )}
+                        </div>
+                    </Popup>
+                </Marker>
+            );
+        });
     };
 
     return (
@@ -46,60 +153,79 @@ const MapVisualization = () => {
             <div className="map-header">
                 <div>
                     <h2 className="section-title-new">Location Analytics</h2>
-                    <p className="section-subtitle">Geographical distribution of platform activity</p>
+                    <p className="section-subtitle">
+                        Geographical distribution of platform activity
+                        {realDataLoaded && <span style={{ marginLeft: '8px', color: '#059669' }}>📍 Live Data</span>}
+                    </p>
                 </div>
                 <div className="map-filters">
                     <button
                         className={`map-filter-btn ${filter === 'cases' ? 'active' : ''}`}
                         onClick={() => setFilter('cases')}
+                        title="View case distribution by location"
                     >
                         Cases
                     </button>
                     <button
                         className={`map-filter-btn ${filter === 'lawyers' ? 'active' : ''}`}
                         onClick={() => setFilter('lawyers')}
+                        title="View lawyer distribution by location"
                     >
                         Lawyers
                     </button>
                     <button
-                        className={`map-filter-btn ${filter === 'ngos' ? 'active' : ''}`}
-                        onClick={() => setFilter('ngos')}
+                        className={`map-filter-btn ${filter === 'ngo' ? 'active' : ''}`}
+                        onClick={() => setFilter('ngo')}
+                        title="View NGO distribution by location"
                     >
-                        NGOs
+                        NGO
                     </button>
                 </div>
             </div>
 
             <div className="map-container-wrapper">
-                <MapContainer
-                    center={[20.5937, 78.9629]}
-                    zoom={5}
-                    scrollWheelZoom={true}
-                    style={{ height: '500px', width: '100%', borderRadius: '12px' }}
-                >
-                    <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    {locationData.map((city) => (
-                        <Marker key={city.id} position={city.position}>
-                            <Popup className="custom-popup">
-                                <div className="popup-content">
-                                    <h3>{city.name}</h3>
-                                    <div className="popup-stat">
-                                        <span className="popup-label">{getMetricLabel()}:</span>
-                                        <span className="popup-value">{getMetricValue(city)}</span>
-                                    </div>
-                                    <div className="popup-mini-stats">
-                                        <small>Cases: {city.cases}</small>
-                                        <small>Lawyers: {city.lawyers}</small>
-                                        <small>NGOs: {city.ngos}</small>
-                                    </div>
-                                </div>
-                            </Popup>
-                        </Marker>
+                {loading ? (
+                    <div style={{ height: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}>
+                        <span>Loading location data...</span>
+                    </div>
+                ) : (
+                    <MapContainer
+                        center={mapCenter}
+                        zoom={5}
+                        scrollWheelZoom={true}
+                        style={{ height: '500px', width: '100%', borderRadius: '12px' }}
+                    >
+                        <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        {getMarkers()}
+                    </MapContainer>
+                )}
+            </div>
+
+            {/* Location Statistics Summary */}
+            <div className="location-stats-summary" style={{ marginTop: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    {Object.entries(getCurrentMetricData()).slice(0, 5).map(([location, value]) => (
+                        <div key={location} style={{
+                            padding: '12px 16px',
+                            backgroundColor: '#f9fafb',
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb'
+                        }}>
+                            <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>
+                                {location}
+                            </div>
+                            <div style={{ fontSize: '20px', fontWeight: 'bold', color: getMetricColor() }}>
+                                {value}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+                                {getMetricLabel()}
+                            </div>
+                        </div>
                     ))}
-                </MapContainer>
+                </div>
             </div>
         </div>
     );

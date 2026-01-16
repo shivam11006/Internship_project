@@ -153,16 +153,18 @@ function DashboardAdmin() {
       if (result.success && result.data) {
         setAnalyticsData(result.data);
 
-        // Update KPI stats with real analytics data
+        // Update KPI stats with real analytics data from all endpoints
+        const { overview, users, cases, matches, activity } = result.data;
+        
         setKpiStats(prev => ({
           ...prev,
-          totalUsers: result.data.overview?.totalUsers || 0,
-          totalLawyers: result.data.users?.totalLawyers || 0,
-          totalNgos: result.data.users?.totalNgos || 0,
-          totalCases: result.data.overview?.totalCases || 0,
-          totalMatches: result.data.overview?.totalMatches || 0,
-          activeAppointments: result.data.activity?.appointmentsThisMonth || 0,
-          resolvedCases: result.data.cases?.closedCases || 0
+          totalUsers: overview?.totalUsers || 0,
+          totalLawyers: users?.totalLawyers || 0,
+          totalNgos: users?.totalNgos || 0,
+          totalCases: overview?.totalCases || 0,
+          totalMatches: overview?.totalMatches || 0,
+          activeAppointments: activity?.appointmentsThisMonth || 0,
+          resolvedCases: cases?.closedCases || 0
         }));
       } else {
         console.error('Failed to fetch analytics:', result.error);
@@ -388,18 +390,30 @@ function DashboardAdmin() {
 
   // Get growth data from analytics or use fallback
   const getGrowthData = () => {
+    // Real data from API
     if (analyticsData?.users?.userGrowthTrend && analyticsData?.cases?.casesCreatedTrend && analyticsData?.matches?.matchesGeneratedTrend) {
-      const userTrend = analyticsData.users.userGrowthTrend;
-      const caseTrend = analyticsData.cases.casesCreatedTrend;
-      const matchTrend = analyticsData.matches.matchesGeneratedTrend;
+      const userTrend = analyticsData.users.userGrowthTrend || [];
+      const caseTrend = analyticsData.cases.casesCreatedTrend || [];
+      const matchTrend = analyticsData.matches.matchesGeneratedTrend || [];
 
-      // Use the last 6 data points from the trends
-      return userTrend.slice(-6).map((item, idx) => ({
-        name: `Month ${idx + 1}`,
-        users: item.count || 0,
-        cases: caseTrend[userTrend.length - 6 + idx]?.count || 0,
-        matches: matchTrend[userTrend.length - 6 + idx]?.count || 0,
-      }));
+      // Get the last 6 data points, ensuring they're properly aligned
+      const maxLen = Math.min(6, userTrend.length, caseTrend.length, matchTrend.length);
+      const startIdx = Math.max(0, userTrend.length - maxLen);
+
+      return userTrend.slice(startIdx, startIdx + maxLen).map((userItem, idx) => {
+        const caseItem = caseTrend[startIdx + idx];
+        const matchItem = matchTrend[startIdx + idx];
+        
+        // Extract timestamp and format as month/week label
+        const timestamp = userItem.timestamp ? new Date(userItem.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : `Period ${idx + 1}`;
+        
+        return {
+          name: timestamp,
+          users: userItem.count || 0,
+          cases: caseItem?.count || 0,
+          matches: matchItem?.count || 0,
+        };
+      });
     }
     // Fallback mock data
     return [
@@ -414,11 +428,12 @@ function DashboardAdmin() {
 
   // Get case categories from analytics or use fallback
   const getCategoryData = () => {
-    if (analyticsData?.cases?.casesByType) {
+    // Real data from API
+    if (analyticsData?.cases?.casesByType && Object.keys(analyticsData.cases.casesByType).length > 0) {
       return Object.entries(analyticsData.cases.casesByType).map(([name, value]) => ({
         name,
-        value
-      }));
+        value: typeof value === 'number' ? value : 0
+      })).sort((a, b) => b.value - a.value); // Sort by value descending
     }
     // Fallback mock data
     return [
@@ -439,14 +454,15 @@ function DashboardAdmin() {
 
   // Get role data from analytics or use fallback
   const getRoleData = () => {
-    if (analyticsData?.overview?.usersByRole) {
+    // Real data from API
+    if (analyticsData?.overview?.usersByRole && Object.keys(analyticsData.overview.usersByRole).length > 0) {
       const roles = analyticsData.overview.usersByRole;
       return [
-        { name: 'Citizens', value: roles.CITIZEN || 0 },
-        { name: 'Lawyers', value: roles.LAWYER || 0 },
-        { name: 'NGOs', value: roles.NGO || 0 },
-        { name: 'Admins', value: roles.ADMIN || 0 },
-      ];
+        { name: 'Citizens', value: roles.CITIZEN || roles.citizen || 0 },
+        { name: 'Lawyers', value: roles.LAWYER || roles.lawyer || 0 },
+        { name: 'NGOs', value: roles.NGO || roles.ngo || 0 },
+        { name: 'Admins', value: roles.ADMIN || roles.admin || 0 },
+      ].filter(item => item.value > 0); // Filter out empty values
     }
     // Fallback mock data
     return [
@@ -570,7 +586,7 @@ function DashboardAdmin() {
           </div>
           <div className="kpi-content">
             <h3 className="kpi-title">System Health</h3>
-            <p className="kpi-value">98.2%</p>
+            <p className="kpi-value">{analyticsData?.overview?.systemHealthScore ? `${analyticsData.overview.systemHealthScore.toFixed(1)}%` : '98.2%'}</p>
             <p className="kpi-subtitle">Platform uptime</p>
           </div>
         </div>
@@ -728,28 +744,28 @@ function DashboardAdmin() {
         <div className="quick-stat-card">
           <div className="stat-info">
             <span className="label">System Health</span>
-            <span className="value">98.2%</span>
+            <span className="value">{analyticsData?.overview?.systemHealthScore ? `${analyticsData.overview.systemHealthScore.toFixed(1)}%` : '98.2%'}</span>
           </div>
           <div className="stat-progress-bg">
-            <div className="stat-progress-fill" style={{ width: '98.2%', background: '#10b981' }}></div>
+            <div className="stat-progress-fill" style={{ width: `${analyticsData?.overview?.systemHealthScore || 98.2}%`, background: '#10b981' }}></div>
           </div>
         </div>
         <div className="quick-stat-card">
           <div className="stat-info">
             <span className="label">Verification Rate</span>
-            <span className="value">85.4%</span>
+            <span className="value">{analyticsData?.users?.approvedUsers && analyticsData?.users?.totalUsers ? `${((analyticsData.users.approvedUsers / analyticsData.users.totalUsers) * 100).toFixed(1)}%` : '85.4%'}</span>
           </div>
           <div className="stat-progress-bg">
-            <div className="stat-progress-fill" style={{ width: '85.4%', background: '#3b82f6' }}></div>
+            <div className="stat-progress-fill" style={{ width: analyticsData?.users?.approvedUsers && analyticsData?.users?.totalUsers ? `${(analyticsData.users.approvedUsers / analyticsData.users.totalUsers) * 100}%` : '85.4%', background: '#3b82f6' }}></div>
           </div>
         </div>
         <div className="quick-stat-card">
           <div className="stat-info">
             <span className="label">Avg Match Time</span>
-            <span className="value">2.4 Days</span>
+            <span className="value">{analyticsData?.matches?.averageTimeToAcceptance ? `${analyticsData.matches.averageTimeToAcceptance.toFixed(1)} Days` : '2.4 Days'}</span>
           </div>
           <div className="stat-progress-bg">
-            <div className="stat-progress-fill" style={{ width: '70%', background: '#8b5cf6' }}></div>
+            <div className="stat-progress-fill" style={{ width: analyticsData?.matches?.acceptanceRate ? `${Math.min(analyticsData.matches.acceptanceRate, 100)}%` : '70%', background: '#8b5cf6' }}></div>
           </div>
         </div>
       </div>
