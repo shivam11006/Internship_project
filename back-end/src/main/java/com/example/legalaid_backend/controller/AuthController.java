@@ -122,4 +122,67 @@ public class AuthController {
             MDC.clear();
         }
     }
+
+    /**
+     * FORGOT PASSWORD
+     * POST /api/auth/forgot-password
+     * Public endpoint
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        MDC.put("username", request.getEmail());
+        MDC.put("endpoint", "/api/auth/forgot-password");
+
+        try {
+            log.info("Forgot password request received for email: {}", request.getEmail());
+
+            authService.forgotPassword(request.getEmail());
+
+            log.info("Password reset email sent to: {}", request.getEmail());
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "If the email exists, a password reset link has been sent.");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Forgot password failed for email {}: {}", request.getEmail(), e.getMessage());
+            // Always return success to prevent email enumeration
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "If the email exists, a password reset link has been sent.");
+            return ResponseEntity.ok(response);
+        } finally {
+            MDC.clear();
+        }
+    }
+
+    /**
+     * RESET PASSWORD
+     * POST /api/auth/reset-password
+     * Public endpoint
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        MDC.put("username", "password-reset");
+        MDC.put("endpoint", "/api/auth/reset-password");
+
+        try {
+            log.info("Reset password request received with token");
+
+            authService.resetPassword(request.getToken(), request.getNewPassword());
+
+            log.info("Password reset successful");
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Password has been reset successfully.");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Reset password failed: {}", e.getMessage());
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        } finally {
+            MDC.clear();
+        }
+    }
 }

@@ -16,6 +16,7 @@ function DashboardAdmin() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [analyticsTab, setAnalyticsTab] = useState('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pendingUsers, setPendingUsers] = useState([]);
   const [approvedUsers, setApprovedUsers] = useState([]);
@@ -69,6 +70,11 @@ function DashboardAdmin() {
   // Analytics Data
   const [analyticsData, setAnalyticsData] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [overviewData, setOverviewData] = useState(null);
+  const [usersData, setUsersData] = useState(null);
+  const [casesData, setCasesData] = useState(null);
+  const [matchesData, setMatchesData] = useState(null);
+  const [activityData, setActivityData] = useState(null);
 
   useEffect(() => {
     // Initial fetch
@@ -101,6 +107,38 @@ function DashboardAdmin() {
       fetchCases();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      fetchAnalyticsTabData();
+    }
+  }, [activeTab, analyticsTab]);
+
+  const fetchAnalyticsTabData = async () => {
+    setAnalyticsLoading(true);
+    try {
+      if (analyticsTab === 'overview' && !overviewData) {
+        const response = await analyticsService.getOverview();
+        setOverviewData(response);
+      } else if (analyticsTab === 'users' && !usersData) {
+        const response = await analyticsService.getUsers();
+        setUsersData(response);
+      } else if (analyticsTab === 'cases' && !casesData) {
+        const response = await analyticsService.getCases();
+        setCasesData(response);
+      } else if (analyticsTab === 'matches' && !matchesData) {
+        const response = await analyticsService.getMatches();
+        setMatchesData(response);
+      } else if (analyticsTab === 'activity' && !activityData) {
+        const response = await analyticsService.getActivity();
+        setActivityData(response);
+      }
+    } catch (error) {
+      console.error('Error fetching analytics data:', error);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
 
   const fetchCases = async () => {
     setCasesLoading(true);
@@ -843,6 +881,682 @@ function DashboardAdmin() {
     </div>
   );
 
+  const renderAnalytics = () => {
+    return (
+      <div className="analytics-container">
+        <div className="analytics-header">
+          <h2 className="analytics-title">Impact Analytics</h2>
+          <p className="analytics-subtitle">Platform performance metrics and insights</p>
+        </div>
+
+        {/* Analytics Tabs */}
+        <div className="analytics-tabs">
+          <button
+            className={`analytics-tab ${analyticsTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setAnalyticsTab('overview')}
+          >
+            Overview
+          </button>
+          <button
+            className={`analytics-tab ${analyticsTab === 'users' ? 'active' : ''}`}
+            onClick={() => setAnalyticsTab('users')}
+          >
+            Users
+          </button>
+          <button
+            className={`analytics-tab ${analyticsTab === 'cases' ? 'active' : ''}`}
+            onClick={() => setAnalyticsTab('cases')}
+          >
+            Cases
+          </button>
+          <button
+            className={`analytics-tab ${analyticsTab === 'matches' ? 'active' : ''}`}
+            onClick={() => setAnalyticsTab('matches')}
+          >
+            Matches
+          </button>
+          <button
+            className={`analytics-tab ${analyticsTab === 'activity' ? 'active' : ''}`}
+            onClick={() => setAnalyticsTab('activity')}
+          >
+            Activity
+          </button>
+        </div>
+
+        {/* Overview Tab */}
+        {analyticsTab === 'overview' && (
+          <>
+            {/* Overview KPI Cards */}
+            <div className="kpi-cards-grid" style={{ marginTop: '24px' }}>
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#dbeafe' }}>
+                  <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Total Users</p>
+                  <p className="kpi-value">{overviewData?.totalUsers || 0}</p>
+                  <p className="kpi-subtitle">{overviewData?.newUsersThisMonth || 0} new this month</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fef3c7' }}>
+                  <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Total Cases</p>
+                  <p className="kpi-value">{overviewData?.totalCases || 0}</p>
+                  <p className="kpi-subtitle">{overviewData?.newCasesThisMonth || 0} new this month</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
+                  <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Total Matches</p>
+                  <p className="kpi-value">{overviewData?.totalMatches || 0}</p>
+                  <p className="kpi-subtitle">{overviewData?.newMatchesThisMonth || 0} new this month</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#ede9fe' }}>
+                  <svg width="24" height="24" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Total Appointments</p>
+                  <p className="kpi-value">{overviewData?.totalAppointments || 0}</p>
+                  <p className="kpi-subtitle">Active bookings</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="charts-grid" style={{ marginTop: '24px' }}>
+            {/* Users by Role */}
+            <div className="analytics-chart-card">
+              <h3 className="chart-title">Users by Role</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={[
+                  { name: 'LAWYER', value: overviewData?.usersByRole?.LAWYER || 0 },
+                  { name: 'NGO', value: overviewData?.usersByRole?.NGO || 0 },
+                  { name: 'CITIZEN', value: overviewData?.usersByRole?.CITIZEN || 0 }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="value" fill="#3b82f6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Users by Status */}
+            <div className="analytics-chart-card">
+              <h3 className="chart-title">Users by Status</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={[
+                  { name: 'PENDING', value: overviewData?.usersByApprovalStatus?.PENDING || 0 },
+                  { name: 'APPROVED', value: overviewData?.usersByApprovalStatus?.APPROVED || 0 },
+                  { name: 'REJECTED', value: overviewData?.usersByApprovalStatus?.REJECTED || 0 }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="value" fill="#10b981" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Cases by Status */}
+            <div className="analytics-chart-card">
+              <h3 className="chart-title">Cases by Status</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={[
+                  { name: 'OPEN', value: overviewData?.casesByStatus?.OPEN || 0 },
+                  { name: 'ASSIGNED', value: overviewData?.casesByStatus?.ASSIGNED || 0 },
+                  { name: 'CLOSED', value: overviewData?.casesByStatus?.CLOSED || 0 }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="value" fill="#f59e0b" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Cases by Priority */}
+            <div className="analytics-chart-card">
+              <h3 className="chart-title">Cases by Priority</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={[
+                  { name: 'HIGH', value: overviewData?.casesByPriority?.HIGH || 0 },
+                  { name: 'MEDIUM', value: overviewData?.casesByPriority?.MEDIUM || 0 },
+                  { name: 'LOW', value: overviewData?.casesByPriority?.LOW || 0 }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="value" fill="#8b5cf6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          </>
+        )}
+
+        {/* Users Tab */}
+        {analyticsTab === 'users' && (
+          <>
+            {/* Users KPI Cards */}
+            <div className="kpi-cards-grid" style={{ marginTop: '24px' }}>
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#dbeafe' }}>
+                  <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Total Lawyers</p>
+                  <p className="kpi-value">{usersData?.totalLawyers || 0}</p>
+                  <p className="kpi-subtitle">Registered lawyers</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
+                  <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Total NGOs</p>
+                  <p className="kpi-value">{usersData?.totalNgos || 0}</p>
+                  <p className="kpi-subtitle">Registered organizations</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fef3c7' }}>
+                  <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Total Citizens</p>
+                  <p className="kpi-value">{usersData?.totalCitizens || 0}</p>
+                  <p className="kpi-subtitle">Seeking help</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fee2e2' }}>
+                  <svg width="24" height="24" fill="none" stroke="#ef4444" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Pending Approvals</p>
+                  <p className="kpi-value">{usersData?.pendingApprovals || 0}</p>
+                  <p className="kpi-subtitle">Awaiting review</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#e0e7ff' }}>
+                  <svg width="24" height="24" fill="none" stroke="#6366f1" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Active Users Today</p>
+                  <p className="kpi-value">{usersData?.activeUsersToday || 0}</p>
+                  <p className="kpi-subtitle">{usersData?.activeUsersThisWeek || 0} this week</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#ede9fe' }}>
+                  <svg width="24" height="24" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Retention Rate</p>
+                  <p className="kpi-value">{usersData?.userRetentionRate?.toFixed(1) || 0}%</p>
+                  <p className="kpi-subtitle">User engagement</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fce7f3' }}>
+                  <svg width="24" height="24" fill="none" stroke="#ec4899" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Approval Rate</p>
+                  <p className="kpi-value">{usersData?.approvalRate?.toFixed(1) || 0}%</p>
+                  <p className="kpi-subtitle">Avg {usersData?.averageApprovalTime || 0} days</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="charts-grid" style={{ marginTop: '24px' }}>
+            {/* Users by Role */}
+            <div className="analytics-chart-card">
+              <h3 className="chart-title">Users by Role</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={[
+                  { name: 'LAWYER', value: overviewData?.usersByRole?.LAWYER || 0 },
+                  { name: 'NGO', value: overviewData?.usersByRole?.NGO || 0 },
+                  { name: 'CITIZEN', value: overviewData?.usersByRole?.CITIZEN || 0 }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="value" fill="#3b82f6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Users by Status */}
+            <div className="analytics-chart-card">
+              <h3 className="chart-title">Users by Status</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={[
+                  { name: 'PENDING', value: overviewData?.usersByApprovalStatus?.PENDING || 0 },
+                  { name: 'APPROVED', value: overviewData?.usersByApprovalStatus?.APPROVED || 0 },
+                  { name: 'REJECTED', value: overviewData?.usersByApprovalStatus?.REJECTED || 0 }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="value" fill="#10b981" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          </>
+        )}
+
+        {/* Cases Tab */}
+        {analyticsTab === 'cases' && (
+          <>
+            {/* Cases KPI Cards */}
+            <div className="kpi-cards-grid" style={{ marginTop: '24px' }}>
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#dbeafe' }}>
+                  <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Open Cases</p>
+                  <p className="kpi-value">{casesData?.openCases || 0}</p>
+                  <p className="kpi-subtitle">Awaiting assignment</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fef3c7' }}>
+                  <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Assigned Cases</p>
+                  <p className="kpi-value">{casesData?.assignedCases || 0}</p>
+                  <p className="kpi-subtitle">In progress</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
+                  <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Closed Cases</p>
+                  <p className="kpi-value">{casesData?.closedCases || 0}</p>
+                  <p className="kpi-subtitle">Resolved</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fee2e2' }}>
+                  <svg width="24" height="24" fill="none" stroke="#ef4444" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">High Priority</p>
+                  <p className="kpi-value">{casesData?.casesByPriority?.HIGH || 0}</p>
+                  <p className="kpi-subtitle">Urgent attention needed</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#e0e7ff' }}>
+                  <svg width="24" height="24" fill="none" stroke="#6366f1" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Avg Case Age</p>
+                  <p className="kpi-value">{casesData?.averageCaseAge || 0}</p>
+                  <p className="kpi-subtitle">Days open</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#ede9fe' }}>
+                  <svg width="24" height="24" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Resolution Rate</p>
+                  <p className="kpi-value">{casesData?.caseResolutionRate?.toFixed(1) || 0}%</p>
+                  <p className="kpi-subtitle">{casesData?.averageResolutionTime || 0} days avg</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="charts-grid" style={{ marginTop: '24px' }}>
+            {/* Cases by Status */}
+            <div className="analytics-chart-card">
+              <h3 className="chart-title">Cases by Status</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={[
+                  { name: 'OPEN', value: overviewData?.casesByStatus?.OPEN || 0 },
+                  { name: 'ASSIGNED', value: overviewData?.casesByStatus?.ASSIGNED || 0 },
+                  { name: 'CLOSED', value: overviewData?.casesByStatus?.CLOSED || 0 }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="value" fill="#f59e0b" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Cases by Priority */}
+            <div className="analytics-chart-card">
+              <h3 className="chart-title">Cases by Priority</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={[
+                  { name: 'HIGH', value: overviewData?.casesByPriority?.HIGH || 0 },
+                  { name: 'MEDIUM', value: overviewData?.casesByPriority?.MEDIUM || 0 },
+                  { name: 'LOW', value: overviewData?.casesByPriority?.LOW || 0 }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="value" fill="#8b5cf6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          </>
+        )}
+
+        {/* Matches Tab */}
+        {analyticsTab === 'matches' && (
+          <>
+            {/* Matches KPI Cards */}
+            <div className="kpi-cards-grid" style={{ marginTop: '24px' }}>
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#dbeafe' }}>
+                  <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Pending Matches</p>
+                  <p className="kpi-value">{matchesData?.pendingMatches || 0}</p>
+                  <p className="kpi-subtitle">Awaiting decision</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
+                  <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Accepted Matches</p>
+                  <p className="kpi-value">{matchesData?.acceptedMatches || 0}</p>
+                  <p className="kpi-subtitle">{matchesData?.acceptanceRate?.toFixed(1) || 0}% rate</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fee2e2' }}>
+                  <svg width="24" height="24" fill="none" stroke="#ef4444" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Rejected Matches</p>
+                  <p className="kpi-value">{matchesData?.rejectedMatches || 0}</p>
+                  <p className="kpi-subtitle">{matchesData?.rejectionRate?.toFixed(1) || 0}% rate</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fef3c7' }}>
+                  <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Avg Match Score</p>
+                  <p className="kpi-value">{matchesData?.averageMatchScore?.toFixed(1) || 0}%</p>
+                  <p className="kpi-subtitle">Quality metric</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#e0e7ff' }}>
+                  <svg width="24" height="24" fill="none" stroke="#6366f1" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">High Quality</p>
+                  <p className="kpi-value">{matchesData?.highQualityMatchesPercentage?.toFixed(1) || 0}%</p>
+                  <p className="kpi-subtitle">&gt;70% score</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#ede9fe' }}>
+                  <svg width="24" height="24" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Avg Response Time</p>
+                  <p className="kpi-value">{matchesData?.averageTimeToAcceptance || 0}</p>
+                  <p className="kpi-subtitle">Days to decision</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fce7f3' }}>
+                  <svg width="24" height="24" fill="none" stroke="#ec4899" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Match Ratio</p>
+                  <p className="kpi-value">{matchesData?.matchRatioPerCase?.toFixed(1) || 0}</p>
+                  <p className="kpi-subtitle">Matches per case</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="charts-grid" style={{ marginTop: '24px' }}>
+            <div className="analytics-chart-card">
+              <h3 className="chart-title">Match Statistics</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={[
+                  { name: 'Total Matches', value: overviewData?.totalMatches || 0 },
+                  { name: 'Successful', value: overviewData?.successfulMatches || 0 },
+                  { name: 'Pending', value: overviewData?.pendingMatches || 0 }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="value" fill="#ec4899" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          </>
+        )}
+
+        {/* Activity Tab */}
+        {analyticsTab === 'activity' && (
+          <>
+            {/* Activity KPI Cards */}
+            <div className="kpi-cards-grid" style={{ marginTop: '24px' }}>
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#dbeafe' }}>
+                  <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Appointments Today</p>
+                  <p className="kpi-value">{activityData?.appointmentsToday || 0}</p>
+                  <p className="kpi-subtitle">{activityData?.appointmentsThisWeek || 0} this week</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
+                  <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Completed</p>
+                  <p className="kpi-value">{activityData?.completedAppointments || 0}</p>
+                  <p className="kpi-subtitle">Total appointments</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fef3c7' }}>
+                  <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Chat Messages</p>
+                  <p className="kpi-value">{activityData?.messagesThisMonth || 0}</p>
+                  <p className="kpi-subtitle">This month</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#ede9fe' }}>
+                  <svg width="24" height="24" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Active Conversations</p>
+                  <p className="kpi-value">{activityData?.activeConversations || 0}</p>
+                  <p className="kpi-subtitle">Ongoing chats</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#e0e7ff' }}>
+                  <svg width="24" height="24" fill="none" stroke="#6366f1" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Notifications Sent</p>
+                  <p className="kpi-value">{activityData?.notificationsThisMonth || 0}</p>
+                  <p className="kpi-subtitle">This month</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fee2e2' }}>
+                  <svg width="24" height="24" fill="none" stroke="#ef4444" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Avg Response Time</p>
+                  <p className="kpi-value">{activityData?.averageResponseTime || 0}</p>
+                  <p className="kpi-subtitle">Minutes</p>
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-icon-wrapper" style={{ background: '#fce7f3' }}>
+                  <svg width="24" height="24" fill="none" stroke="#ec4899" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <div className="kpi-content">
+                  <p className="kpi-title">Lawyer Engagement</p>
+                  <p className="kpi-value">{activityData?.lawyerEngagementRate?.toFixed(1) || 0}%</p>
+                  <p className="kpi-subtitle">Activity rate</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="charts-grid" style={{ marginTop: '24px' }}>
+            <div className="analytics-chart-card">
+              <h3 className="chart-title">Platform Activity</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={[
+                  { name: 'New Users', value: overviewData?.newUsers || 0 },
+                  { name: 'New Cases', value: overviewData?.newCases || 0 },
+                  { name: 'Active Sessions', value: overviewData?.activeSessions || 0 }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="value" fill="#06b6d4" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="admin-dashboard-layout">
       {/* Mobile Menu Button */}
@@ -916,6 +1630,16 @@ function DashboardAdmin() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
             <span>Case Management</span>
+          </button>
+
+          <button
+            className={`admin-nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span>Impact Analytics</span>
           </button>
 
         </nav>
@@ -1813,15 +2537,7 @@ function DashboardAdmin() {
               )}
             </div>
           </div>
-        ) : (
-          <div className="empty-section">
-            <svg width="80" height="80" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
-            <h3>Coming Soon</h3>
-            <p>This feature is under development</p>
-          </div>
-        )}
+        ) : null}
 
         {showProfileEdit && (
           <div className="modal-overlay" onClick={() => setShowProfileEdit(false)}>
@@ -2172,6 +2888,7 @@ function DashboardAdmin() {
             </div>
           </div>
         )}
+        {activeTab === 'analytics' && renderAnalytics()}
       </div>
     </div>
   );

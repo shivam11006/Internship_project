@@ -3,9 +3,11 @@ package com.example.legalaid_backend.service;
 import com.example.legalaid_backend.DTO.*;
 import com.example.legalaid_backend.entity.LawyerProfile;
 import com.example.legalaid_backend.entity.NgoProfile;
+import com.example.legalaid_backend.entity.PasswordResetToken;
 import com.example.legalaid_backend.entity.User;
 import com.example.legalaid_backend.repository.LawyerProfileRepository;
 import com.example.legalaid_backend.repository.NgoProfileRepository;
+import com.example.legalaid_backend.repository.PasswordResetTokenRepository;
 import com.example.legalaid_backend.repository.UserRepository;
 import com.example.legalaid_backend.security.JwtTokenProvider;
 import com.example.legalaid_backend.util.ApprovalStatus;
@@ -20,6 +22,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -29,6 +34,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final LawyerProfileRepository lawyerProfileRepository;
     private final NgoProfileRepository ngoProfileRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
@@ -242,5 +248,72 @@ public class AuthService {
                 .createdAt(user.getCreatedAt())
                 .build();
     }
+
+    // ============================
+    //    PASSWORD RESET
+    // ============================
+    @Transactional
+    public void forgotPassword(String email) {
+        logger.info("Processing forgot password request for email: {}", email);
+        
+        User user = userRepository.findByEmail(email).orElse(null);
+        
+        if (user == null) {
+            logger.warn("User not found with email: {}", email);
+            // Don't reveal if email exists or not for security
+            return;
+        }
+        
+        // Delete any existing tokens for this user
+        passwordResetTokenRepository.deleteByUser(user);
+        
+        // Generate a unique token
+        String token = UUID.randomUUID().toString();
+        
+        // Create token entity with 1 hour expiry
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setToken(token);
+        resetToken.setUser(user);
+        resetToken.setExpiryDate(LocalDateTime.now().plusHours(1));
+        resetToken.setUsed(false);
+        
+        passwordResetTokenRepository.save(resetToken);
+        
+        logger.info("Password reset token generated for user: {}", email);
+        
+        // TODO: Send email with reset link containing token
+        // For now, just log it (in production, use email service)
+        String resetLink = "http://localhost:3002/reset-password?token=" + token;
+        logger.info("Password reset link (send via email): {}", resetLink);
+    }
+    
+    @Transactional
+    public void resetPassword(String token, String newPassword) {
+        logger.info("Processing password reset with token");
+        
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new RuntimeException("Invalid or expired reset token"));
+        
+        if (resetToken.isUsed()) {
+            logger.warn("Reset token already used");
+            throw new RuntimeException("This reset link has already been used");
+        }
+        
+        if (resetToken.isExpired()) {
+            logger.warn("Reset token expired");
+            throw new RuntimeException("This reset link has expired. Please request a new one");
+        }
+        
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        
+        // Mark token as used
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+        
+        logger.info("Password reset successful for user: {}", user.getEmail());
+    }
 }
+
 

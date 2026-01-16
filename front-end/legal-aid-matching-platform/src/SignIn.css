@@ -148,14 +148,20 @@
   margin-top: -8px;
 }
 
-.forgot-password a {
+.forgot-password a,
+.forgot-password .forgot-link {
   font-size: 14px;
   color: #2e5a8a;
   text-decoration: none;
   font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
 }
 
-.forgot-password a:hover {
+.forgot-password a:hover,
+.forgot-password .forgot-link:hover {
   text-decoration: underline;
 }
 

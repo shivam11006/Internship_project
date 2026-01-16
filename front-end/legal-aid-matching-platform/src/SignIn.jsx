@@ -148,7 +148,7 @@ function SignIn() {
           </div>
 
           <div className="forgot-password">
-            <a href="#forgot">Forgot your password?</a>
+            <button type="button" onClick={() => navigate('/forgot-password')} className="forgot-link">Forgot your password?</button>
           </div>
 
           <button type="submit" className="signin-btn" disabled={loading}>
