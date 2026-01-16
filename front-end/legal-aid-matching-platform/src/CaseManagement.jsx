@@ -398,32 +398,34 @@ const CaseManagement = () => {
                   </svg>
                   <span>Submitted {formatDateTime(caseItem.createdAt)}</span>
                 </div>
-                <button
-                  className="btn-view-matches"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleViewMatches(caseItem.id);
-                  }}
-                  disabled={generatingMatches}
-                  style={{
-                    width: '100%',
-                    marginTop: '12px',
-                    padding: '10px',
-                    background: generatingMatches
-                      ? '#ccc'
-                      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: '600',
-                    cursor: generatingMatches ? 'not-allowed' : 'pointer',
-                    transition: 'transform 0.2s'
-                  }}
-                  onMouseOver={(e) => !generatingMatches && (e.target.style.transform = 'translateY(-2px)')}
-                  onMouseOut={(e) => !generatingMatches && (e.target.style.transform = 'translateY(0)')}
-                >
-                  {generatingMatches ? '⏳ Generating Matches...' : 'View Matches Lawyer / NGO'}
-                </button>
+                {caseItem.status?.toUpperCase() !== 'RESOLVED' && caseItem.status?.toUpperCase() !== 'ACCEPTED' && (
+                  <button
+                    className="btn-view-matches"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewMatches(caseItem.id);
+                    }}
+                    disabled={generatingMatches}
+                    style={{
+                      width: '100%',
+                      marginTop: '12px',
+                      padding: '10px',
+                      background: generatingMatches
+                        ? '#ccc'
+                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: '600',
+                      cursor: generatingMatches ? 'not-allowed' : 'pointer',
+                      transition: 'transform 0.2s'
+                    }}
+                    onMouseOver={(e) => !generatingMatches && (e.target.style.transform = 'translateY(-2px)')}
+                    onMouseOut={(e) => !generatingMatches && (e.target.style.transform = 'translateY(0)')}
+                  >
+                    {generatingMatches ? '⏳ Generating Matches...' : 'View Matches Lawyer / NGO'}
+                  </button>
+                )}
               </div>
             </div>
           ))}

@@ -149,6 +149,14 @@ function MyAppointments() {
     setShowDetailModal(true);
   };
 
+  // Helper function to check if appointment is in the past
+  const isAppointmentPast = (appointment) => {
+    if (!appointment || !appointment.scheduledDateTime) return false;
+    const appointmentDate = new Date(appointment.scheduledDateTime);
+    const now = new Date();
+    return appointmentDate < now;
+  };
+
   const getStatusBadgeClass = (status) => {
     const statusMap = {
       'CONFIRMED': 'status-confirmed',
@@ -371,8 +379,9 @@ function MyAppointments() {
                     </button>
                   )}
 
-                  {/* Reschedule Button */}
-                  {(appointment.status === 'CONFIRMED' || 
+                  {/* Reschedule Button - Only show for upcoming appointments */}
+                  {!isAppointmentPast(appointment) && 
+                   (appointment.status === 'CONFIRMED' || 
                     appointment.status === 'PENDING_CITIZEN_APPROVAL' ||
                     appointment.status === 'PENDING_PROVIDER_APPROVAL') && (
                     <button 
@@ -384,8 +393,9 @@ function MyAppointments() {
                     </button>
                   )}
 
-                  {/* Cancel Button */}
-                  {(appointment.status === 'CONFIRMED' || 
+                  {/* Cancel Button - Only show for upcoming appointments */}
+                  {!isAppointmentPast(appointment) && 
+                   (appointment.status === 'CONFIRMED' || 
                     appointment.status === 'PENDING_CITIZEN_APPROVAL' ||
                     appointment.status === 'PENDING_PROVIDER_APPROVAL') && (
                     <button 
@@ -544,7 +554,9 @@ function MyAppointments() {
                 </button>
               )}
               
-              {(selectedAppointment.status === 'CONFIRMED' || 
+              {/* Only show reschedule and cancel for upcoming appointments */}
+              {!isAppointmentPast(selectedAppointment) && 
+               (selectedAppointment.status === 'CONFIRMED' || 
                 selectedAppointment.status === 'PENDING_CITIZEN_APPROVAL' ||
                 selectedAppointment.status === 'PENDING_PROVIDER_APPROVAL') && (
                 <>

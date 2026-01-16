@@ -54,6 +54,35 @@ public class ProfileController {
     }
 
     /**
+     * GET USER PROFILE BY ID
+     * GET /api/profile/{userId}
+     * Allows authenticated users to view other users' profiles (for chat, matches, etc.)
+     */
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserResponse> getUserProfile(@PathVariable Long userId, Authentication auth) {
+        MDC.put("username", auth.getName());
+        MDC.put("endpoint", "/api/profile/" + userId);
+
+        try {
+            log.info("User {} requested profile for user ID: {}", auth.getName(), userId);
+
+            UserResponse profile = profileService.getUserProfileById(userId);
+
+            log.debug("Profile retrieved successfully for user ID: {}, role: {}",
+                    userId,
+                    profile.getRole());
+
+            return ResponseEntity.ok(profile);
+
+        } catch (Exception e) {
+            log.error("Failed to retrieve profile for user ID {}: {}", userId, e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
+    }
+
+    /**
      * UPDATE CURRENT USER'S PROFILE
      * PUT /api/profile/update
      */

@@ -870,6 +870,47 @@ function DashboardCitizen() {
     setSelectedMatchProfile(null);
   };
 
+  const handleChatAvatarClick = async (e, conversation) => {
+    e.stopPropagation(); // Prevent selecting the conversation
+    
+    if (!conversation.otherUserId) {
+      console.error('No user ID available for this conversation');
+      return;
+    }
+
+    try {
+      const result = await authService.getUserById(conversation.otherUserId);
+      if (result.success && result.data) {
+        const userData = result.data;
+        
+        // Transform user data to match profile modal format
+        const profileData = {
+          id: userData.id,
+          name: userData.username || conversation.otherUserName,
+          role: userData.role || conversation.otherUserRole,
+          email: userData.email || '',
+          location: userData.location || '',
+          phone: userData.phone || '',
+          rating: userData.rating || 'N/A',
+          avatar: userData.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(conversation.otherUserName || 'User')}&background=random`,
+          practiceAreas: userData.specialization ? [userData.specialization] : (userData.focusArea ? [userData.focusArea] : []),
+          availability: userData.availability || 'Contact for availability',
+          matchPercentage: 85, // Default value
+          website: userData.website || '',
+          caseHistory: userData.bio || userData.description || 'No additional information available',
+          languages: userData.languages || []
+        };
+
+        setSelectedMatchProfile(profileData);
+        setShowMatchProfileModal(true);
+      } else {
+        console.error('Failed to fetch user details:', result.error);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
   const handleOpenScheduleModal = () => {
     // Reset form when opening modal
     const today = new Date();
@@ -1469,7 +1510,12 @@ function DashboardCitizen() {
                         className={`conversation-item ${activeChat === convo.matchId ? 'active' : ''}`}
                         onClick={() => handleSelectConversation(convo.matchId)}
                       >
-                        <div className="convo-avatar">
+                        <div 
+                          className="convo-avatar" 
+                          onClick={(e) => handleChatAvatarClick(e, convo)}
+                          style={{ cursor: 'pointer' }}
+                          title="View profile"
+                        >
                           <div className="convo-avatar-inner">
                             {convo.otherUserName?.charAt(0)?.toUpperCase() || '?'}
                           </div>
@@ -1522,7 +1568,12 @@ function DashboardCitizen() {
                     )}
                   </div>
                   <div className="chat-header-actions">
-                    <button className="btn-header-action btn-view-profile">
+                    <button 
+                      className="btn-header-action btn-view-profile"
+                      onClick={(e) => currentContact && handleChatAvatarClick(e, currentContact)}
+                      disabled={!currentContact}
+                      style={{ opacity: !currentContact ? 0.5 : 1, cursor: !currentContact ? 'not-allowed' : 'pointer' }}
+                    >
                       <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>

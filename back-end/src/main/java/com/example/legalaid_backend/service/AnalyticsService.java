@@ -449,6 +449,12 @@ public class AnalyticsService {
         // Appointment activity
         List<Appointment> allAppointments = appointmentRepository.findAll();
         long totalAppointments = allAppointments.size();
+        
+        LocalDateTime now = LocalDateTime.now();
+        long upcomingAppointments = allAppointments.stream()
+                .filter(a -> a.getScheduledDateTime() != null && a.getScheduledDateTime().isAfter(now))
+                .count();
+                
         long appointmentsThisMonth = allAppointments.stream()
                 .filter(a -> a.getScheduledDateTime() != null && a.getScheduledDateTime().isAfter(oneMonthAgo))
                 .count();
@@ -527,6 +533,7 @@ public class AnalyticsService {
 
         return AnalyticsActivityDTO.builder()
                 .totalAppointments(totalAppointments)
+                .upcomingAppointments(upcomingAppointments)
                 .appointmentsThisMonth(appointmentsThisMonth)
                 .appointmentsThisWeek(appointmentsThisWeek)
                 .appointmentsToday(appointmentsToday)

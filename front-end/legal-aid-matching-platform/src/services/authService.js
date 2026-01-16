@@ -348,6 +348,20 @@ const authService = {
       throw error;
     }
   },
+
+  // Get user details by ID
+  getUserById: async (userId) => {
+    try {
+      const response = await apiClient.get(`/profile/${userId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Get user by ID error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch user details',
+      };
+    }
+  },
 };
 
 export default authService;

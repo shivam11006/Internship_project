@@ -200,8 +200,8 @@ function DashboardAdmin() {
           totalLawyers: users?.totalLawyers || 0,
           totalNgos: users?.totalNgos || 0,
           totalCases: overview?.totalCases || 0,
-          totalMatches: overview?.totalMatches || 0,
-          activeAppointments: activity?.appointmentsThisMonth || 0,
+          totalMatches: matches?.acceptedMatches || 0,  // Only count accepted matches
+          activeAppointments: activity?.upcomingAppointments || 0,  // Only count upcoming appointments
           resolvedCases: cases?.closedCases || 0
         }));
       } else {

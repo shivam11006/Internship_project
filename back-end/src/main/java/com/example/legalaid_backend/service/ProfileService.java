@@ -79,6 +79,44 @@ public class ProfileService {
     }
 
     // ============================
+    // GET USER PROFILE BY ID
+    // ============================
+    public UserResponse getUserProfileById(Long userId) {
+        logger.info("Fetching profile for user ID: {}", userId);
+
+        User user = userRepository.findByIdWithProfiles(userId)
+                .orElseThrow(() -> {
+                    logger.error("User not found for ID: {}", userId);
+                    return new RuntimeException("User not found with ID: " + userId);
+                });
+
+        logger.info("Building profile response for user ID {}", user.getId());
+
+        Object profile = null;
+
+        if (user.getRole() == Role.LAWYER && user.getLawyerProfile() != null) {
+            profile = user.getLawyerProfile();
+            logger.info("User {} is a LAWYER. Returning lawyer profile.", user.getEmail());
+        }
+        else if (user.getRole() == Role.NGO && user.getNgoProfile() != null) {
+            profile = user.getNgoProfile();
+            logger.info("User {} is an NGO. Returning NGO profile.", user.getEmail());
+        }
+
+        return UserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .location(user.getLocation())
+                .createdAt(user.getCreatedAt())
+                .profile(profile)
+                .approvalStatus(user.getApprovalStatus())
+                .enabled(user.isEnabled())
+                .build();
+    }
+
+    // ============================
     // UPDATE PROFILE
     // ============================
     @Transactional

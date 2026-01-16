@@ -15,6 +15,7 @@ import java.util.Map;
 public class AnalyticsActivityDTO {
     // Overall Activity
     private Long totalAppointments;
+    private Long upcomingAppointments; // Appointments scheduled in the future
     private Long appointmentsThisMonth;
     private Long appointmentsThisWeek;
     private Long appointmentsToday;
