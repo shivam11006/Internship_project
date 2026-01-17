@@ -486,7 +486,7 @@ function DashboardLawyer() {
 
   const handleChatAvatarClick = async (e, conversation) => {
     e.stopPropagation(); // Prevent selecting the conversation
-    
+
     if (!conversation.otherUserId) {
       console.error('No user ID available for this conversation');
       return;
@@ -496,7 +496,7 @@ function DashboardLawyer() {
       const result = await authService.getUserById(conversation.otherUserId);
       if (result.success && result.data) {
         const userData = result.data;
-        
+
         // Transform user data to match profile modal format
         const profileData = {
           id: userData.id,
@@ -837,21 +837,11 @@ function DashboardLawyer() {
 
   return (
     <div className="dashboard-container">
-      {/* Mobile Menu Button */}
-      <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-
       {/* Mobile Overlay */}
       <div className={`mobile-overlay ${mobileMenuOpen ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}></div>
 
       <div className={`dashboard-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-        <div className="dashboard-logo">
-          <div className="logo-icon">⚖️</div>
-          <span className="logo-text">LegalMatch Pro</span>
-        </div>
+
 
         <nav className="dashboard-nav">
           <button
@@ -898,13 +888,25 @@ function DashboardLawyer() {
 
       <div className="dashboard-main">
         <div className="dashboard-header">
-          <h1 className="dashboard-title">
-            {activeTab === 'overview' && 'Dashboard Overview'}
-            {activeTab === 'profile' && 'Lawyer Dashboard'}
-            {activeTab === 'secure-chat' && 'Secure Chat'}
-            {activeTab === 'assigned-cases' && 'Assigned Cases'}
-            {activeTab === 'my-appointments' && 'My Appointments'}
-          </h1>
+          <div className="header-left">
+            <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="dashboard-logo">
+              <div className="logo-icon">⚖️</div>
+              <span className="logo-text">LegalMatch Pro</span>
+            </div>
+            <div className="header-divider"></div>
+            <h1 className="dashboard-title">
+              {activeTab === 'overview' && 'Dashboard Overview'}
+              {activeTab === 'profile' && 'Lawyer Dashboard'}
+              {activeTab === 'secure-chat' && 'Secure Chat'}
+              {activeTab === 'assigned-cases' && 'Assigned Cases'}
+              {activeTab === 'my-appointments' && 'My Appointments'}
+            </h1>
+          </div>
           <div className="header-right">
             {/* Notification Panel */}
             <NotificationPanel />
@@ -1294,8 +1296,8 @@ function DashboardLawyer() {
                         className={`conversation-item ${activeChat === convo.matchId ? 'active' : ''}`}
                         onClick={() => handleSelectConversation(convo.matchId)}
                       >
-                        <div 
-                          className="convo-avatar" 
+                        <div
+                          className="convo-avatar"
                           onClick={(e) => handleChatAvatarClick(e, convo)}
                           style={{ cursor: 'pointer' }}
                           title="View profile"
@@ -1352,7 +1354,7 @@ function DashboardLawyer() {
                     )}
                   </div>
                   <div className="chat-header-actions">
-                    <button 
+                    <button
                       className="btn-header-action btn-view-profile"
                       onClick={(e) => currentContact && handleChatAvatarClick(e, currentContact)}
                       disabled={!currentContact}

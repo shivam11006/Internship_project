@@ -315,42 +315,6 @@
   background: #9ca3af;
 }
 
-/* Responsive Design */
-@media (max-width: 640px) {
-  .notification-dropdown {
-    position: fixed;
-    top: auto;
-    bottom: 0;
-    right: 0;
-    left: 0;
-    width: 100%;
-    max-width: 100%;
-    border-radius: 12px 12px 0 0;
-    max-height: 80vh;
-    margin-top: 0;
-  }
-
-  .notification-content {
-    max-height: calc(80vh - 120px);
-  }
-
-  .notification-item {
-    padding: 16px 12px;
-    gap: 10px;
-  }
-
-  .notification-actions {
-    opacity: 1;
-  }
-
-  .notification-title {
-    font-size: 13px;
-  }
-
-  .notification-text {
-    font-size: 12px;
-  }
-}
 
 /* Dark Mode Support (Optional) */
 @media (prefers-color-scheme: dark) {
