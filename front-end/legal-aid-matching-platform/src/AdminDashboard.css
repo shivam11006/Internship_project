@@ -571,7 +571,7 @@
 }
 
 .section-title-new {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
   color: #111827;
   margin: 0;
@@ -834,7 +834,7 @@
 }
 
 .section-title-new {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 600;
   color: #111827;
   margin: 0 0 8px 0;
@@ -852,10 +852,10 @@
 }
 
 .search-input-new {
-  width: 100%;
+  width: 90%;
   max-width: 400px;
   padding: 10px 16px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #dbdfe3;
   border-radius: 8px;
   font-size: 14px;
   transition: border-color 0.2s;
@@ -961,6 +961,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .table-results-summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .results-text {
@@ -1438,7 +1447,7 @@
   }
 
   .data-table {
-    min-width: 600px;
+    min-width: 520px;
     font-size: 12px;
   }
 
@@ -1625,7 +1634,8 @@
   }
 
   /* Specific Field Styling for Visual Hierarchy */
-  .data-table td[data-label="Title"] {
+  .data-table td[data-label="Title"],
+  .data-table td[data-label="Name"] {
     font-size: 18px;
     font-weight: 700;
     color: #111827;
@@ -1633,7 +1643,8 @@
     padding-top: 0 !important;
   }
 
-  .data-table td[data-label="Title"]::before {
+  .data-table td[data-label="Title"]::before,
+  .data-table td[data-label="Name"]::before {
     content: none;
   }
 
@@ -1651,7 +1662,8 @@
   }
 
   .data-table td[data-label="Status"],
-  .data-table td[data-label="Priority"] {
+  .data-table td[data-label="Priority"],
+  .data-table td[data-label="Role"] {
     display: inline-flex;
     width: auto;
     margin-right: 8px;
@@ -1659,7 +1671,8 @@
   }
 
   .data-table td[data-label="Status"]::before,
-  .data-table td[data-label="Priority"]::before {
+  .data-table td[data-label="Priority"]::before,
+  .data-table td[data-label="Role"]::before {
     content: none;
   }
 
@@ -1682,11 +1695,14 @@
 
   .data-table td[data-label="Submitted By"],
   .data-label[data-label="Assigned To"],
-  .data-table td[data-label="Created"] {
+  .data-table td[data-label="Created"],
+  .data-table td[data-label="Email"],
+  .data-table td[data-label="Submitted Date"] {
     grid-column: 1 / span 2;
     border-top: 1px solid #f3f4f6;
     padding-top: 12px !important;
     margin-top: 4px;
+    word-break: break-all;
   }
 
   .data-table td::before {
@@ -1710,18 +1726,19 @@
   .actions-cell {
     grid-column: 1 / span 2;
     margin-top: 8px;
-    background: #f9fafb !important;
+    background: #f8fafc !important;
     margin: 0 -16px -16px -16px;
-    padding: 12px 16px !important;
+    padding: 16px !important;
     display: flex !important;
-    flex-direction: row !important;
-    justify-content: center !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    border-top: 1px solid #edf2f7;
   }
 
-  .btn-view {
-    width: 100%;
+  .actions-cell .action-btn {
+    width: 66%;
+    margin: 0;
     justify-content: center;
-    padding: 12px;
   }
 
   .admin-top-actions {
@@ -2140,6 +2157,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -2150,6 +2168,7 @@
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

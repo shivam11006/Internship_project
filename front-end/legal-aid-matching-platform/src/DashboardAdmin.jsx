@@ -599,7 +599,7 @@ function DashboardAdmin() {
   const categoryData = getCategoryData();
   const roleData = getRoleData();
   const ROLE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#dc2626'];
-  
+
   // Helper to access current analytics tab data
   const currentTabData = analyticsTabsData[analyticsTab];
 
@@ -999,78 +999,78 @@ function DashboardAdmin() {
             </div>
 
             <div className="charts-grid" style={{ marginTop: '24px' }}>
-            {/* Users by Role */}
-            <div className="analytics-chart-card">
-              <h3 className="chart-title">Users by Role</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={[
-                  { name: 'LAWYER', value: analyticsTabsData.overview?.usersByRole?.LAWYER || 0 },
-                  { name: 'NGO', value: analyticsTabsData.overview?.usersByRole?.NGO || 0 },
-                  { name: 'CITIZEN', value: analyticsTabsData.overview?.usersByRole?.CITIZEN || 0 }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="value" fill="#3b82f6" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+              {/* Users by Role */}
+              <div className="analytics-chart-card">
+                <h3 className="chart-title">Users by Role</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={[
+                    { name: 'LAWYER', value: analyticsTabsData.overview?.usersByRole?.LAWYER || 0 },
+                    { name: 'NGO', value: analyticsTabsData.overview?.usersByRole?.NGO || 0 },
+                    { name: 'CITIZEN', value: analyticsTabsData.overview?.usersByRole?.CITIZEN || 0 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
 
-            {/* Users by Status */}
-            <div className="analytics-chart-card">
-              <h3 className="chart-title">Users by Status</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={[
-                  { name: 'PENDING', value: analyticsTabsData.overview?.usersByApprovalStatus?.PENDING || 0 },
-                  { name: 'APPROVED', value: analyticsTabsData.overview?.usersByApprovalStatus?.APPROVED || 0 },
-                  { name: 'REJECTED', value: analyticsTabsData.overview?.usersByApprovalStatus?.REJECTED || 0 }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="value" fill="#10b981" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+              {/* Users by Status */}
+              <div className="analytics-chart-card">
+                <h3 className="chart-title">Users by Status</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={[
+                    { name: 'PENDING', value: analyticsTabsData.overview?.usersByApprovalStatus?.PENDING || 0 },
+                    { name: 'APPROVED', value: analyticsTabsData.overview?.usersByApprovalStatus?.APPROVED || 0 },
+                    { name: 'REJECTED', value: analyticsTabsData.overview?.usersByApprovalStatus?.REJECTED || 0 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#10b981" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
 
-            {/* Cases by Status */}
-            <div className="analytics-chart-card">
-              <h3 className="chart-title">Cases by Status</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={[
-                  { name: 'OPEN', value: analyticsTabsData.overview?.casesByStatus?.OPEN || 0 },
-                  { name: 'ASSIGNED', value: analyticsTabsData.overview?.casesByStatus?.ASSIGNED || 0 },
-                  { name: 'CLOSED', value: analyticsTabsData.overview?.casesByStatus?.CLOSED || 0 }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="value" fill="#f59e0b" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+              {/* Cases by Status */}
+              <div className="analytics-chart-card">
+                <h3 className="chart-title">Cases by Status</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={[
+                    { name: 'OPEN', value: analyticsTabsData.overview?.casesByStatus?.OPEN || 0 },
+                    { name: 'ASSIGNED', value: analyticsTabsData.overview?.casesByStatus?.ASSIGNED || 0 },
+                    { name: 'CLOSED', value: analyticsTabsData.overview?.casesByStatus?.CLOSED || 0 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#f59e0b" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
 
-            {/* Cases by Priority */}
-            <div className="analytics-chart-card">
-              <h3 className="chart-title">Cases by Priority</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={[
-                  { name: 'HIGH', value: analyticsTabsData.overview?.casesByPriority?.HIGH || 0 },
-                  { name: 'MEDIUM', value: analyticsTabsData.overview?.casesByPriority?.MEDIUM || 0 },
-                  { name: 'LOW', value: analyticsTabsData.overview?.casesByPriority?.LOW || 0 }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="value" fill="#8b5cf6" />
-                </BarChart>
-              </ResponsiveContainer>
+              {/* Cases by Priority */}
+              <div className="analytics-chart-card">
+                <h3 className="chart-title">Cases by Priority</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={[
+                    { name: 'HIGH', value: analyticsTabsData.overview?.casesByPriority?.HIGH || 0 },
+                    { name: 'MEDIUM', value: analyticsTabsData.overview?.casesByPriority?.MEDIUM || 0 },
+                    { name: 'LOW', value: analyticsTabsData.overview?.casesByPriority?.LOW || 0 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#8b5cf6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
           </>
         )}
 
@@ -1172,42 +1172,42 @@ function DashboardAdmin() {
             </div>
 
             <div className="charts-grid" style={{ marginTop: '24px' }}>
-            {/* Users by Role */}
-            <div className="analytics-chart-card">
-              <h3 className="chart-title">Users by Role</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={[
-                  { name: 'LAWYER', value: analyticsTabsData.overview?.usersByRole?.LAWYER || 0 },
-                  { name: 'NGO', value: analyticsTabsData.overview?.usersByRole?.NGO || 0 },
-                  { name: 'CITIZEN', value: analyticsTabsData.overview?.usersByRole?.CITIZEN || 0 }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="value" fill="#3b82f6" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+              {/* Users by Role */}
+              <div className="analytics-chart-card">
+                <h3 className="chart-title">Users by Role</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={[
+                    { name: 'LAWYER', value: analyticsTabsData.overview?.usersByRole?.LAWYER || 0 },
+                    { name: 'NGO', value: analyticsTabsData.overview?.usersByRole?.NGO || 0 },
+                    { name: 'CITIZEN', value: analyticsTabsData.overview?.usersByRole?.CITIZEN || 0 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
 
-            {/* Users by Status */}
-            <div className="analytics-chart-card">
-              <h3 className="chart-title">Users by Status</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={[
-                  { name: 'PENDING', value: analyticsTabsData.overview?.usersByApprovalStatus?.PENDING || 0 },
-                  { name: 'APPROVED', value: analyticsTabsData.overview?.usersByApprovalStatus?.APPROVED || 0 },
-                  { name: 'REJECTED', value: analyticsTabsData.overview?.usersByApprovalStatus?.REJECTED || 0 }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="value" fill="#10b981" />
-                </BarChart>
-              </ResponsiveContainer>
+              {/* Users by Status */}
+              <div className="analytics-chart-card">
+                <h3 className="chart-title">Users by Status</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={[
+                    { name: 'PENDING', value: analyticsTabsData.overview?.usersByApprovalStatus?.PENDING || 0 },
+                    { name: 'APPROVED', value: analyticsTabsData.overview?.usersByApprovalStatus?.APPROVED || 0 },
+                    { name: 'REJECTED', value: analyticsTabsData.overview?.usersByApprovalStatus?.REJECTED || 0 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#10b981" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
           </>
         )}
 
@@ -1296,42 +1296,42 @@ function DashboardAdmin() {
             </div>
 
             <div className="charts-grid" style={{ marginTop: '24px' }}>
-            {/* Cases by Status */}
-            <div className="analytics-chart-card">
-              <h3 className="chart-title">Cases by Status</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={[
-                  { name: 'OPEN', value: analyticsTabsData.overview?.casesByStatus?.OPEN || 0 },
-                  { name: 'ASSIGNED', value: analyticsTabsData.overview?.casesByStatus?.ASSIGNED || 0 },
-                  { name: 'CLOSED', value: analyticsTabsData.overview?.casesByStatus?.CLOSED || 0 }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="value" fill="#f59e0b" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+              {/* Cases by Status */}
+              <div className="analytics-chart-card">
+                <h3 className="chart-title">Cases by Status</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={[
+                    { name: 'OPEN', value: analyticsTabsData.overview?.casesByStatus?.OPEN || 0 },
+                    { name: 'ASSIGNED', value: analyticsTabsData.overview?.casesByStatus?.ASSIGNED || 0 },
+                    { name: 'CLOSED', value: analyticsTabsData.overview?.casesByStatus?.CLOSED || 0 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#f59e0b" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
 
-            {/* Cases by Priority */}
-            <div className="analytics-chart-card">
-              <h3 className="chart-title">Cases by Priority</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={[
-                  { name: 'HIGH', value: analyticsTabsData.overview?.casesByPriority?.HIGH || 0 },
-                  { name: 'MEDIUM', value: analyticsTabsData.overview?.casesByPriority?.MEDIUM || 0 },
-                  { name: 'LOW', value: analyticsTabsData.overview?.casesByPriority?.LOW || 0 }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="value" fill="#8b5cf6" />
-                </BarChart>
-              </ResponsiveContainer>
+              {/* Cases by Priority */}
+              <div className="analytics-chart-card">
+                <h3 className="chart-title">Cases by Priority</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={[
+                    { name: 'HIGH', value: analyticsTabsData.overview?.casesByPriority?.HIGH || 0 },
+                    { name: 'MEDIUM', value: analyticsTabsData.overview?.casesByPriority?.MEDIUM || 0 },
+                    { name: 'LOW', value: analyticsTabsData.overview?.casesByPriority?.LOW || 0 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#8b5cf6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
           </>
         )}
 
@@ -1433,23 +1433,23 @@ function DashboardAdmin() {
             </div>
 
             <div className="charts-grid" style={{ marginTop: '24px' }}>
-            <div className="analytics-chart-card">
-              <h3 className="chart-title">Match Statistics</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={[
-                  { name: 'Total Matches', value: analyticsTabsData.overview?.totalMatches || 0 },
-                  { name: 'Successful', value: analyticsTabsData.overview?.successfulMatches || 0 },
-                  { name: 'Pending', value: analyticsTabsData.overview?.pendingMatches || 0 }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="value" fill="#ec4899" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="analytics-chart-card">
+                <h3 className="chart-title">Match Statistics</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={[
+                    { name: 'Total Matches', value: analyticsTabsData.overview?.totalMatches || 0 },
+                    { name: 'Successful', value: analyticsTabsData.overview?.successfulMatches || 0 },
+                    { name: 'Pending', value: analyticsTabsData.overview?.pendingMatches || 0 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#ec4899" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
           </>
         )}
 
@@ -1551,23 +1551,23 @@ function DashboardAdmin() {
             </div>
 
             <div className="charts-grid" style={{ marginTop: '24px' }}>
-            <div className="analytics-chart-card">
-              <h3 className="chart-title">Platform Activity</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={[
-                  { name: 'New Users', value: analyticsTabsData.overview?.newUsers || 0 },
-                  { name: 'New Cases', value: analyticsTabsData.overview?.newCases || 0 },
-                  { name: 'Active Sessions', value: analyticsTabsData.overview?.activeSessions || 0 }
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                  <Bar dataKey="value" fill="#06b6d4" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="analytics-chart-card">
+                <h3 className="chart-title">Platform Activity</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={[
+                    { name: 'New Users', value: analyticsTabsData.overview?.newUsers || 0 },
+                    { name: 'New Cases', value: analyticsTabsData.overview?.newCases || 0 },
+                    { name: 'Active Sessions', value: analyticsTabsData.overview?.activeSessions || 0 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#06b6d4" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
           </>
         )}
       </div>
@@ -2093,7 +2093,7 @@ function DashboardAdmin() {
                     </thead>
                     <tbody>
                       {logs.map((log) => (
-                        <tr 
+                        <tr
                           key={log.id}
                           onClick={() => handleLogRowClick(log)}
                           style={{
@@ -2103,8 +2103,8 @@ function DashboardAdmin() {
                           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
-                          <td style={{ fontSize: '0.875rem' }}>{formatLogTimestamp(log.timestamp)}</td>
-                          <td>
+                          <td data-label="Timestamp" style={{ fontSize: '0.875rem' }}>{formatLogTimestamp(log.timestamp)}</td>
+                          <td data-label="Level">
                             <span
                               style={{
                                 display: 'inline-block',
@@ -2119,14 +2119,14 @@ function DashboardAdmin() {
                               {log.level}
                             </span>
                           </td>
-                          <td style={{ fontSize: '0.875rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <td data-label="Logger" style={{ fontSize: '0.875rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {log.logger || 'N/A'}
                           </td>
-                          <td style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}>{log.endpoint || '-'}</td>
-                          <td style={{ fontSize: '0.875rem', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <td data-label="Endpoint" style={{ fontSize: '0.875rem', fontFamily: 'monospace' }}>{log.endpoint || '-'}</td>
+                          <td data-label="Message" style={{ fontSize: '0.875rem', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {log.message}
                           </td>
-                          <td style={{ fontSize: '0.875rem' }}>{log.username || '-'}</td>
+                          <td data-label="Username" style={{ fontSize: '0.875rem' }}>{log.username || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -2134,7 +2134,7 @@ function DashboardAdmin() {
 
                   {/* Log Detail Modal */}
                   {showLogModal && selectedLog && (
-                    <div 
+                    <div
                       style={{
                         position: 'fixed',
                         top: 0,
@@ -2150,7 +2150,7 @@ function DashboardAdmin() {
                       }}
                       onClick={handleCloseLogModal}
                     >
-                      <div 
+                      <div
                         style={{
                           backgroundColor: '#fff',
                           borderRadius: '12px',
@@ -2225,9 +2225,9 @@ function DashboardAdmin() {
                               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
                                 Logger
                               </label>
-                              <p style={{ 
-                                margin: 0, 
-                                fontSize: '0.875rem', 
+                              <p style={{
+                                margin: 0,
+                                fontSize: '0.875rem',
                                 color: '#6b7280',
                                 backgroundColor: '#f9fafb',
                                 padding: '8px 12px',
@@ -2243,9 +2243,9 @@ function DashboardAdmin() {
                               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
                                 Endpoint
                               </label>
-                              <p style={{ 
-                                margin: 0, 
-                                fontSize: '0.875rem', 
+                              <p style={{
+                                margin: 0,
+                                fontSize: '0.875rem',
                                 color: '#6b7280',
                                 backgroundColor: '#f9fafb',
                                 padding: '8px 12px',
@@ -2261,9 +2261,9 @@ function DashboardAdmin() {
                               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
                                 Username
                               </label>
-                              <p style={{ 
-                                margin: 0, 
-                                fontSize: '0.875rem', 
+                              <p style={{
+                                margin: 0,
+                                fontSize: '0.875rem',
                                 color: '#6b7280',
                                 backgroundColor: '#f9fafb',
                                 padding: '8px 12px',
@@ -2277,9 +2277,9 @@ function DashboardAdmin() {
                               <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
                                 Thread Name
                               </label>
-                              <p style={{ 
-                                margin: 0, 
-                                fontSize: '0.875rem', 
+                              <p style={{
+                                margin: 0,
+                                fontSize: '0.875rem',
                                 color: '#6b7280',
                                 backgroundColor: '#f9fafb',
                                 padding: '8px 12px',
@@ -2320,9 +2320,9 @@ function DashboardAdmin() {
                                   Copy
                                 </button>
                               </div>
-                              <p style={{ 
-                                margin: 0, 
-                                fontSize: '0.875rem', 
+                              <p style={{
+                                margin: 0,
+                                fontSize: '0.875rem',
                                 color: '#1f2937',
                                 backgroundColor: '#f9fafb',
                                 padding: '12px',
@@ -2366,9 +2366,9 @@ function DashboardAdmin() {
                                     Copy
                                   </button>
                                 </div>
-                                <pre style={{ 
-                                  margin: 0, 
-                                  fontSize: '0.75rem', 
+                                <pre style={{
+                                  margin: 0,
+                                  fontSize: '0.75rem',
                                   color: '#b91c1c',
                                   backgroundColor: '#fef2f2',
                                   padding: '12px',
