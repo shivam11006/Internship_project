@@ -1187,7 +1187,7 @@ function DashboardNgo() {
                   {newRequests.map(req => (
                     <div key={req.id} className="request-card" style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        <h3 style={{ fontWeight: '600', color: '#111827', marginRight: '1rem', flex: 1, overflowWrap: 'break-word', wordBreak: 'break-word' }}>{req.title}</h3>
+                        <h3 style={{ fontWeight: '600', color: '#111827', marginRight: '1rem', flex: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis' }}>{req.title}</h3>
                         <span style={{ backgroundColor: '#e0e7ff', color: '#4338ca', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderRadius: '9999px', fontWeight: '500', whiteSpace: 'nowrap' }}>
                           {Math.round(req.matchScore)}% Match
                         </span>

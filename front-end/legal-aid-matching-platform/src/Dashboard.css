@@ -349,7 +349,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
+  z-index: 3000 !important;
 }
 
 .modal-content {
@@ -961,7 +961,7 @@
   .modal-content {
     width: 100%;
     border-radius: 0;
-    max-height: 100vh;
+    max-height: 79vh;
   }
 
   .modal-header {
@@ -1284,7 +1284,7 @@
 
 @media (max-width: 480px) {
   .dashboard-header {
-    padding: 12px;
+    padding: 5px;
   }
 
   .dashboard-title {
@@ -1295,7 +1295,7 @@
     width: 100%;
     margin: 0;
     border-radius: 0;
-    max-height: 100vh;
+    max-height: 79vh;
   }
 
   .form-group input,
@@ -1789,7 +1789,7 @@
 }
 
 .modal-header h2 {
-  color: white;
+  color: black;
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.5px;
@@ -1837,7 +1837,7 @@
 .profile-modal-avatar {
   width: 120px;
   height: 120px;
-  border-radius: 20px;
+  border-radius: 45px;
   object-fit: cover;
   border: 4px solid white;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
@@ -1909,12 +1909,12 @@
 
 .profile-contact-info {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
   padding: 20px;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   border-radius: 16px;
   border: 1px solid #e2e8f0;
+  margin-left: -20px;
 }
 
 .contact-row {
