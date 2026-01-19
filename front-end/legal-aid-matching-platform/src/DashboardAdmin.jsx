@@ -18,9 +18,11 @@ function DashboardAdmin() {
   const user = authService.getCurrentUser();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [analyticsTab, setAnalyticsTab] = useState('overview');
+  const [profileTab, setProfileTab] = useState('verification-queue');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pendingUsers, setPendingUsers] = useState([]);
   const [approvedUsers, setApprovedUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +36,9 @@ function DashboardAdmin() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [filterRole, setFilterRole] = useState(''); // Filter for user roles
   const [filterStatus, setFilterStatus] = useState(''); // Filter for approval status
+  const [userManagementFilterRole, setUserManagementFilterRole] = useState(''); // Filter for user management tab
+  const [userManagementFilterStatus, setUserManagementFilterStatus] = useState(''); // Filter status in user management
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null); // For delete confirmation dialog
 
   // Logs state
   const [logs, setLogs] = useState([]);
@@ -146,6 +151,13 @@ function DashboardAdmin() {
       }
     } catch (error) {
       console.error('Error fetching analytics data:', error);
+      // Set empty data for this tab to prevent rendering errors
+      setAnalyticsTabsData(prev => ({ 
+        ...prev, 
+        [analyticsTab]: {
+          error: error.response?.data?.error || error.message || 'Failed to load analytics data'
+        }
+      }));
     } finally {
       setAnalyticsLoading(false);
     }
@@ -216,6 +228,7 @@ function DashboardAdmin() {
       );
       setPendingUsers(pending);
       setApprovedUsers([...approved, ...rejected, ...suspended]);
+      setAllUsers(flattenedUsers); // Store all users for user management tab
 
       // Calculate KPI stats from users data
       const lawyers = flattenedUsers.filter(u => u.role === 'LAWYER').length;
@@ -328,6 +341,26 @@ function DashboardAdmin() {
       alert('Failed to reactivate user');
     }
     setActionLoading(null);
+  };
+
+  const handleDeleteUser = async (userId, username) => {
+    if (!confirm(`⚠️ Are you sure you want to delete ${username}? This action cannot be undone.`)) {
+      return;
+    }
+    if (!confirm(`Final confirmation: Delete ${username} permanently?`)) {
+      return;
+    }
+    setActionLoading(userId);
+    try {
+      await authService.deleteUser(userId);
+      await fetchUsers();
+      alert('User has been deleted successfully.');
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      alert(error.response?.data?.message || 'Failed to delete user');
+    }
+    setActionLoading(null);
+    setDeleteConfirmId(null);
   };
 
   const fetchLogs = async () => {
@@ -510,6 +543,16 @@ function DashboardAdmin() {
 
   const filteredPending = filterUsers(pendingUsers);
   const filteredApproved = filterUsers(approvedUsers);
+
+  // Filter for user management tab
+  const filteredAllUsers = allUsers.filter(u => {
+    const matchesSearch =
+      u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = !userManagementFilterRole || u.role === userManagementFilterRole;
+    const matchesStatus = !userManagementFilterStatus || u.approvalStatus === userManagementFilterStatus;
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 
   // Get growth data from analytics or use fallback
   const getGrowthData = () => {
@@ -900,174 +943,250 @@ function DashboardAdmin() {
   );
 
   const renderAnalytics = () => {
+    const currentTabData = analyticsTabsData[analyticsTab];
+    const hasError = currentTabData?.error;
+
+    const tabConfig = [
+      { key: 'overview', icon: '📈', label: 'Overview', color: '#3b82f6' },
+      { key: 'users', icon: '👥', label: 'Users', color: '#10b981' },
+      { key: 'cases', icon: '📋', label: 'Cases', color: '#f59e0b' },
+      { key: 'matches', icon: '🔗', label: 'Matches', color: '#8b5cf6' },
+      { key: 'activity', icon: '⚡', label: 'Activity', color: '#06b6d4' }
+    ];
+
     return (
       <div className="analytics-container">
-        <div className="analytics-header">
-          <h2 className="analytics-title">Impact Analytics</h2>
-          <p className="analytics-subtitle">Platform performance metrics and insights</p>
+        <div className="analytics-header" style={{ marginBottom: '28px' }}>
+          <div>
+            <h2 className="analytics-title" style={{ fontSize: '28px', fontWeight: '800', color: '#1f2937', marginBottom: '4px' }}>📊 Impact Analytics</h2>
+            <p className="analytics-subtitle" style={{ fontSize: '14px', color: '#6b7280' }}>Real-time platform performance metrics and insights</p>
+          </div>
         </div>
 
-        {/* Analytics Tabs */}
-        <div className="analytics-tabs">
-          <button
-            className={`analytics-tab ${analyticsTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setAnalyticsTab('overview')}
-          >
-            Overview
-          </button>
-          <button
-            className={`analytics-tab ${analyticsTab === 'users' ? 'active' : ''}`}
-            onClick={() => setAnalyticsTab('users')}
-          >
-            Users
-          </button>
-          <button
-            className={`analytics-tab ${analyticsTab === 'cases' ? 'active' : ''}`}
-            onClick={() => setAnalyticsTab('cases')}
-          >
-            Cases
-          </button>
-          <button
-            className={`analytics-tab ${analyticsTab === 'matches' ? 'active' : ''}`}
-            onClick={() => setAnalyticsTab('matches')}
-          >
-            Matches
-          </button>
-          <button
-            className={`analytics-tab ${analyticsTab === 'activity' ? 'active' : ''}`}
-            onClick={() => setAnalyticsTab('activity')}
-          >
-            Activity
-          </button>
+        {hasError && (
+          <div style={{
+            padding: '14px 18px',
+            marginBottom: '20px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '10px',
+            color: '#b91c1c',
+            fontSize: '14px',
+            display: 'flex',
+            gap: '10px',
+            alignItems: 'center'
+          }}>
+            <span>⚠️</span>
+            <span>{hasError}</span>
+          </div>
+        )}
+
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '28px',
+          borderBottom: '2px solid #f3f4f6',
+          flexWrap: 'wrap'
+        }}>
+          {tabConfig.map(({ key, icon, label, color }) => (
+            <button
+              key={key}
+              onClick={() => setAnalyticsTab(key)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: analyticsTab === key ? '12px 20px' : '12px 20px',
+                backgroundColor: analyticsTab === key ? `${color}10` : 'transparent',
+                border: analyticsTab === key ? `2px solid ${color}` : '2px solid transparent',
+                borderRadius: '10px',
+                color: analyticsTab === key ? color : '#6b7280',
+                fontSize: '14px',
+                fontWeight: analyticsTab === key ? '700' : '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                transform: analyticsTab === key ? 'translateY(0)' : 'translateY(0)',
+                boxShadow: analyticsTab === key ? `0 4px 12px ${color}20` : 'none',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <span style={{ fontSize: '18px' }}>{icon}</span>
+              <span>{label}</span>
+            </button>
+          ))}
         </div>
 
-        {/* Overview Tab */}
-        {analyticsTab === 'overview' && (
+        {analyticsLoading && !currentTabData && (
+          <div style={{ padding: '50px 20px', textAlign: 'center', color: '#6b7280' }}>
+            <div style={{
+              display: 'inline-block',
+              width: '48px',
+              height: '48px',
+              border: '4px solid #e5e7eb',
+              borderTop: '4px solid #3b82f6',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+            <p style={{ marginTop: '16px', fontSize: '15px' }}>Loading analytics data...</p>
+          </div>
+        )}
+
+        {/* OVERVIEW TAB */}
+        {analyticsTab === 'overview' && currentTabData && !hasError && (
           <>
-            {/* Overview KPI Cards */}
-            <div className="kpi-cards-grid" style={{ marginTop: '24px' }}>
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#dbeafe' }}>
-                  <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+              {[
+                { icon: '👥', title: 'Total Users', value: analyticsTabsData.overview?.totalUsers || 0, subtitle: `${analyticsTabsData.overview?.newUsersThisMonth || 0} new`, color: '#3b82f6' },
+                { icon: '📋', title: 'Total Cases', value: analyticsTabsData.overview?.totalCases || 0, subtitle: `${analyticsTabsData.overview?.newCasesThisMonth || 0} new`, color: '#f59e0b' },
+                { icon: '🔗', title: 'Total Matches', value: analyticsTabsData.overview?.totalMatches || 0, subtitle: `${analyticsTabsData.overview?.newMatchesThisMonth || 0} new`, color: '#10b981' },
+                { icon: '📅', title: 'Appointments', value: analyticsTabsData.overview?.totalAppointments || 0, subtitle: 'Total bookings', color: '#8b5cf6' },
+                { icon: '💚', title: 'System Health', value: `${analyticsTabsData.overview?.systemHealthScore?.toFixed(1) || 0}%`, subtitle: 'Platform uptime', color: '#06b6d4' }
+              ].map((stat, i) => (
+                <div key={i} style={{
+                  background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+                  border: `1px solid #e5e7eb`,
+                  borderRadius: '12px',
+                  padding: '20px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer',
+                  transform: 'translateY(0)',
+                  ':hover': { transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(0,0,0,0.12)' }
+                }}>
+                  <div style={{ fontSize: '28px', marginBottom: '8px' }}>{stat.icon}</div>
+                  <div style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500', marginBottom: '4px' }}>{stat.title}</div>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: stat.color, marginBottom: '4px' }}>{stat.value}</div>
+                  <div style={{ fontSize: '12px', color: '#9ca3af' }}>{stat.subtitle}</div>
                 </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Total Users</p>
-                  <p className="kpi-value">{analyticsTabsData.overview?.totalUsers || 0}</p>
-                  <p className="kpi-subtitle">{analyticsTabsData.overview?.newUsersThisMonth || 0} new this month</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fef3c7' }}>
-                  <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Total Cases</p>
-                  <p className="kpi-value">{analyticsTabsData.overview?.totalCases || 0}</p>
-                  <p className="kpi-subtitle">{analyticsTabsData.overview?.newCasesThisMonth || 0} new this month</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
-                  <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Total Matches</p>
-                  <p className="kpi-value">{analyticsTabsData.overview?.totalMatches || 0}</p>
-                  <p className="kpi-subtitle">{analyticsTabsData.overview?.newMatchesThisMonth || 0} new this month</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#ede9fe' }}>
-                  <svg width="24" height="24" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Total Appointments</p>
-                  <p className="kpi-value">{analyticsTabsData.overview?.totalAppointments || 0}</p>
-                  <p className="kpi-subtitle">Active bookings</p>
-                </div>
-              </div>
+              ))}
             </div>
 
-            <div className="charts-grid" style={{ marginTop: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
               {/* Users by Role */}
-              <div className="analytics-chart-card">
-                <h3 className="chart-title">Users by Role</h3>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={[
-                    { name: 'LAWYER', value: analyticsTabsData.overview?.usersByRole?.LAWYER || 0 },
-                    { name: 'NGO', value: analyticsTabsData.overview?.usersByRole?.NGO || 0 },
-                    { name: 'CITIZEN', value: analyticsTabsData.overview?.usersByRole?.CITIZEN || 0 }
-                  ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="value" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Users by Status */}
-              <div className="analytics-chart-card">
-                <h3 className="chart-title">Users by Status</h3>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={[
-                    { name: 'PENDING', value: analyticsTabsData.overview?.usersByApprovalStatus?.PENDING || 0 },
-                    { name: 'APPROVED', value: analyticsTabsData.overview?.usersByApprovalStatus?.APPROVED || 0 },
-                    { name: 'REJECTED', value: analyticsTabsData.overview?.usersByApprovalStatus?.REJECTED || 0 }
-                  ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="value" fill="#10b981" />
-                  </BarChart>
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>👥 Users by Role</h3>
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Lawyers', value: analyticsTabsData.overview?.usersByRole?.LAWYER || 0 },
+                        { name: 'NGOs', value: analyticsTabsData.overview?.usersByRole?.NGO || 0 },
+                        { name: 'Citizens', value: analyticsTabsData.overview?.usersByRole?.CITIZEN || 0 }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) => `${name} ${value}`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      <Cell fill="#3b82f6" /><Cell fill="#10b981" /><Cell fill="#f59e0b" />
+                    </Pie>
+                    <Tooltip formatter={(value) => [`${value} users`, 'Count']} contentStyle={{ borderRadius: '8px', border: 'none' }} />
+                  </PieChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Cases by Status */}
-              <div className="analytics-chart-card">
-                <h3 className="chart-title">Cases by Status</h3>
-                <ResponsiveContainer width="100%" height={250}>
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>📋 Cases by Status</h3>
+                <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={[
                     { name: 'OPEN', value: analyticsTabsData.overview?.casesByStatus?.OPEN || 0 },
                     { name: 'ASSIGNED', value: analyticsTabsData.overview?.casesByStatus?.ASSIGNED || 0 },
                     { name: 'CLOSED', value: analyticsTabsData.overview?.casesByStatus?.CLOSED || 0 }
                   ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="value" fill="#f59e0b" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis dataKey="name" stroke="#6b7280" />
+                    <YAxis stroke="#6b7280" />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#3b82f6" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Cases by Priority */}
-              <div className="analytics-chart-card">
-                <h3 className="chart-title">Cases by Priority</h3>
-                <ResponsiveContainer width="100%" height={250}>
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>⚡ Cases by Priority</h3>
+                <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={[
                     { name: 'HIGH', value: analyticsTabsData.overview?.casesByPriority?.HIGH || 0 },
                     { name: 'MEDIUM', value: analyticsTabsData.overview?.casesByPriority?.MEDIUM || 0 },
                     { name: 'LOW', value: analyticsTabsData.overview?.casesByPriority?.LOW || 0 }
                   ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="value" fill="#8b5cf6" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis dataKey="name" stroke="#6b7280" />
+                    <YAxis stroke="#6b7280" />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Expertise Tags */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>🏷️ Top Expertise Tags</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(analyticsTabsData.overview?.topExpertiseTags || []).slice(0, 5).map((tag, i) => (
+                    <div key={i} style={{
+                      background: '#f3f4f6',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span style={{ fontSize: '14px', color: '#374151', fontWeight: '500' }}>{tag}</span>
+                      <span style={{ background: '#3b82f6', color: 'white', padding: '2px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>{i + 1}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Match Status */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>🔗 Match Status Distribution</h3>
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Pending', value: analyticsTabsData.overview?.matchesByStatus?.PENDING || 0 },
+                        { name: 'Accepted', value: analyticsTabsData.overview?.matchesByStatus?.ACCEPTED_BY_PROVIDER || 0 },
+                        { name: 'Rejected (Citizen)', value: analyticsTabsData.overview?.matchesByStatus?.REJECTED_BY_CITIZEN || 0 },
+                        { name: 'Rejected (Provider)', value: analyticsTabsData.overview?.matchesByStatus?.REJECTED_BY_PROVIDER || 0 }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) => `${name}`}
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      <Cell fill="#3b82f6" /><Cell fill="#10b981" /><Cell fill="#f59e0b" /><Cell fill="#ef4444" />
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value} matches`} contentStyle={{ borderRadius: '8px', border: 'none' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* User Approval Status */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>✅ User Approval Status</h3>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart
+                    data={[
+                      { name: 'PENDING', value: analyticsTabsData.overview?.usersByApprovalStatus?.PENDING || 0 },
+                      { name: 'APPROVED', value: analyticsTabsData.overview?.usersByApprovalStatus?.APPROVED || 0 },
+                      { name: 'REJECTED', value: analyticsTabsData.overview?.usersByApprovalStatus?.REJECTED || 0 }
+                    ]}
+                    layout="vertical"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                    <XAxis type="number" stroke="#6b7280" />
+                    <YAxis dataKey="name" type="category" stroke="#6b7280" />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1075,498 +1194,521 @@ function DashboardAdmin() {
           </>
         )}
 
-        {/* Users Tab */}
-        {analyticsTab === 'users' && (
+        {/* USERS TAB */}
+        {analyticsTab === 'users' && currentTabData && !hasError && (
           <>
-            {/* Users KPI Cards */}
-            <div className="kpi-cards-grid" style={{ marginTop: '24px' }}>
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#dbeafe' }}>
-                  <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '28px' }}>
+              {[
+                { label: 'Lawyers', value: analyticsTabsData.users?.totalLawyers || 0, icon: '⚖️', color: '#3b82f6' },
+                { label: 'NGOs', value: analyticsTabsData.users?.totalNgos || 0, icon: '🏢', color: '#10b981' },
+                { label: 'Citizens', value: analyticsTabsData.users?.totalCitizens || 0, icon: '👤', color: '#f59e0b' },
+                { label: 'Pending', value: analyticsTabsData.users?.pendingApprovals || 0, icon: '⏳', color: '#ef4444' },
+                { label: 'Active Today', value: analyticsTabsData.users?.activeUsersToday || 0, icon: '🟢', color: '#06b6d4' },
+                { label: 'Retention', value: `${analyticsTabsData.users?.userRetentionRate?.toFixed(1) || 0}%`, icon: '📈', color: '#8b5cf6' },
+                { label: 'Approval Rate', value: `${analyticsTabsData.users?.approvalRate?.toFixed(1) || 0}%`, icon: '✅', color: '#ec4899' },
+                { label: 'Avg Approval', value: `${analyticsTabsData.users?.averageApprovalTime || 0}d`, icon: '⏱️', color: '#059669' }
+              ].map((stat, i) => (
+                <div key={i} style={{
+                  background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+                  border: `2px solid ${stat.color}20`,
+                  borderRadius: '10px',
+                  padding: '16px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '24px', marginBottom: '6px' }}>{stat.icon}</div>
+                  <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '500', marginBottom: '4px' }}>{stat.label}</div>
+                  <div style={{ fontSize: '22px', fontWeight: '700', color: stat.color }}>{stat.value}</div>
                 </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Total Lawyers</p>
-                  <p className="kpi-value">{analyticsTabsData.users?.totalLawyers || 0}</p>
-                  <p className="kpi-subtitle">Registered lawyers</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
-                  <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Total NGOs</p>
-                  <p className="kpi-value">{analyticsTabsData.users?.totalNgos || 0}</p>
-                  <p className="kpi-subtitle">Registered organizations</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fef3c7' }}>
-                  <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Total Citizens</p>
-                  <p className="kpi-value">{analyticsTabsData.users?.totalCitizens || 0}</p>
-                  <p className="kpi-subtitle">Seeking help</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fee2e2' }}>
-                  <svg width="24" height="24" fill="none" stroke="#ef4444" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Pending Approvals</p>
-                  <p className="kpi-value">{analyticsTabsData.users?.pendingApprovals || 0}</p>
-                  <p className="kpi-subtitle">Awaiting review</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#e0e7ff' }}>
-                  <svg width="24" height="24" fill="none" stroke="#6366f1" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Active Users Today</p>
-                  <p className="kpi-value">{analyticsTabsData.users?.activeUsersToday || 0}</p>
-                  <p className="kpi-subtitle">{analyticsTabsData.users?.activeUsersThisWeek || 0} this week</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#ede9fe' }}>
-                  <svg width="24" height="24" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Retention Rate</p>
-                  <p className="kpi-value">{analyticsTabsData.users?.userRetentionRate?.toFixed(1) || 0}%</p>
-                  <p className="kpi-subtitle">User engagement</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fce7f3' }}>
-                  <svg width="24" height="24" fill="none" stroke="#ec4899" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Approval Rate</p>
-                  <p className="kpi-value">{analyticsTabsData.users?.approvalRate?.toFixed(1) || 0}%</p>
-                  <p className="kpi-subtitle">Avg {analyticsTabsData.users?.averageApprovalTime || 0} days</p>
-                </div>
-              </div>
+              ))}
             </div>
 
-            <div className="charts-grid" style={{ marginTop: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
               {/* Users by Role */}
-              <div className="analytics-chart-card">
-                <h3 className="chart-title">Users by Role</h3>
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>Role Distribution</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={[
-                    { name: 'LAWYER', value: analyticsTabsData.overview?.usersByRole?.LAWYER || 0 },
-                    { name: 'NGO', value: analyticsTabsData.overview?.usersByRole?.NGO || 0 },
-                    { name: 'CITIZEN', value: analyticsTabsData.overview?.usersByRole?.CITIZEN || 0 }
+                    { name: 'Lawyers', value: analyticsTabsData.users?.totalLawyers || 0 },
+                    { name: 'NGOs', value: analyticsTabsData.users?.totalNgos || 0 },
+                    { name: 'Citizens', value: analyticsTabsData.users?.totalCitizens || 0 }
                   ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="value" fill="#3b82f6" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis dataKey="name" stroke="#6b7280" />
+                    <YAxis stroke="#6b7280" />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#3b82f6" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Users by Status */}
-              <div className="analytics-chart-card">
-                <h3 className="chart-title">Users by Status</h3>
+              {/* User Approval Status */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>Approval Status</h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={[
-                    { name: 'PENDING', value: analyticsTabsData.overview?.usersByApprovalStatus?.PENDING || 0 },
-                    { name: 'APPROVED', value: analyticsTabsData.overview?.usersByApprovalStatus?.APPROVED || 0 },
-                    { name: 'REJECTED', value: analyticsTabsData.overview?.usersByApprovalStatus?.REJECTED || 0 }
-                  ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="value" fill="#10b981" />
-                  </BarChart>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Approved', value: analyticsTabsData.users?.approvedUsers || 0 },
+                        { name: 'Pending', value: analyticsTabsData.users?.pendingApprovals || 0 },
+                        { name: 'Rejected', value: analyticsTabsData.users?.rejectedUsers || 0 }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) => `${name} ${value}`}
+                      outerRadius={90}
+                      dataKey="value"
+                    >
+                      <Cell fill="#10b981" /><Cell fill="#f59e0b" /><Cell fill="#ef4444" />
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value} users`} contentStyle={{ borderRadius: '8px', border: 'none' }} />
+                  </PieChart>
                 </ResponsiveContainer>
+              </div>
+
+              {/* Top Locations */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', gridColumn: 'span 1' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>📍 Top Locations</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(analyticsTabsData.users?.topLocations || []).map((location, i) => {
+                    const count = analyticsTabsData.users?.usersByLocation?.[location] || 0;
+                    const maxCount = Math.max(...Object.values(analyticsTabsData.users?.usersByLocation || {}));
+                    const percentage = (count / maxCount) * 100;
+                    return (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
+                          <span style={{ fontWeight: '500', color: '#374151' }}>{location}</span>
+                          <span style={{ color: '#6b7280' }}>{count} users</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${percentage}%`, background: 'linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)', transition: 'width 0.3s ease' }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </>
         )}
 
-        {/* Cases Tab */}
-        {analyticsTab === 'cases' && (
+        {/* CASES TAB */}
+        {analyticsTab === 'cases' && currentTabData && !hasError && (
           <>
-            {/* Cases KPI Cards */}
-            <div className="kpi-cards-grid" style={{ marginTop: '24px' }}>
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#dbeafe' }}>
-                  <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '28px' }}>
+              {[
+                { label: 'Open', value: analyticsTabsData.cases?.openCases || 0, icon: '📂', color: '#3b82f6' },
+                { label: 'Assigned', value: analyticsTabsData.cases?.assignedCases || 0, icon: '👤', color: '#f59e0b' },
+                { label: 'Closed', value: analyticsTabsData.cases?.closedCases || 0, icon: '✅', color: '#10b981' },
+                { label: 'High Priority', value: analyticsTabsData.cases?.casesByPriority?.HIGH || 0, icon: '🔴', color: '#ef4444' },
+                { label: 'Avg Age (days)', value: analyticsTabsData.cases?.averageCaseAge || 0, icon: '📅', color: '#8b5cf6' },
+                { label: 'Resolution Rate', value: `${analyticsTabsData.cases?.caseResolutionRate?.toFixed(1) || 0}%`, icon: '📈', color: '#06b6d4' },
+                { label: 'Median Age (days)', value: analyticsTabsData.cases?.medianCaseAge || 0, icon: '⏱️', color: '#ec4899' },
+                { label: 'Avg Resolution', value: `${analyticsTabsData.cases?.averageResolutionTime || 0}d`, icon: '✏️', color: '#059669' }
+              ].map((stat, i) => (
+                <div key={i} style={{
+                  background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+                  border: `2px solid ${stat.color}20`,
+                  borderRadius: '10px',
+                  padding: '16px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '24px', marginBottom: '6px' }}>{stat.icon}</div>
+                  <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '500', marginBottom: '4px' }}>{stat.label}</div>
+                  <div style={{ fontSize: '22px', fontWeight: '700', color: stat.color }}>{stat.value}</div>
                 </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Open Cases</p>
-                  <p className="kpi-value">{analyticsTabsData.cases?.openCases || 0}</p>
-                  <p className="kpi-subtitle">Awaiting assignment</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fef3c7' }}>
-                  <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Assigned Cases</p>
-                  <p className="kpi-value">{analyticsTabsData.cases?.assignedCases || 0}</p>
-                  <p className="kpi-subtitle">In progress</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
-                  <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Closed Cases</p>
-                  <p className="kpi-value">{analyticsTabsData.cases?.closedCases || 0}</p>
-                  <p className="kpi-subtitle">Resolved</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fee2e2' }}>
-                  <svg width="24" height="24" fill="none" stroke="#ef4444" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">High Priority</p>
-                  <p className="kpi-value">{analyticsTabsData.cases?.casesByPriority?.HIGH || 0}</p>
-                  <p className="kpi-subtitle">Urgent attention needed</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#e0e7ff' }}>
-                  <svg width="24" height="24" fill="none" stroke="#6366f1" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Avg Case Age</p>
-                  <p className="kpi-value">{analyticsTabsData.cases?.averageCaseAge || 0}</p>
-                  <p className="kpi-subtitle">Days open</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#ede9fe' }}>
-                  <svg width="24" height="24" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Resolution Rate</p>
-                  <p className="kpi-value">{analyticsTabsData.cases?.caseResolutionRate?.toFixed(1) || 0}%</p>
-                  <p className="kpi-subtitle">{analyticsTabsData.cases?.averageResolutionTime || 0} days avg</p>
-                </div>
-              </div>
+              ))}
             </div>
 
-            <div className="charts-grid" style={{ marginTop: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
               {/* Cases by Status */}
-              <div className="analytics-chart-card">
-                <h3 className="chart-title">Cases by Status</h3>
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>Status Distribution</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={[
-                    { name: 'OPEN', value: analyticsTabsData.overview?.casesByStatus?.OPEN || 0 },
-                    { name: 'ASSIGNED', value: analyticsTabsData.overview?.casesByStatus?.ASSIGNED || 0 },
-                    { name: 'CLOSED', value: analyticsTabsData.overview?.casesByStatus?.CLOSED || 0 }
+                    { name: 'Open', value: analyticsTabsData.cases?.casesByStatus?.OPEN || 0 },
+                    { name: 'Assigned', value: analyticsTabsData.cases?.casesByStatus?.ASSIGNED || 0 },
+                    { name: 'Closed', value: analyticsTabsData.cases?.casesByStatus?.CLOSED || 0 }
                   ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="value" fill="#f59e0b" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis dataKey="name" stroke="#6b7280" />
+                    <YAxis stroke="#6b7280" />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#3b82f6" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Cases by Priority */}
-              <div className="analytics-chart-card">
-                <h3 className="chart-title">Cases by Priority</h3>
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>Priority Distribution</h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={[
-                    { name: 'HIGH', value: analyticsTabsData.overview?.casesByPriority?.HIGH || 0 },
-                    { name: 'MEDIUM', value: analyticsTabsData.overview?.casesByPriority?.MEDIUM || 0 },
-                    { name: 'LOW', value: analyticsTabsData.overview?.casesByPriority?.LOW || 0 }
-                  ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="value" fill="#8b5cf6" />
-                  </BarChart>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'High', value: analyticsTabsData.cases?.casesByPriority?.HIGH || 0 },
+                        { name: 'Medium', value: analyticsTabsData.cases?.casesByPriority?.MEDIUM || 0 },
+                        { name: 'Low', value: analyticsTabsData.cases?.casesByPriority?.LOW || 0 }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) => `${name} ${value}`}
+                      outerRadius={90}
+                      dataKey="value"
+                    >
+                      <Cell fill="#ef4444" /><Cell fill="#f59e0b" /><Cell fill="#3b82f6" />
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value} cases`} contentStyle={{ borderRadius: '8px', border: 'none' }} />
+                  </PieChart>
                 </ResponsiveContainer>
+              </div>
+
+              {/* Cases by Type (Top 5) */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>📚 Top Case Types</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {Object.entries(analyticsTabsData.cases?.casesByType || {})
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 5)
+                    .map(([type, count], i) => {
+                      const maxCount = Math.max(...Object.values(analyticsTabsData.cases?.casesByType || {}));
+                      const percentage = (count / maxCount) * 100;
+                      return (
+                        <div key={i}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
+                            <span style={{ fontWeight: '500', color: '#374151' }}>{type}</span>
+                            <span style={{ color: '#6b7280' }}>{count} cases</span>
+                          </div>
+                          <div style={{ width: '100%', height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${percentage}%`, background: 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)' }}></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Top Case Locations */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>📍 Top Case Locations</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(analyticsTabsData.cases?.topCaseLocations || []).slice(0, 5).map((location, i) => {
+                    const count = analyticsTabsData.cases?.casesByLocation?.[location] || 0;
+                    const maxCount = Math.max(...Object.values(analyticsTabsData.cases?.casesByLocation || {}));
+                    const percentage = (count / maxCount) * 100;
+                    return (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
+                          <span style={{ fontWeight: '500', color: '#374151' }}>{location}</span>
+                          <span style={{ color: '#6b7280' }}>{count} cases</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${percentage}%`, background: 'linear-gradient(90deg, #10b981 0%, #059669 100%)' }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Most Requested Expertise */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>🏷️ Most Requested Expertise</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {(analyticsTabsData.cases?.mostRequestedExpertiseTags || []).slice(0, 5).map((tag, i) => (
+                    <div key={i} style={{
+                      background: '#f0fdf4',
+                      border: '1px solid #dcfce7',
+                      padding: '10px 12px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span style={{ fontSize: '13px', color: '#1f2937', fontWeight: '500' }}>{tag}</span>
+                      <span style={{ background: '#10b981', color: 'white', padding: '1px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600' }}>#{i + 1}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </>
         )}
 
-        {/* Matches Tab */}
-        {analyticsTab === 'matches' && (
+        {/* MATCHES TAB */}
+        {analyticsTab === 'matches' && currentTabData && !hasError && (
           <>
-            {/* Matches KPI Cards */}
-            <div className="kpi-cards-grid" style={{ marginTop: '24px' }}>
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#dbeafe' }}>
-                  <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '28px' }}>
+              {[
+                { label: 'Total Matches', value: analyticsTabsData.matches?.totalMatches || 0, icon: '🔗', color: '#3b82f6' },
+                { label: 'Pending', value: analyticsTabsData.matches?.pendingMatches || 0, icon: '⏳', color: '#f59e0b' },
+                { label: 'Accepted', value: analyticsTabsData.matches?.acceptedMatches || 0, icon: '✅', color: '#10b981' },
+                { label: 'Rejected', value: analyticsTabsData.matches?.rejectedMatches || 0, icon: '❌', color: '#ef4444' },
+                { label: 'Avg Score', value: `${analyticsTabsData.matches?.averageMatchScore?.toFixed(1) || 0}%`, icon: '⭐', color: '#f59e0b' },
+                { label: 'High Quality', value: `${analyticsTabsData.matches?.highQualityMatchesPercentage?.toFixed(1) || 0}%`, icon: '🌟', color: '#8b5cf6' },
+                { label: 'Match Ratio', value: `${analyticsTabsData.matches?.matchRatioPerCase?.toFixed(1) || 0}`, icon: '📊', color: '#06b6d4' },
+                { label: 'Acceptance Rate', value: `${analyticsTabsData.matches?.acceptanceRate?.toFixed(1) || 0}%`, icon: '📈', color: '#ec4899' }
+              ].map((stat, i) => (
+                <div key={i} style={{
+                  background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+                  border: `2px solid ${stat.color}20`,
+                  borderRadius: '10px',
+                  padding: '16px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '24px', marginBottom: '6px' }}>{stat.icon}</div>
+                  <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '500', marginBottom: '4px' }}>{stat.label}</div>
+                  <div style={{ fontSize: '22px', fontWeight: '700', color: stat.color }}>{stat.value}</div>
                 </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Pending Matches</p>
-                  <p className="kpi-value">{analyticsTabsData.matches?.pendingMatches || 0}</p>
-                  <p className="kpi-subtitle">Awaiting decision</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
-                  <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Accepted Matches</p>
-                  <p className="kpi-value">{analyticsTabsData.matches?.acceptedMatches || 0}</p>
-                  <p className="kpi-subtitle">{analyticsTabsData.matches?.acceptanceRate?.toFixed(1) || 0}% rate</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fee2e2' }}>
-                  <svg width="24" height="24" fill="none" stroke="#ef4444" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Rejected Matches</p>
-                  <p className="kpi-value">{analyticsTabsData.matches?.rejectedMatches || 0}</p>
-                  <p className="kpi-subtitle">{analyticsTabsData.matches?.rejectionRate?.toFixed(1) || 0}% rate</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fef3c7' }}>
-                  <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Avg Match Score</p>
-                  <p className="kpi-value">{analyticsTabsData.matches?.averageMatchScore?.toFixed(1) || 0}%</p>
-                  <p className="kpi-subtitle">Quality metric</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#e0e7ff' }}>
-                  <svg width="24" height="24" fill="none" stroke="#6366f1" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">High Quality</p>
-                  <p className="kpi-value">{analyticsTabsData.matches?.highQualityMatchesPercentage?.toFixed(1) || 0}%</p>
-                  <p className="kpi-subtitle">&gt;70% score</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#ede9fe' }}>
-                  <svg width="24" height="24" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Avg Response Time</p>
-                  <p className="kpi-value">{analyticsTabsData.matches?.averageTimeToAcceptance || 0}</p>
-                  <p className="kpi-subtitle">Days to decision</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fce7f3' }}>
-                  <svg width="24" height="24" fill="none" stroke="#ec4899" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Match Ratio</p>
-                  <p className="kpi-value">{analyticsTabsData.matches?.matchRatioPerCase?.toFixed(1) || 0}</p>
-                  <p className="kpi-subtitle">Matches per case</p>
-                </div>
-              </div>
+              ))}
             </div>
 
-            <div className="charts-grid" style={{ marginTop: '24px' }}>
-              <div className="analytics-chart-card">
-                <h3 className="chart-title">Match Statistics</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+              {/* Match Status */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>Match Status</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Pending', value: analyticsTabsData.matches?.matchesByStatus?.PENDING || 0 },
+                        { name: 'Accepted', value: analyticsTabsData.matches?.matchesByStatus?.ACCEPTED_BY_PROVIDER || 0 },
+                        { name: 'Rejected (Citizen)', value: analyticsTabsData.matches?.matchesByStatus?.REJECTED_BY_CITIZEN || 0 },
+                        { name: 'Rejected (Provider)', value: analyticsTabsData.matches?.matchesByStatus?.REJECTED_BY_PROVIDER || 0 }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) => `${name}`}
+                      outerRadius={90}
+                      dataKey="value"
+                    >
+                      <Cell fill="#3b82f6" /><Cell fill="#10b981" /><Cell fill="#f59e0b" /><Cell fill="#ef4444" />
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value}`} contentStyle={{ borderRadius: '8px', border: 'none' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Quality Distribution */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>Quality Tiers</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={[
-                    { name: 'Total Matches', value: analyticsTabsData.overview?.totalMatches || 0 },
-                    { name: 'Successful', value: analyticsTabsData.overview?.successfulMatches || 0 },
-                    { name: 'Pending', value: analyticsTabsData.overview?.pendingMatches || 0 }
+                    { name: 'High (>70%)', value: analyticsTabsData.matches?.highQualityMatchesPercentage || 0 },
+                    { name: 'Medium (40-70%)', value: analyticsTabsData.matches?.mediumQualityMatchesPercentage || 0 },
+                    { name: 'Low (<40%)', value: analyticsTabsData.matches?.lowQualityMatchesPercentage || 0 }
                   ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="value" fill="#ec4899" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis dataKey="name" stroke="#6b7280" />
+                    <YAxis stroke="#6b7280" />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
+              </div>
+
+              {/* Top Match Locations */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>📍 Top Match Locations</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(analyticsTabsData.matches?.topMatchLocations || []).slice(0, 5).map((location, i) => {
+                    const count = analyticsTabsData.matches?.matchesByLocation?.[location] || 0;
+                    const maxCount = Math.max(...Object.values(analyticsTabsData.matches?.matchesByLocation || {}));
+                    const percentage = (count / maxCount) * 100;
+                    return (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
+                          <span style={{ fontWeight: '500', color: '#374151' }}>{location}</span>
+                          <span style={{ color: '#6b7280' }}>{count} matches</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${percentage}%`, background: 'linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%)' }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Response Time Metrics */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>⏱️ Response Times</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {[
+                    { label: 'Avg Time to Acceptance', value: `${analyticsTabsData.matches?.averageTimeToAcceptance || 0} days` },
+                    { label: 'Avg Time to Rejection', value: `${analyticsTabsData.matches?.averageTimeToRejection || 0} days` }
+                  ].map((stat, i) => (
+                    <div key={i} style={{ background: '#f9fafb', padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: '500', marginBottom: '4px' }}>{stat.label}</div>
+                      <div style={{ fontSize: '24px', fontWeight: '700', color: '#3b82f6' }}>{stat.value}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </>
         )}
 
-        {/* Activity Tab */}
-        {analyticsTab === 'activity' && (
+        {/* ACTIVITY TAB */}
+        {analyticsTab === 'activity' && currentTabData && !hasError && (
           <>
-            {/* Activity KPI Cards */}
-            <div className="kpi-cards-grid" style={{ marginTop: '24px' }}>
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#dbeafe' }}>
-                  <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '28px' }}>
+              {[
+                { label: 'Appointments (Total)', value: analyticsTabsData.activity?.totalAppointments || 0, icon: '📅', color: '#3b82f6' },
+                { label: 'This Month', value: analyticsTabsData.activity?.appointmentsThisMonth || 0, icon: '📊', color: '#f59e0b' },
+                { label: 'Completed', value: analyticsTabsData.activity?.completedAppointments || 0, icon: '✅', color: '#10b981' },
+                { label: 'Cancelled', value: analyticsTabsData.activity?.cancelledAppointments || 0, icon: '❌', color: '#ef4444' },
+                { label: 'Chat Messages', value: analyticsTabsData.activity?.totalChatMessages || 0, icon: '💬', color: '#06b6d4' },
+                { label: 'This Month', value: analyticsTabsData.activity?.messagesThisMonth || 0, icon: '📨', color: '#8b5cf6' },
+                { label: 'Active Conversations', value: analyticsTabsData.activity?.activeConversations || 0, icon: '🗨️', color: '#ec4899' },
+                { label: 'Notifications Sent', value: analyticsTabsData.activity?.notificationsThisMonth || 0, icon: '🔔', color: '#059669' }
+              ].map((stat, i) => (
+                <div key={i} style={{
+                  background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+                  border: `2px solid ${stat.color}20`,
+                  borderRadius: '10px',
+                  padding: '16px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '24px', marginBottom: '6px' }}>{stat.icon}</div>
+                  <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '500', marginBottom: '4px' }}>{stat.label}</div>
+                  <div style={{ fontSize: '22px', fontWeight: '700', color: stat.color }}>{stat.value}</div>
                 </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Appointments Today</p>
-                  <p className="kpi-value">{analyticsTabsData.activity?.appointmentsToday || 0}</p>
-                  <p className="kpi-subtitle">{analyticsTabsData.activity?.appointmentsThisWeek || 0} this week</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#d1fae5' }}>
-                  <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Completed</p>
-                  <p className="kpi-value">{analyticsTabsData.activity?.completedAppointments || 0}</p>
-                  <p className="kpi-subtitle">Total appointments</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fef3c7' }}>
-                  <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Chat Messages</p>
-                  <p className="kpi-value">{analyticsTabsData.activity?.messagesThisMonth || 0}</p>
-                  <p className="kpi-subtitle">This month</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#ede9fe' }}>
-                  <svg width="24" height="24" fill="none" stroke="#8b5cf6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Active Conversations</p>
-                  <p className="kpi-value">{analyticsTabsData.activity?.activeConversations || 0}</p>
-                  <p className="kpi-subtitle">Ongoing chats</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#e0e7ff' }}>
-                  <svg width="24" height="24" fill="none" stroke="#6366f1" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Notifications Sent</p>
-                  <p className="kpi-value">{analyticsTabsData.activity?.notificationsThisMonth || 0}</p>
-                  <p className="kpi-subtitle">This month</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fee2e2' }}>
-                  <svg width="24" height="24" fill="none" stroke="#ef4444" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Avg Response Time</p>
-                  <p className="kpi-value">{analyticsTabsData.activity?.averageResponseTime || 0}</p>
-                  <p className="kpi-subtitle">Minutes</p>
-                </div>
-              </div>
-
-              <div className="kpi-card">
-                <div className="kpi-icon-wrapper" style={{ background: '#fce7f3' }}>
-                  <svg width="24" height="24" fill="none" stroke="#ec4899" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-                <div className="kpi-content">
-                  <p className="kpi-title">Lawyer Engagement</p>
-                  <p className="kpi-value">{analyticsTabsData.activity?.lawyerEngagementRate?.toFixed(1) || 0}%</p>
-                  <p className="kpi-subtitle">Activity rate</p>
-                </div>
-              </div>
+              ))}
             </div>
 
-            <div className="charts-grid" style={{ marginTop: '24px' }}>
-              <div className="analytics-chart-card">
-                <h3 className="chart-title">Platform Activity</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+              {/* Activity by User Role */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>Activity by Role</h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={[
-                    { name: 'New Users', value: analyticsTabsData.overview?.newUsers || 0 },
-                    { name: 'New Cases', value: analyticsTabsData.overview?.newCases || 0 },
-                    { name: 'Active Sessions', value: analyticsTabsData.overview?.activeSessions || 0 }
+                    { name: 'Lawyers', value: analyticsTabsData.activity?.activityByUserRole?.LAWYER || 0 },
+                    { name: 'NGOs', value: analyticsTabsData.activity?.activityByUserRole?.NGO || 0 },
+                    { name: 'Citizens', value: analyticsTabsData.activity?.activityByUserRole?.CITIZEN || 0 }
                   ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="value" fill="#06b6d4" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis dataKey="name" stroke="#6b7280" />
+                    <YAxis stroke="#6b7280" />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                    <Bar dataKey="value" fill="#06b6d4" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
+              </div>
+
+              {/* Engagement Rates */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>Engagement Rates</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {[
+                    { label: 'Lawyer Engagement', value: `${analyticsTabsData.activity?.lawyerEngagementRate?.toFixed(1) || 0}%`, color: '#3b82f6' },
+                    { label: 'NGO Engagement', value: `${analyticsTabsData.activity?.ngoEngagementRate?.toFixed(1) || 0}%`, color: '#10b981' },
+                    { label: 'Citizen Engagement', value: `${analyticsTabsData.activity?.citizenEngagementRate?.toFixed(1) || 0}%`, color: '#f59e0b' }
+                  ].map((stat, i) => (
+                    <div key={i}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px' }}>
+                        <span style={{ fontWeight: '600', color: '#374151' }}>{stat.label}</span>
+                        <span style={{ color: stat.color, fontWeight: '700' }}>{stat.value}</span>
+                      </div>
+                      <div style={{ width: '100%', height: '10px', background: '#e5e7eb', borderRadius: '5px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: stat.value, background: stat.color, transition: 'width 0.3s ease' }}></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Peak Activity Hours */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>🕐 Peak Activity Hours</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {(analyticsTabsData.activity?.peakActivityHours || []).map((hour, i) => (
+                    <div key={i} style={{
+                      background: 'linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)',
+                      color: 'white',
+                      padding: '10px 12px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>{hour}</span>
+                      <span style={{ fontSize: '11px', opacity: 0.8 }}>Peak hours</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: '14px', padding: '12px', background: '#f0f9ff', border: '1px solid #bfdbfe', borderRadius: '6px', fontSize: '12px', color: '#1e40af' }}>
+                  <strong>Peak Activity:</strong> {analyticsTabsData.activity?.peakHourActivityPercentage?.toFixed(1) || 0}% of daily activity
+                </div>
+              </div>
+
+              {/* Top Activity Locations */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>📍 Most Active Locations</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(analyticsTabsData.activity?.mostActiveLocations || []).slice(0, 5).map((location, i) => {
+                    const count = analyticsTabsData.activity?.activityByLocation?.[location] || 0;
+                    const maxCount = Math.max(...Object.values(analyticsTabsData.activity?.activityByLocation || {}));
+                    const percentage = (count / maxCount) * 100;
+                    return (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
+                          <span style={{ fontWeight: '500', color: '#374151' }}>{location}</span>
+                          <span style={{ color: '#6b7280' }}>{count} activities</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${percentage}%`, background: 'linear-gradient(90deg, #06b6d4 0%, #0891b2 100%)' }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Average Response Times */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>⏱️ Response Times</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {[
+                    { label: 'Avg Response Time', value: `${analyticsTabsData.activity?.averageResponseTime || 0} min`, icon: '💬' },
+                    { label: 'Avg Case Review Time', value: `${analyticsTabsData.activity?.averageCaseReviewTime || 0} hours`, icon: '📋' },
+                    { label: 'Avg Match Decision', value: `${analyticsTabsData.activity?.averageMatchDecisionTime || 0} hours`, icon: '🔗' }
+                  ].map((stat, i) => (
+                    <div key={i} style={{ background: '#f9fafb', padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500' }}>{stat.label}</div>
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: '700', color: '#3b82f6' }}>{stat.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notification Breakdown */}
+              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', gridColumn: analyticsTab === 'activity' && window.innerWidth > 768 ? 'span 1' : 'span 1' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#1f2937' }}>🔔 Notification Types</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {Object.entries(analyticsTabsData.activity?.notificationsByType || {})
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([type, count], i) => (
+                      <div key={i} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: '#f9fafb',
+                        padding: '10px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #e5e7eb'
+                      }}>
+                        <span style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>{type}</span>
+                        <span style={{ background: '#3b82f6', color: 'white', padding: '2px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>{count}</span>
+                      </div>
+                    ))}
+                </div>
               </div>
             </div>
           </>
@@ -1722,202 +1864,770 @@ function DashboardAdmin() {
         ) : activeTab === 'profile-management' ? (
           <div className="admin-content-section">
             <div className="section-header-new">
-              <h2 className="section-title-new">User Verification Queue</h2>
-              <p className="section-subtitle">Review and approve/reject profiles for Lawyers and NGOs.</p>
+              <h2 className="section-title-new">User Management</h2>
+              <p className="section-subtitle">Manage user profiles, approvals, and account status.</p>
             </div>
 
-            <div className="search-filter-container">
-              <div className="search-container">
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  className="search-input-new"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-
-              <div className="filters-row">
-                <div className="filter-group">
-                  <label className="filter-label">Filter by Role:</label>
-                  <select
-                    className="filter-select"
-                    value={filterRole}
-                    onChange={(e) => setFilterRole(e.target.value)}
-                  >
-                    <option value="">All Roles</option>
-                    <option value="LAWYER">Lawyer</option>
-                    <option value="NGO">NGO</option>
-                    <option value="CITIZEN">Citizen</option>
-                  </select>
-                </div>
-
-                <div className="filter-group">
-                  <label className="filter-label">Filter by Status:</label>
-                  <select
-                    className="filter-select"
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                  >
-                    <option value="">All Statuses</option>
-                    <option value="PENDING">Pending</option>
-                    <option value="REAPPROVAL_PENDING">Re-approval Pending</option>
-                    <option value="APPROVED">Approved</option>
-                    <option value="REJECTED">Rejected</option>
-                    <option value="SUSPENDED">Suspended</option>
-                  </select>
-                </div>
-
+            {/* Profile Management Tabs */}
+            <div style={{ marginBottom: '24px', display: 'flex', gap: '8px', borderBottom: '2px solid #e5e7eb', paddingBottom: '0' }}>
+              {[
+                { key: 'verification-queue', icon: '✅', label: 'Verification Queue', color: '#3b82f6' },
+                { key: 'user-management', icon: '👥', label: 'User Management', color: '#10b981' }
+              ].map(tab => (
                 <button
-                  className="reset-filters-btn"
-                  onClick={() => {
-                    setFilterRole('');
-                    setFilterStatus('');
-                    setSearchTerm('');
+                  key={tab.key}
+                  onClick={() => setProfileTab(tab.key)}
+                  style={{
+                    padding: '12px 20px',
+                    border: '2px solid transparent',
+                    borderBottom: profileTab === tab.key ? `3px solid ${tab.color}` : '3px solid transparent',
+                    background: profileTab === tab.key ? `${tab.color}10` : 'transparent',
+                    color: profileTab === tab.key ? tab.color : '#666',
+                    borderRadius: '8px 8px 0 0',
+                    cursor: 'pointer',
+                    fontWeight: profileTab === tab.key ? '600' : '500',
+                    fontSize: '14px',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onMouseOver={(e) => {
+                    if (profileTab !== tab.key) {
+                      e.target.style.background = `${tab.color}05`;
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (profileTab !== tab.key) {
+                      e.target.style.background = 'transparent';
+                    }
                   }}
                 >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Reset Filters
+                  <span>{tab.icon}</span>
+                  {tab.label}
                 </button>
-              </div>
+              ))}
             </div>
 
-            <div className="table-results-summary">
-              <p className="results-text">
-                Showing <strong>{filteredPending.length + filteredApproved.length}</strong> result{(filteredPending.length + filteredApproved.length) !== 1 ? 's' : ''}
-                {(filterRole || filterStatus) && (
-                  <span className="filter-applied">
-                    {' '}with filters applied
-                  </span>
-                )}
-              </p>
-            </div>
+            {/* Verification Queue Tab */}
+            {profileTab === 'verification-queue' && (
+              <div>
+                <div className="search-filter-container">
+                  <div className="search-container">
+                    <input
+                      type="text"
+                      placeholder="Search users..."
+                      className="search-input-new"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
 
-            <div className="table-wrapper">
-              {loading ? (
-                <div className="loading-state">
-                  <div className="spinner"></div>
-                  <p>Loading...</p>
+                  <div className="filters-row">
+                    <div className="filter-group">
+                      <label className="filter-label">Filter by Role:</label>
+                      <select
+                        className="filter-select"
+                        value={filterRole}
+                        onChange={(e) => setFilterRole(e.target.value)}
+                      >
+                        <option value="">All Roles</option>
+                        <option value="LAWYER">Lawyer</option>
+                        <option value="NGO">NGO</option>
+                        <option value="CITIZEN">Citizen</option>
+                      </select>
+                    </div>
+
+                    <div className="filter-group">
+                      <label className="filter-label">Filter by Status:</label>
+                      <select
+                        className="filter-select"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="REAPPROVAL_PENDING">Re-approval Pending</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="REJECTED">Rejected</option>
+                        <option value="SUSPENDED">Suspended</option>
+                      </select>
+                    </div>
+
+                    <button
+                      className="reset-filters-btn"
+                      onClick={() => {
+                        setFilterRole('');
+                        setFilterStatus('');
+                        setSearchTerm('');
+                      }}
+                    >
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Reset Filters
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Role</th>
-                      <th>Email</th>
-                      <th>Submitted Date</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPending.map((u) => (
-                      <tr key={u.id}>
-                        <td className="name-cell" data-label="Name">{u.username}</td>
-                        <td className="role-cell" data-label="Role">{u.role}</td>
-                        <td className="email-cell" data-label="Email">{u.email}</td>
-                        <td className="date-cell" data-label="Submitted Date">
-                          {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
-                        </td>
-                        <td className="status-cell" data-label="Status">
-                          <span className="status-badge status-pending">
-                            {u.approvalStatus === 'REAPPROVAL_PENDING' ? 'Re-approval Pending' : 'Pending'}
-                          </span>
-                        </td>
-                        <td className="actions-cell" data-label="Actions">
-                          <button
-                            className="action-btn view-btn"
-                            onClick={() => handleViewDetails(u)}
-                          >
-                            View Details
-                          </button>
-                          <button
-                            className="action-btn approve-btn"
-                            onClick={() => handleApprove(u.id, u.username)}
-                            disabled={actionLoading === u.id}
-                          >
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Approve
-                          </button>
-                          <button
-                            className="action-btn reject-btn"
-                            onClick={() => handleReject(u.id, u.username)}
-                            disabled={actionLoading === u.id}
-                          >
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            Reject
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredApproved.map((u) => (
-                      <tr key={u.id}>
-                        <td className="name-cell" data-label="Name">{u.username}</td>
-                        <td className="role-cell" data-label="Role">{u.role}</td>
-                        <td className="email-cell" data-label="Email">{u.email}</td>
-                        <td className="date-cell" data-label="Submitted Date">
-                          {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
-                        </td>
-                        <td className="status-cell" data-label="Status">
-                          <span className={`status-badge ${u.approvalStatus === 'APPROVED' ? 'status-approved' :
-                            u.approvalStatus === 'SUSPENDED' ? 'status-suspended' :
-                              'status-rejected'
-                            }`}>
-                            {u.approvalStatus === 'APPROVED' ? 'Approved' :
-                              u.approvalStatus === 'SUSPENDED' ? 'Suspended' :
-                                'Rejected'}
-                          </span>
-                        </td>
-                        <td className="actions-cell" data-label="Actions">
-                          <button
-                            className="action-btn view-btn"
-                            onClick={() => handleViewDetails(u)}
-                          >
-                            View Details
-                          </button>
-                          {u.approvalStatus === 'APPROVED' && (
-                            <button
-                              className="action-btn suspend-btn"
-                              onClick={() => handleSuspend(u.id, u.username)}
-                              disabled={actionLoading === u.id}
-                            >
-                              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                              </svg>
-                              Suspend
-                            </button>
-                          )}
-                          {u.approvalStatus === 'SUSPENDED' && (
-                            <button
-                              className="action-btn approve-btn"
-                              onClick={() => handleReactivate(u.id, u.username)}
-                              disabled={actionLoading === u.id}
-                            >
-                              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              Reactivate
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredPending.length === 0 && filteredApproved.length === 0 && (
-                      <tr>
-                        <td colSpan="6" className="empty-cell">No users found</td>
-                      </tr>
+
+                <div className="table-results-summary">
+                  <p className="results-text">
+                    Showing <strong>{filteredPending.length + filteredApproved.length}</strong> result{(filteredPending.length + filteredApproved.length) !== 1 ? 's' : ''}
+                    {(filterRole || filterStatus) && (
+                      <span className="filter-applied">
+                        {' '}with filters applied
+                      </span>
                     )}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                  </p>
+                </div>
+
+                <div className="table-wrapper">
+                  {loading ? (
+                    <div className="loading-state">
+                      <div className="spinner"></div>
+                      <p>Loading...</p>
+                    </div>
+                  ) : (
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Role</th>
+                          <th>Email</th>
+                          <th>Submitted Date</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredPending.map((u) => (
+                          <tr key={u.id}>
+                            <td className="name-cell" data-label="Name">{u.username}</td>
+                            <td className="role-cell" data-label="Role">{u.role}</td>
+                            <td className="email-cell" data-label="Email">{u.email}</td>
+                            <td className="date-cell" data-label="Submitted Date">
+                              {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
+                            </td>
+                            <td className="status-cell" data-label="Status">
+                              <span className="status-badge status-pending">
+                                {u.approvalStatus === 'REAPPROVAL_PENDING' ? 'Re-approval Pending' : 'Pending'}
+                              </span>
+                            </td>
+                            <td className="actions-cell" data-label="Actions">
+                              <button
+                                onClick={() => handleViewDetails(u)}
+                                style={{
+                                  padding: '8px 12px',
+                                  border: 'none',
+                                  background: '#dbeafe',
+                                  color: '#1e40af',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                                }}
+                                onMouseOver={(e) => {
+                                  e.target.style.background = '#bfdbfe';
+                                  e.target.style.boxShadow = '0 4px 8px rgba(30, 64, 175, 0.2)';
+                                  e.target.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseOut={(e) => {
+                                  e.target.style.background = '#dbeafe';
+                                  e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                                  e.target.style.transform = 'translateY(0)';
+                                }}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                View Details
+                              </button>
+                              <button
+                                onClick={() => handleApprove(u.id, u.username)}
+                                disabled={actionLoading === u.id}
+                                style={{
+                                  padding: '8px 12px',
+                                  border: 'none',
+                                  background: '#dcfce7',
+                                  color: '#166534',
+                                  borderRadius: '6px',
+                                  cursor: actionLoading === u.id ? 'not-allowed' : 'pointer',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  opacity: actionLoading === u.id ? 0.6 : 1,
+                                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                                }}
+                                onMouseOver={(e) => {
+                                  if (actionLoading !== u.id) {
+                                    e.target.style.background = '#bbf7d0';
+                                    e.target.style.boxShadow = '0 4px 8px rgba(22, 101, 52, 0.2)';
+                                    e.target.style.transform = 'translateY(-1px)';
+                                  }
+                                }}
+                                onMouseOut={(e) => {
+                                  if (actionLoading !== u.id) {
+                                    e.target.style.background = '#dcfce7';
+                                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                                    e.target.style.transform = 'translateY(0)';
+                                  }
+                                }}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                {actionLoading === u.id ? 'Approving...' : 'Approve'}
+                              </button>
+                              <button
+                                onClick={() => handleReject(u.id, u.username)}
+                                disabled={actionLoading === u.id}
+                                style={{
+                                  padding: '8px 12px',
+                                  border: 'none',
+                                  background: '#fee2e2',
+                                  color: '#991b1b',
+                                  borderRadius: '6px',
+                                  cursor: actionLoading === u.id ? 'not-allowed' : 'pointer',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  opacity: actionLoading === u.id ? 0.6 : 1,
+                                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                                }}
+                                onMouseOver={(e) => {
+                                  if (actionLoading !== u.id) {
+                                    e.target.style.background = '#fecaca';
+                                    e.target.style.boxShadow = '0 4px 8px rgba(153, 27, 27, 0.2)';
+                                    e.target.style.transform = 'translateY(-1px)';
+                                  }
+                                }}
+                                onMouseOut={(e) => {
+                                  if (actionLoading !== u.id) {
+                                    e.target.style.background = '#fee2e2';
+                                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                                    e.target.style.transform = 'translateY(0)';
+                                  }
+                                }}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                {actionLoading === u.id ? 'Rejecting...' : 'Reject'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredApproved.map((u) => (
+                          <tr key={u.id}>
+                            <td className="name-cell" data-label="Name">{u.username}</td>
+                            <td className="role-cell" data-label="Role">{u.role}</td>
+                            <td className="email-cell" data-label="Email">{u.email}</td>
+                            <td className="date-cell" data-label="Submitted Date">
+                              {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
+                            </td>
+                            <td className="status-cell" data-label="Status">
+                              <span className={`status-badge ${u.approvalStatus === 'APPROVED' ? 'status-approved' :
+                                u.approvalStatus === 'SUSPENDED' ? 'status-suspended' :
+                                  'status-rejected'
+                                }`}>
+                                {u.approvalStatus === 'APPROVED' ? 'Approved' :
+                                  u.approvalStatus === 'SUSPENDED' ? 'Suspended' :
+                                    'Rejected'}
+                              </span>
+                            </td>
+                            <td className="actions-cell" data-label="Actions">
+                              <button
+                                onClick={() => handleViewDetails(u)}
+                                style={{
+                                  padding: '8px 12px',
+                                  border: 'none',
+                                  background: '#dbeafe',
+                                  color: '#1e40af',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                                }}
+                                onMouseOver={(e) => {
+                                  e.target.style.background = '#bfdbfe';
+                                  e.target.style.boxShadow = '0 4px 8px rgba(30, 64, 175, 0.2)';
+                                  e.target.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseOut={(e) => {
+                                  e.target.style.background = '#dbeafe';
+                                  e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                                  e.target.style.transform = 'translateY(0)';
+                                }}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                View Details
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredPending.length === 0 && filteredApproved.length === 0 && (
+                          <tr>
+                            <td colSpan="6" className="empty-cell">No users found</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* User Management Tab */}
+            {profileTab === 'user-management' && (
+              <div>
+                <div style={{ marginBottom: '24px' }}>
+                  {/* Search Bar */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <input
+                      type="text"
+                      placeholder="🔍 Search by name or email..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        transition: 'all 0.3s ease',
+                        boxSizing: 'border-box',
+                        outline: 'none'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#3b82f6';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#e5e7eb';
+                        e.target.style.boxShadow = 'none';
+                      }}
+                    />
+                  </div>
+
+                  {/* Filters */}
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                    {/* Role Filter */}
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Role
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {['All', 'Citizen', 'Lawyer', 'NGO'].map(role => {
+                          const isSelected = userManagementFilterRole === (role === 'All' ? '' : role.toUpperCase());
+                          return (
+                            <button
+                              key={role}
+                              onClick={() => setUserManagementFilterRole(role === 'All' ? '' : role.toUpperCase())}
+                              style={{
+                                padding: '8px 14px',
+                                border: 'none',
+                                background: isSelected ? '#3b82f6' : '#f3f4f6',
+                                color: isSelected ? '#fff' : '#6b7280',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                fontWeight: isSelected ? '600' : '500',
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                boxShadow: isSelected ? '0 2px 8px rgba(59, 130, 246, 0.3)' : 'none'
+                              }}
+                              onMouseOver={(e) => {
+                                if (!isSelected) {
+                                  e.target.style.background = '#e5e7eb';
+                                }
+                              }}
+                              onMouseOut={(e) => {
+                                if (!isSelected) {
+                                  e.target.style.background = '#f3f4f6';
+                                }
+                              }}
+                            >
+                              {role}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Status Filter */}
+                    <div>
+                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Status
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {[
+                          { label: 'All', value: '' },
+                          { label: 'Approved', value: 'APPROVED' },
+                          { label: 'Suspended', value: 'SUSPENDED' },
+                          { label: 'Pending', value: 'PENDING' },
+                          { label: 'Rejected', value: 'REJECTED' }
+                        ].map(status => {
+                          const isSelected = userManagementFilterStatus === status.value;
+                          let bgColor = '#f3f4f6';
+                          let bgColorSelected = '#3b82f6';
+                          
+                          if (status.value === 'APPROVED') {
+                            bgColor = '#ecfdf5';
+                            bgColorSelected = '#10b981';
+                          } else if (status.value === 'SUSPENDED') {
+                            bgColor = '#fef2f2';
+                            bgColorSelected = '#dc2626';
+                          } else if (status.value === 'PENDING') {
+                            bgColor = '#fffbeb';
+                            bgColorSelected = '#f59e0b';
+                          } else if (status.value === 'REJECTED') {
+                            bgColor = '#fef2f2';
+                            bgColorSelected = '#ef4444';
+                          }
+
+                          return (
+                            <button
+                              key={status.value}
+                              onClick={() => setUserManagementFilterStatus(status.value)}
+                              style={{
+                                padding: '8px 14px',
+                                border: 'none',
+                                background: isSelected ? bgColorSelected : bgColor,
+                                color: isSelected ? '#fff' : (status.value === 'APPROVED' ? '#059669' : status.value === 'SUSPENDED' ? '#991b1b' : status.value === 'PENDING' ? '#92400e' : status.value === 'REJECTED' ? '#7f1d1d' : '#6b7280'),
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                fontWeight: isSelected ? '600' : '500',
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                boxShadow: isSelected ? `0 2px 8px rgba(0, 0, 0, 0.1)` : 'none'
+                              }}
+                              onMouseOver={(e) => {
+                                if (!isSelected) {
+                                  e.target.style.opacity = '0.8';
+                                }
+                              }}
+                              onMouseOut={(e) => {
+                                if (!isSelected) {
+                                  e.target.style.opacity = '1';
+                                }
+                              }}
+                            >
+                              {status.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Reset Button */}
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'flex-end' }}>
+                      <button
+                        onClick={() => {
+                          setUserManagementFilterRole('');
+                          setUserManagementFilterStatus('');
+                          setSearchTerm('');
+                        }}
+                        style={{
+                          padding: '8px 14px',
+                          border: '1px solid #d1d5db',
+                          background: '#fff',
+                          color: '#6b7280',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: '500',
+                          transition: 'all 0.2s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        onMouseOver={(e) => {
+                          e.target.style.borderColor = '#9ca3af';
+                          e.target.style.background = '#f9fafb';
+                        }}
+                        onMouseOut={(e) => {
+                          e.target.style.borderColor = '#d1d5db';
+                          e.target.style.background = '#fff';
+                        }}
+                      >
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="table-results-summary">
+                  <p className="results-text">
+                    Showing <strong>{filteredAllUsers.length}</strong> user{filteredAllUsers.length !== 1 ? 's' : ''}
+                    {(userManagementFilterRole || userManagementFilterStatus) && (
+                      <span className="filter-applied">
+                        {' '} (
+                        {userManagementFilterRole && `Role: ${userManagementFilterRole}`}
+                        {userManagementFilterRole && userManagementFilterStatus && ', '}
+                        {userManagementFilterStatus && `Status: ${userManagementFilterStatus}`}
+                        )
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="table-wrapper">
+                  {loading ? (
+                    <div className="loading-state">
+                      <div className="spinner"></div>
+                      <p>Loading users...</p>
+                    </div>
+                  ) : (
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Username</th>
+                          <th>Email</th>
+                          <th>Role</th>
+                          <th>Status</th>
+                          <th>Created Date</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredAllUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="empty-cell">No users found</td>
+                          </tr>
+                        ) : (
+                          filteredAllUsers.map((u) => (
+                            <tr key={u.id}>
+                              <td className="name-cell" data-label="Username">
+                                <span style={{ fontWeight: '500' }}>{u.username}</span>
+                              </td>
+                              <td className="email-cell" data-label="Email">{u.email}</td>
+                              <td className="role-cell" data-label="Role">
+                                <span style={{
+                                  display: 'inline-block',
+                                  padding: '4px 12px',
+                                  borderRadius: '20px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  backgroundColor: u.role === 'LAWYER' ? '#dbeafe' : u.role === 'NGO' ? '#dcfce7' : '#fef3c7',
+                                  color: u.role === 'LAWYER' ? '#1e40af' : u.role === 'NGO' ? '#166534' : '#92400e'
+                                }}>
+                                  {u.role}
+                                </span>
+                              </td>
+                              <td className="status-cell" data-label="Status">
+                                <span className={`status-badge ${u.approvalStatus === 'APPROVED' ? 'status-approved' :
+                                  u.approvalStatus === 'SUSPENDED' ? 'status-suspended' :
+                                  u.approvalStatus === 'PENDING' || u.approvalStatus === 'REAPPROVAL_PENDING' ? 'status-pending' :
+                                    'status-rejected'
+                                  }`}>
+                                  {u.approvalStatus === 'REAPPROVAL_PENDING' ? 'Re-approval Pending' : u.approvalStatus}
+                                </span>
+                              </td>
+                              <td className="date-cell" data-label="Created Date">
+                                {new Date(u.createdAt || Date.now()).toLocaleDateString('en-CA')}
+                              </td>
+                              <td className="actions-cell" data-label="Actions" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                {/* View Button */}
+                                <button
+                                  onClick={() => handleViewDetails(u)}
+                                  title="View user details"
+                                  style={{
+                                    padding: '8px 12px',
+                                    border: 'none',
+                                    background: '#dbeafe',
+                                    color: '#1e40af',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                                  }}
+                                  onMouseOver={(e) => {
+                                    e.target.style.background = '#bfdbfe';
+                                    e.target.style.boxShadow = '0 4px 8px rgba(30, 64, 175, 0.2)';
+                                    e.target.style.transform = 'translateY(-1px)';
+                                  }}
+                                  onMouseOut={(e) => {
+                                    e.target.style.background = '#dbeafe';
+                                    e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                                    e.target.style.transform = 'translateY(0)';
+                                  }}
+                                >
+                                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                  </svg>
+                                  View
+                                </button>
+
+                                {/* Suspend Button */}
+                                {u.approvalStatus === 'APPROVED' && (
+                                  <button
+                                    onClick={() => handleSuspend(u.id, u.username)}
+                                    disabled={actionLoading === u.id}
+                                    title="Temporarily suspend this user account"
+                                    style={{
+                                      padding: '8px 12px',
+                                      border: 'none',
+                                      background: '#fef3c7',
+                                      color: '#92400e',
+                                      borderRadius: '6px',
+                                      cursor: actionLoading === u.id ? 'not-allowed' : 'pointer',
+                                      fontSize: '12px',
+                                      fontWeight: '600',
+                                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      opacity: actionLoading === u.id ? 0.6 : 1,
+                                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                                    }}
+                                    onMouseOver={(e) => {
+                                      if (actionLoading !== u.id) {
+                                        e.target.style.background = '#fcd34d';
+                                        e.target.style.boxShadow = '0 4px 8px rgba(146, 64, 14, 0.2)';
+                                        e.target.style.transform = 'translateY(-1px)';
+                                      }
+                                    }}
+                                    onMouseOut={(e) => {
+                                      if (actionLoading !== u.id) {
+                                        e.target.style.background = '#fef3c7';
+                                        e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                                        e.target.style.transform = 'translateY(0)';
+                                      }
+                                    }}
+                                  >
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    {actionLoading === u.id ? 'Suspending...' : 'Suspend'}
+                                  </button>
+                                )}
+
+                                {/* Activate Button */}
+                                {u.approvalStatus === 'SUSPENDED' && (
+                                  <button
+                                    onClick={() => handleReactivate(u.id, u.username)}
+                                    disabled={actionLoading === u.id}
+                                    title="Reactivate this user account"
+                                    style={{
+                                      padding: '8px 12px',
+                                      border: 'none',
+                                      background: '#dcfce7',
+                                      color: '#166534',
+                                      borderRadius: '6px',
+                                      cursor: actionLoading === u.id ? 'not-allowed' : 'pointer',
+                                      fontSize: '12px',
+                                      fontWeight: '600',
+                                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      opacity: actionLoading === u.id ? 0.6 : 1,
+                                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                                    }}
+                                    onMouseOver={(e) => {
+                                      if (actionLoading !== u.id) {
+                                        e.target.style.background = '#bbf7d0';
+                                        e.target.style.boxShadow = '0 4px 8px rgba(22, 101, 52, 0.2)';
+                                        e.target.style.transform = 'translateY(-1px)';
+                                      }
+                                    }}
+                                    onMouseOut={(e) => {
+                                      if (actionLoading !== u.id) {
+                                        e.target.style.background = '#dcfce7';
+                                        e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                                        e.target.style.transform = 'translateY(0)';
+                                      }
+                                    }}
+                                  >
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    {actionLoading === u.id ? 'Activating...' : 'Activate'}
+                                  </button>
+                                )}
+
+                                {/* Delete Button */}
+                                <button
+                                  onClick={() => handleDeleteUser(u.id, u.username)}
+                                  disabled={actionLoading === u.id}
+                                  title="Permanently delete this user"
+                                  style={{
+                                    padding: '8px 12px',
+                                    border: 'none',
+                                    background: '#fee2e2',
+                                    color: '#991b1b',
+                                    borderRadius: '6px',
+                                    cursor: actionLoading === u.id ? 'not-allowed' : 'pointer',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    opacity: actionLoading === u.id ? 0.6 : 1,
+                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                                  }}
+                                  onMouseOver={(e) => {
+                                    if (actionLoading !== u.id) {
+                                      e.target.style.background = '#fca5a5';
+                                      e.target.style.color = '#7f1d1d';
+                                      e.target.style.boxShadow = '0 4px 12px rgba(153, 27, 27, 0.25)';
+                                      e.target.style.transform = 'translateY(-1px)';
+                                    }
+                                  }}
+                                  onMouseOut={(e) => {
+                                    if (actionLoading !== u.id) {
+                                      e.target.style.background = '#fee2e2';
+                                      e.target.style.color = '#991b1b';
+                                      e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                                      e.target.style.transform = 'translateY(0)';
+                                    }
+                                  }}
+                                >
+                                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                  {actionLoading === u.id ? 'Deleting...' : 'Delete'}
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         ) : activeTab === 'directory' ? (
           <DirectoryIngestion />

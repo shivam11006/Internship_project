@@ -349,6 +349,16 @@ const authService = {
     }
   },
 
+  deleteUser: async (userId) => {
+    try {
+      const response = await apiClient.delete(`/admin/users/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Delete user error:', error);
+      throw error;
+    }
+  },
+
   // Get user details by ID
   getUserById: async (userId) => {
     try {
