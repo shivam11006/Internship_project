@@ -9,6 +9,7 @@ import logService from './services/logService';
 import analyticsService from './services/analyticsService';
 import DirectoryIngestion from './DirectoryIngestion';
 import Directory from './Directory';
+import HealthMonitoring from './HealthMonitoring';
 import './AdminDashboard.css';
 import MapVisualization from './MapVisualization';
 
@@ -1659,6 +1660,15 @@ function DashboardAdmin() {
             <span>Impact Analytics</span>
           </button>
 
+          <button
+            className={`admin-nav-item ${activeTab === 'health' ? 'active' : ''}`}
+            onClick={() => setActiveTab('health')}
+          >
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>System Health</span>
+          </button>
         </nav>
       </div>
 
@@ -3001,6 +3011,7 @@ function DashboardAdmin() {
           </div>
         )}
         {activeTab === 'analytics' && renderAnalytics()}
+        {activeTab === 'health' && <HealthMonitoring token={localStorage.getItem('accessToken')} />}
       </div>
     </div>
   );

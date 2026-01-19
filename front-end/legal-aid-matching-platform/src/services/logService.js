@@ -54,6 +54,32 @@ const logService = {
       };
     }
   },
+
+  // Clear logs older than 7 days
+  clearOldLogs: async () => {
+    try {
+      const response = await apiClient.delete('/admin/logs/cleanup');
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to clear old logs. Please try again.',
+      };
+    }
+  },
+
+  // Alias for backward compatibility
+  deleteLogsOlderThanSevenDays: async () => {
+    try {
+      const response = await apiClient.delete('/admin/logs/cleanup');
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to clear old logs. Please try again.',
+      };
+    }
+  },
 };
 
 export default logService;

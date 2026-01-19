@@ -43,6 +43,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         // WebSocket handshake endpoint - authentication handled by WebSocketAuthInterceptor
                         .requestMatchers("/ws/**").permitAll()
+                        
+                        // Admin health and actuator endpoints - require ADMIN role
+                        .requestMatchers("/api/admin/health/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/actuator/**").hasRole("ADMIN")
 
                         // All other endpoints require authentication
                         .anyRequest().authenticated())
