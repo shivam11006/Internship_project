@@ -41,7 +41,21 @@ public class AppointmentController {
 
             AppointmentResponse response = appointmentService.createAppointment(request);
 
-            log.info("Appointment created successfully: ID {}", response.getId());
+            // Determine who created appointment for whom
+            boolean createdByCitizen = response.getCitizenEmail().equals(auth.getName());
+            String creator = auth.getName();
+            String recipient = createdByCitizen ? response.getProviderName() + " (" + response.getProviderEmail() + ")" 
+                                                : response.getCitizenName() + " (" + response.getCitizenEmail() + ")";
+            String appointmentTypeStr = response.getAppointmentType() != null ? response.getAppointmentType().toString() : "OFFLINE";
+            
+            log.info("Appointment ID {} created by {} for {} - Type: {}, Venue: {}, Date: {}, Status: {}", 
+                    response.getId(), 
+                    creator, 
+                    recipient,
+                    appointmentTypeStr,
+                    response.getVenue(),
+                    response.getScheduledDateTime(),
+                    response.getStatus());
 
             return ResponseEntity.ok(response);
 
@@ -63,11 +77,19 @@ public class AppointmentController {
         MDC.put("endpoint", "/api/appointments/my");
 
         try {
-            log.info("User {} requested their appointments", auth.getName());
-
             List<AppointmentResponse> appointments = appointmentService.getMyAppointments();
 
-            log.info("Retrieved {} appointments for user {}", appointments.size(), auth.getName());
+            if (appointments.isEmpty()) {
+                log.info("User {} requested their appointments - No appointments found", auth.getName());
+            } else {
+                String appointmentDetails = appointments.stream()
+                        .map(a -> String.format("ID:%d with %s (Status:%s)", 
+                                a.getId(), 
+                                a.getCitizenEmail().equals(auth.getName()) ? a.getProviderName() : a.getCitizenName(),
+                                a.getStatus()))
+                        .collect(java.util.stream.Collectors.joining(", "));
+                log.info("User {} retrieved {} appointments: [{}]", auth.getName(), appointments.size(), appointmentDetails);
+            }
 
             return ResponseEntity.ok(appointments);
 
@@ -89,11 +111,19 @@ public class AppointmentController {
         MDC.put("endpoint", "/api/appointments/upcoming");
 
         try {
-            log.info("User {} requested upcoming appointments", auth.getName());
-
             List<AppointmentResponse> appointments = appointmentService.getUpcomingAppointments();
 
-            log.info("Retrieved {} upcoming appointments for user {}", appointments.size(), auth.getName());
+            if (appointments.isEmpty()) {
+                log.info("User {} requested upcoming appointments - No upcoming appointments found", auth.getName());
+            } else {
+                String appointmentDetails = appointments.stream()
+                        .map(a -> String.format("ID:%d with %s on %s", 
+                                a.getId(), 
+                                a.getCitizenEmail().equals(auth.getName()) ? a.getProviderName() : a.getCitizenName(),
+                                a.getScheduledDateTime()))
+                        .collect(java.util.stream.Collectors.joining(", "));
+                log.info("User {} has {} upcoming appointments: [{}]", auth.getName(), appointments.size(), appointmentDetails);
+            }
 
             return ResponseEntity.ok(appointments);
 
@@ -115,11 +145,19 @@ public class AppointmentController {
         MDC.put("endpoint", "/api/appointments/past");
 
         try {
-            log.info("User {} requested past appointments", auth.getName());
-
             List<AppointmentResponse> appointments = appointmentService.getPastAppointments();
 
-            log.info("Retrieved {} past appointments for user {}", appointments.size(), auth.getName());
+            if (appointments.isEmpty()) {
+                log.info("User {} requested past appointments - No past appointments found", auth.getName());
+            } else {
+                String appointmentDetails = appointments.stream()
+                        .map(a -> String.format("ID:%d with %s (Status:%s)", 
+                                a.getId(), 
+                                a.getCitizenEmail().equals(auth.getName()) ? a.getProviderName() : a.getCitizenName(),
+                                a.getStatus()))
+                        .collect(java.util.stream.Collectors.joining(", "));
+                log.info("User {} retrieved {} past appointments: [{}]", auth.getName(), appointments.size(), appointmentDetails);
+            }
 
             return ResponseEntity.ok(appointments);
 
@@ -267,7 +305,7 @@ public class AppointmentController {
 
             AppointmentResponse response = appointmentService.confirmAppointment(id);
 
-            log.info("Appointment {} accepted by citizen {}", id, auth.getName());
+            log.info("Appointment {} created by {} is accepted by citizen {}", id, response.getProviderName(), auth.getName());
 
             return ResponseEntity.ok(response);
 
@@ -298,7 +336,7 @@ public class AppointmentController {
 
             AppointmentResponse response = appointmentService.acceptAppointmentByProvider(id);
 
-            log.info("Appointment {} accepted by provider {}", id, auth.getName());
+            log.info("Appointment {} created by {} is accepted by provider {}", id, response.getCitizenName(), auth.getName());
 
             return ResponseEntity.ok(response);
 

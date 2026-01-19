@@ -18,8 +18,12 @@ public class PasswordResetToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(nullable = false, unique = true)
+    @Column(nullable = true)
     private String token;
+    
+    // 6-digit OTP for email verification (nullable for backward compatibility)
+    @Column(length = 6)
+    private String otp;
     
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", nullable = false)
@@ -28,13 +32,29 @@ public class PasswordResetToken {
     @Column(nullable = false)
     private LocalDateTime expiryDate;
     
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean used = false;
     
-    @Column(nullable = false, updatable = false)
+    // Track OTP verification attempts to prevent brute force
+    @Column(columnDefinition = "integer default 0")
+    private int attempts = 0;
+    
+    // Whether OTP has been verified (step 1 complete)
+    @Column(columnDefinition = "boolean default false")
+    private boolean otpVerified = false;
+    
+    @Column(updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
     
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(this.expiryDate);
+    }
+    
+    public void incrementAttempts() {
+        this.attempts++;
+    }
+    
+    public boolean hasExceededMaxAttempts(int maxAttempts) {
+        return this.attempts >= maxAttempts;
     }
 }
