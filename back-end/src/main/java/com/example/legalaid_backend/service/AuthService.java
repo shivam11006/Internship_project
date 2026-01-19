@@ -15,6 +15,7 @@ import com.example.legalaid_backend.util.Role;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -22,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -38,6 +40,13 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
+    private final EmailService emailService;
+    
+    @Value("${otp.expiry.minutes:10}")
+    private int otpExpiryMinutes;
+    
+    @Value("${otp.max.attempts:5}")
+    private int maxOtpAttempts;
 
     // ============================
     //        REGISTER USER
@@ -250,8 +259,21 @@ public class AuthService {
     }
 
     // ============================
-    //    PASSWORD RESET
+    //    PASSWORD RESET WITH OTP
     // ============================
+    
+    /**
+     * Generate 6-digit OTP
+     */
+    private String generateOtp() {
+        SecureRandom random = new SecureRandom();
+        int otp = 100000 + random.nextInt(900000); // 6-digit OTP
+        return String.valueOf(otp);
+    }
+    
+    /**
+     * Step 1: Request password reset - sends OTP to email
+     */
     @Transactional
     public void forgotPassword(String email) {
         logger.info("Processing forgot password request for email: {}", email);
@@ -267,41 +289,137 @@ public class AuthService {
         // Delete any existing tokens for this user
         passwordResetTokenRepository.deleteByUser(user);
         
-        // Generate a unique token
-        String token = UUID.randomUUID().toString();
+        // Generate 6-digit OTP
+        String otp = generateOtp();
         
-        // Create token entity with 1 hour expiry
+        // Create token entity with configurable expiry (default 10 minutes)
         PasswordResetToken resetToken = new PasswordResetToken();
-        resetToken.setToken(token);
+        resetToken.setOtp(otp);
+        resetToken.setToken(UUID.randomUUID().toString()); // Keep for backward compatibility
         resetToken.setUser(user);
-        resetToken.setExpiryDate(LocalDateTime.now().plusHours(1));
+        resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(otpExpiryMinutes));
         resetToken.setUsed(false);
+        resetToken.setAttempts(0);
+        resetToken.setOtpVerified(false);
         
         passwordResetTokenRepository.save(resetToken);
         
-        logger.info("Password reset token generated for user: {}", email);
+        logger.info("OTP generated for user: {}", email);
         
-        // TODO: Send email with reset link containing token
-        // For now, just log it (in production, use email service)
-        String resetLink = "http://localhost:3002/reset-password?token=" + token;
-        logger.info("Password reset link (send via email): {}", resetLink);
+        // Send OTP via email
+        emailService.sendOtpEmail(email, otp, user.getUsername());
+        
+        logger.info("OTP email sent to: {}", email);
     }
     
+    /**
+     * Step 2: Verify OTP
+     */
     @Transactional
-    public void resetPassword(String token, String newPassword) {
-        logger.info("Processing password reset with token");
+    public boolean verifyOtp(String email, String otp) {
+        logger.info("Verifying OTP for email: {}", email);
         
-        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid or expired reset token"));
+        PasswordResetToken resetToken = passwordResetTokenRepository.findLatestByUserEmail(email)
+                .orElseThrow(() -> {
+                    logger.warn("No reset token found for email: {}", email);
+                    return new RuntimeException("No password reset request found. Please request a new OTP.");
+                });
         
-        if (resetToken.isUsed()) {
-            logger.warn("Reset token already used");
-            throw new RuntimeException("This reset link has already been used");
+        // Check if token is expired
+        if (resetToken.isExpired()) {
+            logger.warn("OTP expired for email: {}", email);
+            throw new RuntimeException("OTP has expired. Please request a new one.");
         }
         
+        // Check if already used
+        if (resetToken.isUsed()) {
+            logger.warn("OTP already used for email: {}", email);
+            throw new RuntimeException("This OTP has already been used. Please request a new one.");
+        }
+        
+        // Check max attempts
+        if (resetToken.hasExceededMaxAttempts(maxOtpAttempts)) {
+            logger.warn("Max OTP attempts exceeded for email: {}", email);
+            throw new RuntimeException("Too many failed attempts. Please request a new OTP.");
+        }
+        
+        // Increment attempt counter
+        resetToken.incrementAttempts();
+        
+        // Verify OTP
+        if (!resetToken.getOtp().equals(otp)) {
+            passwordResetTokenRepository.save(resetToken);
+            int remainingAttempts = maxOtpAttempts - resetToken.getAttempts();
+            logger.warn("Invalid OTP for email: {}. Remaining attempts: {}", email, remainingAttempts);
+            throw new RuntimeException("Invalid OTP. " + remainingAttempts + " attempts remaining.");
+        }
+        
+        // Mark OTP as verified
+        resetToken.setOtpVerified(true);
+        passwordResetTokenRepository.save(resetToken);
+        
+        logger.info("OTP verified successfully for email: {}", email);
+        return true;
+    }
+    
+    /**
+     * Resend OTP
+     */
+    @Transactional
+    public void resendOtp(String email) {
+        logger.info("Resending OTP for email: {}", email);
+        
+        User user = userRepository.findByEmail(email).orElse(null);
+        
+        if (user == null) {
+            logger.warn("User not found with email: {}", email);
+            return; // Don't reveal if email exists
+        }
+        
+        // Delete existing tokens and create new one
+        passwordResetTokenRepository.deleteByUser(user);
+        
+        // Generate new OTP
+        String otp = generateOtp();
+        
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setOtp(otp);
+        resetToken.setToken(UUID.randomUUID().toString());
+        resetToken.setUser(user);
+        resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(otpExpiryMinutes));
+        resetToken.setUsed(false);
+        resetToken.setAttempts(0);
+        resetToken.setOtpVerified(false);
+        
+        passwordResetTokenRepository.save(resetToken);
+        
+        // Send OTP via email
+        emailService.sendOtpEmail(email, otp, user.getUsername());
+        
+        logger.info("New OTP sent to: {}", email);
+    }
+    
+    /**
+     * Step 3: Reset password (after OTP verification)
+     */
+    @Transactional
+    public void resetPassword(String email, String newPassword) {
+        logger.info("Processing password reset for email: {}", email);
+        
+        PasswordResetToken resetToken = passwordResetTokenRepository.findVerifiedTokenByEmail(email)
+                .orElseThrow(() -> {
+                    logger.warn("No verified OTP found for email: {}", email);
+                    return new RuntimeException("Please verify your OTP first.");
+                });
+        
         if (resetToken.isExpired()) {
-            logger.warn("Reset token expired");
-            throw new RuntimeException("This reset link has expired. Please request a new one");
+            logger.warn("Reset token expired for email: {}", email);
+            throw new RuntimeException("Session expired. Please request a new OTP.");
+        }
+        
+        if (resetToken.isUsed()) {
+            logger.warn("Reset token already used for email: {}", email);
+            throw new RuntimeException("This reset session has already been used.");
         }
         
         User user = resetToken.getUser();
@@ -311,6 +429,39 @@ public class AuthService {
         // Mark token as used
         resetToken.setUsed(true);
         passwordResetTokenRepository.save(resetToken);
+        
+        // Send confirmation email
+        emailService.sendPasswordResetSuccessEmail(email, user.getUsername());
+        
+        logger.info("Password reset successful for user: {}", email);
+    }
+    
+    /**
+     * Legacy method for token-based reset (backward compatibility)
+     */
+    @Transactional
+    public void resetPasswordWithToken(String token, String newPassword) {
+        logger.info("Processing password reset with token (legacy)");
+        
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new RuntimeException("Invalid or expired reset token"));
+        
+        if (resetToken.isUsed()) {
+            throw new RuntimeException("This reset link has already been used");
+        }
+        
+        if (resetToken.isExpired()) {
+            throw new RuntimeException("This reset link has expired. Please request a new one");
+        }
+        
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+        
+        emailService.sendPasswordResetSuccessEmail(user.getEmail(), user.getUsername());
         
         logger.info("Password reset successful for user: {}", user.getEmail());
     }

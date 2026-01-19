@@ -419,7 +419,11 @@ public class AppointmentService {
         }
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
-        log.info("Appointment accepted by citizen {}: ID {}, status: {}", currentUser.getEmail(), savedAppointment.getId(), savedAppointment.getStatus());
+        log.info("Appointment ID {} created by provider {} is accepted by citizen {}. Status: {}", 
+                savedAppointment.getId(), 
+                savedAppointment.getProvider().getEmail(), 
+                currentUser.getEmail(), 
+                savedAppointment.getStatus());
 
         return toResponse(savedAppointment);
     }
@@ -468,7 +472,11 @@ public class AppointmentService {
         }
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
-        log.info("Appointment accepted by provider {}: ID {}, status: {}", currentUser.getEmail(), savedAppointment.getId(), savedAppointment.getStatus());
+        log.info("Appointment ID {} created by citizen {} is accepted by provider {}. Status: {}", 
+                savedAppointment.getId(), 
+                savedAppointment.getCitizen().getEmail(), 
+                currentUser.getEmail(), 
+                savedAppointment.getStatus());
 
         return toResponse(savedAppointment);
     }
