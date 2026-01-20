@@ -13,10 +13,38 @@ import AnalyticsDashboard from './AnalyticsDashboard.jsx';
 import authService from './services/authService';
 
 // Protected Route - redirects to signin if not authenticated
-function ProtectedRoute({ children }) {
-  const isAuthenticated = authService.isAuthenticated();
+function ProtectedRoute({ children, requiredRole = null }) {
+  const [isChecking, setIsChecking] = useState(true);
+  const [isValidated, setIsValidated] = useState(false);
+  
+  useEffect(() => {
+    // Validate authentication and role on mount
+    const validateAuth = () => {
+      const isAuthenticated = authService.isAuthenticated();
+      const user = authService.getCurrentUser();
+      
+      if (isAuthenticated && user) {
+        // If role is required, check if user has the correct role
+        if (requiredRole && user.role !== requiredRole) {
+          setIsValidated(false);
+        } else {
+          setIsValidated(true);
+        }
+      } else {
+        setIsValidated(false);
+      }
+      setIsChecking(false);
+    };
+    
+    validateAuth();
+  }, [requiredRole]);
+  
+  if (isChecking) {
+    // Show loading state while validating
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
+  }
 
-  if (!isAuthenticated) {
+  if (!isValidated) {
     return <Navigate to="/signin" replace />;
   }
 
@@ -109,7 +137,7 @@ function App() {
         <Route
           path="/dashboard/citizen"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="CITIZEN">
               <DashboardCitizen />
             </ProtectedRoute>
           }
@@ -117,7 +145,7 @@ function App() {
         <Route
           path="/dashboard/lawyer"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="LAWYER">
               <DashboardLawyer />
             </ProtectedRoute>
           }
@@ -125,7 +153,7 @@ function App() {
         <Route
           path="/dashboard/ngo"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="NGO">
               <DashboardNgo />
             </ProtectedRoute>
           }
@@ -133,7 +161,7 @@ function App() {
         <Route
           path="/dashboard/admin"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="ADMIN">
               <DashboardAdmin />
             </ProtectedRoute>
           }

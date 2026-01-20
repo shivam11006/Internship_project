@@ -200,7 +200,7 @@ function DashboardLawyer() {
 
   const handleLogout = () => {
     authService.logout();
-    navigate('/signin');
+    navigate('/signin', { replace: true });
   };
 
   const handleViewProfile = () => {

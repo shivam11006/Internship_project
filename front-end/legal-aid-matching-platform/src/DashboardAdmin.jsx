@@ -512,7 +512,7 @@ function DashboardAdmin() {
 
   const handleLogout = () => {
     authService.logout();
-    navigate('/signin');
+    navigate('/signin', { replace: true });
   };
 
   const handleProfileUpdate = async () => {
