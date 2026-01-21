@@ -10,6 +10,29 @@ function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    // Email validation
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = 'Enter a valid email address';
+    }
+    
+    // Password validation
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleGoogleLogin = () => {
     alert('Google OAuth is not yet configured. Please use email/password login or contact the administrator.');
@@ -21,6 +44,12 @@ function SignIn() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+    
     setLoading(true);
     setApiError('');
 
@@ -109,10 +138,14 @@ function SignIn() {
                 id="email"
                 placeholder="Enter your email or username"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
+                }}
+                className={errors.email ? 'error' : ''}
               />
             </div>
+            {errors.email && <span className="error-message">{errors.email}</span>}
           </div>
 
           <div className="form-group">
@@ -123,8 +156,11 @@ function SignIn() {
                 id="password"
                 placeholder="Enter your password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors(prev => ({ ...prev, password: '' }));
+                }}
+                className={errors.password ? 'error' : ''}
               />
               <button
                 type="button"
@@ -145,6 +181,7 @@ function SignIn() {
                 )}
               </button>
             </div>
+            {errors.password && <span className="error-message">{errors.password}</span>}
           </div>
 
           <div className="forgot-password">
