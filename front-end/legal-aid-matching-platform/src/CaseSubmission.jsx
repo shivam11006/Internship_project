@@ -264,14 +264,14 @@ function CaseSubmission({ onSuccess, onClose }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Reset district when state changes
     if (name === 'state') {
       setFormData(prev => ({ ...prev, state: value, district: '' }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
-    
+
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -403,24 +403,24 @@ function CaseSubmission({ onSuccess, onClose }) {
     try {
       console.log('Starting case submission...');
       console.log('Form data:', formData);
-      
+
       // Map frontend data to backend CreateCaseRequest DTO
-      const attachments = uploadedFiles.length > 0 
+      const attachments = uploadedFiles.length > 0
         ? await Promise.all(
-            uploadedFiles.map(async (fileObj) => {
-              try {
-                const base64Content = await fileToBase64(fileObj.file);
-                return {
-                  name: fileObj.name,
-                  type: fileObj.type,
-                  content: base64Content
-                };
-              } catch (fileError) {
-                console.error('Error processing file:', fileObj.name, fileError);
-                throw new Error(`Failed to process file: ${fileObj.name}`);
-              }
-            })
-          )
+          uploadedFiles.map(async (fileObj) => {
+            try {
+              const base64Content = await fileToBase64(fileObj.file);
+              return {
+                name: fileObj.name,
+                type: fileObj.type,
+                content: base64Content
+              };
+            } catch (fileError) {
+              console.error('Error processing file:', fileObj.name, fileError);
+              throw new Error(`Failed to process file: ${fileObj.name}`);
+            }
+          })
+        )
         : [];
 
       const caseData = {
@@ -453,9 +453,9 @@ function CaseSubmission({ onSuccess, onClose }) {
         response: error.response?.data,
         status: error.response?.status
       });
-      
+
       let errorMessage = 'Failed to submit case. Please try again.';
-      
+
       if (error.message && error.message.includes('Failed to process file')) {
         errorMessage = error.message;
       } else if (error.response?.data?.message) {
@@ -463,7 +463,7 @@ function CaseSubmission({ onSuccess, onClose }) {
       } else if (error.message === 'Network Error' || !error.response) {
         errorMessage = 'Cannot connect to server. Please make sure the backend is running on port 8080.';
       }
-      
+
       alert(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -661,7 +661,7 @@ function CaseSubmission({ onSuccess, onClose }) {
           Location <span className="required">*</span>
         </label>
         <p className="field-hint" style={{ marginBottom: '12px' }}>This helps us connect you with local legal assistance.</p>
-        
+
         <div className="location-dropdowns">
           <div className="location-field">
             <label className="location-sub-label">State <span className="required">*</span></label>
@@ -678,7 +678,7 @@ function CaseSubmission({ onSuccess, onClose }) {
             </select>
             {errors.state && <span className="error-message">{errors.state}</span>}
           </div>
-          
+
           <div className="location-field">
             <label className="location-sub-label">District <span className="required">*</span></label>
             <select
@@ -862,7 +862,11 @@ function CaseSubmission({ onSuccess, onClose }) {
           </div>
           <div className="review-item">
             <span className="review-label">Location:</span>
-            <span className="review-value">{formData.location || 'Not specified'}</span>
+            <span className="review-value">
+              {formData.district && formData.state
+                ? `${formData.district}, ${formData.state}`
+                : 'Not specified'}
+            </span>
           </div>
           <div className="review-item">
             <span className="review-label">Priority:</span>
@@ -874,11 +878,11 @@ function CaseSubmission({ onSuccess, onClose }) {
 
         <div className="consent-section">
           <label className="consent-checkbox">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               checked={confirmAccurate}
               onChange={(e) => setConfirmAccurate(e.target.checked)}
-              required 
+              required
             />
             <span>
               I confirm that all information provided is accurate and I understand that
@@ -886,16 +890,16 @@ function CaseSubmission({ onSuccess, onClose }) {
             </span>
           </label>
           <label className="consent-checkbox">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               checked={agreeTerms}
               onChange={(e) => setAgreeTerms(e.target.checked)}
-              required 
+              required
             />
             <span>
               I agree to the{' '}
-              <a 
-                href="#" 
+              <a
+                href="#"
                 onClick={(e) => {
                   e.preventDefault();
                   setShowTerms(true);
@@ -904,8 +908,8 @@ function CaseSubmission({ onSuccess, onClose }) {
                 Terms of Service
               </a>{' '}
               and{' '}
-              <a 
-                href="#" 
+              <a
+                href="#"
                 onClick={(e) => {
                   e.preventDefault();
                   setShowPrivacy(true);
