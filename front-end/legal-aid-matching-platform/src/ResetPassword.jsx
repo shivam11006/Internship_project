@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { validatePassword, validateConfirmPassword } from './utils/validationUtils';
 import './ResetPassword.css';
 
 function ResetPassword() {
@@ -28,14 +29,17 @@ function ResetPassword() {
     setMessage('');
     setError('');
 
-    // Validate passwords
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    // Validate password with strong requirements
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.message);
       return;
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    // Validate confirm password
+    const confirmValidation = validateConfirmPassword(password, confirmPassword);
+    if (!confirmValidation.isValid) {
+      setError(confirmValidation.message);
       return;
     }
 

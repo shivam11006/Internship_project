@@ -99,7 +99,12 @@ function Matches({ caseId, onClose }) {
         <div className="matches-container">
           <div className="matches-header">
             <h2>Finding Matches...</h2>
-            <button className="close-btn" onClick={onClose}>&times;</button>
+            <button className="close-btn" onClick={onClose} aria-label="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
           <div className="loading-spinner">
             <div className="spinner"></div>
@@ -116,7 +121,12 @@ function Matches({ caseId, onClose }) {
         <div className="matches-container">
           <div className="matches-header">
             <h2>Error Loading Matches</h2>
-            <button className="close-btn" onClick={onClose}>&times;</button>
+            <button className="close-btn" onClick={onClose} aria-label="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
           <div style={{ padding: '40px', textAlign: 'center' }}>
             <p style={{ color: '#ef4444', marginBottom: '20px' }}>{error}</p>
@@ -150,7 +160,12 @@ function Matches({ caseId, onClose }) {
               {sortedMatches.length} legal provider{sortedMatches.length !== 1 ? 's' : ''} matched for your case
             </p>
           </div>
-          <button className="close-btn" onClick={onClose}>&times;</button>
+          <button className="close-btn" onClick={onClose} aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
         {/* Filters and Sort */}

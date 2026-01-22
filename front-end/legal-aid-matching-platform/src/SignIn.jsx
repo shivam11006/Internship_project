@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './services/authService';
+import { validateEmail, VALIDATION_PATTERNS } from './utils/validationUtils';
 import './SignIn.css';
 
 function SignIn() {
@@ -15,12 +16,19 @@ function SignIn() {
   const validateForm = () => {
     const newErrors = {};
     
-    // Email validation
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    // Email validation - supports both email format and username
     if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!emailRegex.test(email)) {
-      newErrors.email = 'Enter a valid email address';
+      newErrors.email = 'Email or username is required';
+    } else if (email.includes('@')) {
+      // If it looks like an email, validate as email
+      if (!VALIDATION_PATTERNS.email.test(email)) {
+        newErrors.email = 'Please enter a valid email address (e.g., user@example.com)';
+      }
+    } else {
+      // If it's a username, check for alphanumeric characters
+      if (!/^[a-zA-Z0-9_]{3,30}$/.test(email)) {
+        newErrors.email = 'Username must be 3-30 characters (letters, numbers, underscores only)';
+      }
     }
     
     // Password validation

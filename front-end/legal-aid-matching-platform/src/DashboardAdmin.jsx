@@ -2575,49 +2575,51 @@ function DashboardAdmin() {
                                   </button>
                                 )}
 
-                                {/* Delete Button */}
-                                <button
-                                  onClick={() => handleDeleteUser(u.id, u.username)}
-                                  disabled={actionLoading === u.id}
-                                  title="Permanently delete this user"
-                                  style={{
-                                    padding: '8px 12px',
-                                    border: 'none',
-                                    background: '#fee2e2',
-                                    color: '#991b1b',
-                                    borderRadius: '6px',
-                                    cursor: actionLoading === u.id ? 'not-allowed' : 'pointer',
-                                    fontSize: '12px',
-                                    fontWeight: '600',
-                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    opacity: actionLoading === u.id ? 0.6 : 1,
-                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
-                                  }}
-                                  onMouseOver={(e) => {
-                                    if (actionLoading !== u.id) {
-                                      e.target.style.background = '#fca5a5';
-                                      e.target.style.color = '#7f1d1d';
-                                      e.target.style.boxShadow = '0 4px 12px rgba(153, 27, 27, 0.25)';
-                                      e.target.style.transform = 'translateY(-1px)';
-                                    }
-                                  }}
-                                  onMouseOut={(e) => {
-                                    if (actionLoading !== u.id) {
-                                      e.target.style.background = '#fee2e2';
-                                      e.target.style.color = '#991b1b';
-                                      e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
-                                      e.target.style.transform = 'translateY(0)';
-                                    }
-                                  }}
-                                >
-                                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                  {actionLoading === u.id ? 'Deleting...' : 'Delete'}
-                                </button>
+                                {/* Delete Button - Hidden for Admin users */}
+                                {u.role !== 'ADMIN' && (
+                                  <button
+                                    onClick={() => handleDeleteUser(u.id, u.username)}
+                                    disabled={actionLoading === u.id}
+                                    title="Permanently delete this user"
+                                    style={{
+                                      padding: '8px 12px',
+                                      border: 'none',
+                                      background: '#fee2e2',
+                                      color: '#991b1b',
+                                      borderRadius: '6px',
+                                      cursor: actionLoading === u.id ? 'not-allowed' : 'pointer',
+                                      fontSize: '12px',
+                                      fontWeight: '600',
+                                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      opacity: actionLoading === u.id ? 0.6 : 1,
+                                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                                    }}
+                                    onMouseOver={(e) => {
+                                      if (actionLoading !== u.id) {
+                                        e.target.style.background = '#fca5a5';
+                                        e.target.style.color = '#7f1d1d';
+                                        e.target.style.boxShadow = '0 4px 12px rgba(153, 27, 27, 0.25)';
+                                        e.target.style.transform = 'translateY(-1px)';
+                                      }
+                                    }}
+                                    onMouseOut={(e) => {
+                                      if (actionLoading !== u.id) {
+                                        e.target.style.background = '#fee2e2';
+                                        e.target.style.color = '#991b1b';
+                                        e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                                        e.target.style.transform = 'translateY(0)';
+                                      }
+                                    }}
+                                  >
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    {actionLoading === u.id ? 'Deleting...' : 'Delete'}
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           ))

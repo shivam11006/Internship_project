@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { validateEmail, validatePassword, validateConfirmPassword, VALIDATION_PATTERNS } from './utils/validationUtils';
 import './ForgotPassword.css';
 
 function ForgotPassword() {
@@ -72,9 +73,17 @@ function ForgotPassword() {
   // Step 1: Send OTP to email
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setMessage('');
     setError('');
+    
+    // Validate email format
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      setError(emailValidation.message);
+      return;
+    }
+    
+    setLoading(true);
 
     try {
       const response = await fetch('http://localhost:8080/api/auth/forgot-password', {
@@ -170,20 +179,24 @@ function ForgotPassword() {
   // Step 3: Reset Password
   const handleResetPassword = async (e) => {
     e.preventDefault();
+    setMessage('');
+    setError('');
     
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    // Validate password with strong requirements
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.message);
       return;
     }
     
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    // Validate confirm password
+    const confirmValidation = validateConfirmPassword(password, confirmPassword);
+    if (!confirmValidation.isValid) {
+      setError(confirmValidation.message);
       return;
     }
     
     setLoading(true);
-    setMessage('');
-    setError('');
 
     try {
       const response = await fetch('http://localhost:8080/api/auth/reset-password', {

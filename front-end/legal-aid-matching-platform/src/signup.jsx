@@ -2,6 +2,18 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './signup.css';
 import authService from './services/authService';
+import { 
+  VALIDATION_PATTERNS, 
+  VALIDATION_MESSAGES,
+  validateEmail, 
+  validatePassword, 
+  validateConfirmPassword,
+  validateName,
+  validatePhone,
+  validateBarNumber,
+  validateRegistrationNumber,
+  getPasswordStrength
+} from './utils/validationUtils';
 
 function Signup() {
   const navigate = useNavigate();
@@ -33,75 +45,64 @@ function Signup() {
   const validate = () => {
     const newErrors = {};
 
-    // Full Name validation - Only letters and spaces, minimum 2 characters
-    const nameRegex = /^[a-zA-Z\s]{2,}$/;
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Username is required';
-    } else if (!nameRegex.test(formData.fullName.trim())) {
-      newErrors.fullName = 'Name must contain only letters and be at least 2 characters';
+    // Full Name validation using centralized utility
+    const nameValidation = validateName(formData.fullName);
+    if (!nameValidation.isValid) {
+      newErrors.fullName = nameValidation.message;
     }
 
-    // Email validation - RFC 5322 compliant
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!emailRegex.test(formData.email)) {
-      newErrors.email = 'Enter a valid email address (e.g., user@example.com)';
+    // Email validation using centralized utility
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.isValid) {
+      newErrors.email = emailValidation.message;
     }
 
-    // Password validation - Strong password requirements
-    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (!passwordRegex.test(formData.password)) {
-      newErrors.password = 'Password must be at least 8 characters with uppercase, lowercase, number & special character (@$!%*?&#)';
+    // Password validation using centralized utility
+    const passwordValidation = validatePassword(formData.password);
+    if (!passwordValidation.isValid) {
+      newErrors.password = passwordValidation.message;
     }
 
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (formData.confirmPassword !== formData.password) {
-      newErrors.confirmPassword = 'Passwords do not match';
+    // Confirm password validation using centralized utility
+    const confirmValidation = validateConfirmPassword(formData.password, formData.confirmPassword);
+    if (!confirmValidation.isValid) {
+      newErrors.confirmPassword = confirmValidation.message;
     }
 
     if (!formData.role) {
-      newErrors.role = 'Please select a role';
+      newErrors.role = VALIDATION_MESSAGES.required.role;
     }
 
-    // Phone number validation (if provided) - Indian format: 10 digits or with +91
-    const phoneRegex = /^(\+91[\s-]?)?[6-9]\d{9}$/;
-    if (formData.phone && !phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Enter a valid phone number (10 digits or +91XXXXXXXXXX)';
+    // Phone number validation using centralized utility (optional field)
+    const phoneValidation = validatePhone(formData.phone, false);
+    if (!phoneValidation.isValid) {
+      newErrors.phone = phoneValidation.message;
     }
 
     // Lawyer-specific validation
     if (formData.role === 'LAWYER') {
       if (!formData.specialization.trim()) {
-        newErrors.specialization = 'Specialization is required for lawyers';
+        newErrors.specialization = VALIDATION_MESSAGES.required.specialization;
       }
-      // Bar number validation - alphanumeric, minimum 5 characters
-      const barNumberRegex = /^[A-Z0-9]{5,}$/i;
-      if (!formData.barNumber.trim()) {
-        newErrors.barNumber = 'Bar number is required for lawyers';
-      } else if (!barNumberRegex.test(formData.barNumber)) {
-        newErrors.barNumber = 'Bar number must be at least 5 alphanumeric characters';
+      // Bar number validation using centralized utility
+      const barValidation = validateBarNumber(formData.barNumber);
+      if (!barValidation.isValid) {
+        newErrors.barNumber = barValidation.message;
       }
     }
 
     // NGO-specific validation
     if (formData.role === 'NGO') {
       if (!formData.organizationName.trim()) {
-        newErrors.organizationName = 'Organization name is required for NGOs';
+        newErrors.organizationName = VALIDATION_MESSAGES.required.organizationName;
       }
-      // Registration number validation - alphanumeric
-      const regNumberRegex = /^[A-Z0-9\-\/]{5,}$/i;
-      if (!formData.registrationNumber.trim()) {
-        newErrors.registrationNumber = 'Registration number is required for NGOs';
-      } else if (!regNumberRegex.test(formData.registrationNumber)) {
-        newErrors.registrationNumber = 'Registration number must be at least 5 characters (alphanumeric)';
+      // Registration number validation using centralized utility
+      const regValidation = validateRegistrationNumber(formData.registrationNumber);
+      if (!regValidation.isValid) {
+        newErrors.registrationNumber = regValidation.message;
       }
       if (!formData.focusArea.trim()) {
-        newErrors.focusArea = 'Focus area is required for NGOs';
+        newErrors.focusArea = VALIDATION_MESSAGES.required.focusArea;
       }
     }
 

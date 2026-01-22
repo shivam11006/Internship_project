@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import './CaseSubmission.css';
 import { apiClient } from './services/authService';
+import { VALIDATION_PATTERNS, validateCaseTitle, validateCaseDescription } from './utils/validationUtils';
 import TermsOfService from './TermsOfService';
 import PrivacyPolicy from './PrivacyPolicy';
 
@@ -306,16 +307,16 @@ function CaseSubmission({ onSuccess, onClose }) {
   const validateStep1 = () => {
     const newErrors = {};
 
-    if (!formData.title.trim()) {
-      newErrors.title = 'Case title is required';
-    } else if (formData.title.trim().length < 10) {
-      newErrors.title = 'Title should be at least 10 characters';
+    // Case title validation with regex pattern
+    const titleValidation = validateCaseTitle(formData.title);
+    if (!titleValidation.isValid) {
+      newErrors.title = titleValidation.message;
     }
 
-    if (!formData.description.trim()) {
-      newErrors.description = 'Case summary is required';
-    } else if (formData.description.trim().length < 50) {
-      newErrors.description = 'Please provide at least 50 characters describing your case';
+    // Case description validation
+    const descValidation = validateCaseDescription(formData.description, 50);
+    if (!descValidation.isValid) {
+      newErrors.description = descValidation.message;
     }
 
     if (!formData.caseType) {
@@ -323,11 +324,11 @@ function CaseSubmission({ onSuccess, onClose }) {
     }
 
     if (formData.expertiseTags.length === 0) {
-      newErrors.expertiseTags = 'Please select at least one expertise tag';
+      newErrors.expertiseTags = 'Please select at least one expertise tag to help match you with the right lawyer';
     }
 
     if (!formData.preferredLanguage) {
-      newErrors.preferredLanguage = 'Please select your preferred language';
+      newErrors.preferredLanguage = 'Please select your preferred language for communication';
     }
 
     setErrors(newErrors);
