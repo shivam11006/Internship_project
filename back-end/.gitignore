@@ -15,4 +15,4 @@ logs/
 *.gz
 
 # Application Properties (contains sensitive data)
-src/main/resources/application.properties
+application.properties
